@@ -1,0 +1,2345 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>БАТТЛ — Главный экран</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0B0B0D;
+    --panel: #17171B;
+    --panel-2: #1F1F24;
+    --line: #2A2A30;
+    --text: #F2F1EE;
+    --muted: #8A8A92;
+    --live: #FF3D2E;
+    --gold: #F2B705;
+  }
+
+  *{ box-sizing: border-box; margin:0; padding:0; }
+
+  html,body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    height: 100%;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body{
+    display:flex;
+    justify-content:center;
+    align-items:flex-start;
+    min-height:100vh;
+    padding: 24px 0;
+  }
+
+  .device{
+    width: 100%;
+    max-width: 420px;
+    min-height: 100vh;
+    background:
+      radial-gradient(120% 60% at 50% -10%, rgba(255,61,46,0.14), transparent 60%),
+      var(--bg);
+    position: relative;
+    overflow: hidden;
+    display:flex;
+    flex-direction:column;
+  }
+
+  /* top bar */
+  .topbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding: 20px 20px 0;
+  }
+
+  .brand{
+    font-family:'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 2px;
+    color: var(--text);
+  }
+  .brand span{ color: var(--live); }
+
+  .status-pill{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: var(--muted);
+    text-transform: uppercase;
+    border: 1px solid var(--line);
+    padding: 5px 10px;
+    border-radius: 100px;
+  }
+  .status-dot{
+    width:6px; height:6px; border-radius:50%;
+    background: #3ED598;
+    box-shadow: 0 0 6px #3ED598;
+  }
+
+  /* hero / stage */
+  .stage{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding: 20px 24px 10px;
+    text-align:center;
+  }
+
+  .ring-wrap{
+    position:relative;
+    width: 168px;
+    height: 168px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin-bottom: 26px;
+  }
+
+  .ring-pulse{
+    position:absolute;
+    inset:0;
+    border-radius:50%;
+    border: 1.5px solid rgba(255,61,46,0.55);
+    animation: pulse 2.4s ease-out infinite;
+  }
+  .ring-pulse.delay{ animation-delay: 1.2s; }
+
+  @keyframes pulse{
+    0%   { transform: scale(0.78); opacity: 0.9; }
+    75%  { transform: scale(1.25); opacity: 0; }
+    100% { transform: scale(1.25); opacity: 0; }
+  }
+
+  .avatar{
+    width: 116px;
+    height: 116px;
+    border-radius:50%;
+    background: linear-gradient(155deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    z-index:2;
+  }
+
+  .mic-icon{ width: 40px; height: 40px; }
+  .mic-icon path, .mic-icon rect, .mic-icon line{
+    stroke: var(--text);
+    stroke-width: 1.6;
+    fill:none;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+  }
+
+  .on-air{
+    position:absolute;
+    bottom: -4px;
+    left:50%;
+    transform: translateX(-50%);
+    background: var(--live);
+    color:#fff;
+    font-family:'Bebas Neue', sans-serif;
+    font-size: 12px;
+    letter-spacing: 2px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    z-index:3;
+    box-shadow: 0 4px 14px rgba(255,61,46,0.35);
+  }
+
+  .headline{
+    font-family:'Bebas Neue', sans-serif;
+    font-size: 34px;
+    letter-spacing: 1px;
+    line-height: 1.05;
+    margin-bottom: 8px;
+  }
+  .headline .accent{ color: var(--gold); }
+
+  .subline{
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.5;
+    max-width: 280px;
+  }
+
+  .waveform{
+    display:flex;
+    align-items:flex-end;
+    gap: 3px;
+    height: 20px;
+    margin-top: 18px;
+  }
+  .waveform span{
+    width: 3px;
+    background: var(--gold);
+    border-radius: 2px;
+    opacity: 0.85;
+    animation: bar 1.1s ease-in-out infinite;
+  }
+  .waveform span:nth-child(1){ height: 6px;  animation-delay: 0s; }
+  .waveform span:nth-child(2){ height: 14px; animation-delay: 0.1s; }
+  .waveform span:nth-child(3){ height: 20px; animation-delay: 0.2s; }
+  .waveform span:nth-child(4){ height: 10px; animation-delay: 0.3s; }
+  .waveform span:nth-child(5){ height: 16px; animation-delay: 0.4s; }
+  .waveform span:nth-child(6){ height: 8px;  animation-delay: 0.5s; }
+  .waveform span:nth-child(7){ height: 13px; animation-delay: 0.6s; }
+
+  @keyframes bar{
+    0%, 100% { transform: scaleY(0.55); }
+    50%      { transform: scaleY(1); }
+  }
+
+  /* action menu */
+  .actions{
+    padding: 6px 20px 28px;
+    display:flex;
+    flex-direction:column;
+    gap: 10px;
+  }
+
+  .action-row{
+    display:flex;
+    align-items:center;
+    gap: 14px;
+    padding: 15px 16px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    text-decoration:none;
+    color: var(--text);
+    cursor:pointer;
+    transition: border-color .15s ease, transform .1s ease, background .15s ease;
+  }
+  .action-row:active{ transform: scale(0.98); }
+
+  .action-row .icon{
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+  }
+  .action-row .icon svg{
+    width: 18px; height:18px;
+    stroke: var(--text);
+    stroke-width: 1.7;
+    fill:none;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+  }
+
+  .action-row .label-wrap{ flex:1; }
+  .action-row .label{
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 1px;
+  }
+  .action-row .desc{
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+
+  .action-row .chev{
+    width: 16px; height:16px;
+    stroke: var(--muted);
+    stroke-width: 1.8;
+    fill:none;
+  }
+
+  .action-row:hover{ border-color: #3A3A42; }
+
+  /* primary CTA — join battle */
+  .cta-join{
+    background: linear-gradient(135deg, #FF3D2E, #E22319);
+    border: none;
+    box-shadow: 0 10px 28px rgba(255,61,46,0.28);
+  }
+  .cta-join .icon{
+    background: rgba(0,0,0,0.18);
+    border-color: rgba(255,255,255,0.18);
+  }
+  .cta-join .icon svg{ stroke: #fff; }
+  .cta-join .label{ color:#fff; font-family:'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1px; }
+  .cta-join .desc{ color: rgba(255,255,255,0.75); }
+  .cta-join .chev{ stroke: rgba(255,255,255,0.8); }
+
+  /* footer roles legend */
+  .roles-legend{
+    display:flex;
+    justify-content:center;
+    gap: 18px;
+    padding: 0 20px 26px;
+    font-size: 11px;
+    color: var(--muted);
+    text-transform:uppercase;
+    letter-spacing: 0.5px;
+  }
+  .roles-legend div{ display:flex; align-items:center; gap:6px; }
+  .roles-legend .dot{ width:6px; height:6px; border-radius:50%; }
+  .dot.opp{ background: var(--live); }
+  .dot.ref{ background: var(--gold); }
+  .dot.aud{ background: #6C7CFF; }
+
+  /* ===== bottom sheet ===== */
+  .overlay{
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s ease;
+    z-index: 50;
+    display:flex;
+    justify-content:center;
+  }
+  .overlay.open{ opacity:1; pointer-events:auto; }
+
+  .sheet{
+    width: 100%;
+    max-width: 420px;
+    background: var(--bg);
+    border-top: 1px solid var(--line);
+    border-radius: 20px 20px 0 0;
+    align-self: flex-end;
+    transform: translateY(100%);
+    transition: transform .28s cubic-bezier(.32,.72,0,1);
+    max-height: 86vh;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+  }
+  .overlay.open .sheet{ transform: translateY(0); }
+
+  .sheet-grabber{
+    width: 36px; height: 4px;
+    background: var(--line);
+    border-radius: 4px;
+    margin: 10px auto 4px;
+  }
+
+  .sheet-head{
+    display:flex;
+    align-items:center;
+    gap: 10px;
+    padding: 10px 18px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .sheet-head .back{
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .sheet-head .back svg{ width:16px; height:16px; stroke:var(--text); stroke-width:2; fill:none; }
+  .sheet-head .back.hidden{ visibility:hidden; }
+  .sheet-title{
+    font-family:'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 1px;
+    flex:1;
+  }
+  .sheet-close{
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+  .sheet-close svg{ width:14px; height:14px; stroke:var(--muted); stroke-width:2; }
+
+  .sheet-body{
+    padding: 14px 18px 24px;
+    overflow-y:auto;
+  }
+
+  .sheet-view{ display:none; }
+  .sheet-view.active{ display:block; }
+
+  .cat-card{
+    display:flex;
+    align-items:center;
+    gap: 14px;
+    padding: 15px 14px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    margin-bottom: 10px;
+    cursor:pointer;
+    transition: border-color .15s ease, transform .1s ease;
+  }
+  .cat-card:active{ transform: scale(0.98); }
+  .cat-card:hover{ border-color:#3A3A42; }
+
+  .cat-card .icon{
+    width: 42px; height:42px;
+    border-radius: 11px;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+    border:1px solid var(--line);
+  }
+  .cat-card .icon svg{ width:20px; height:20px; stroke:var(--text); stroke-width:1.7; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+
+  .cat-card .icon.training{ background: linear-gradient(155deg, rgba(108,124,255,0.18), transparent); }
+  .cat-card .icon.points{ background: linear-gradient(155deg, rgba(242,183,5,0.18), transparent); }
+  .cat-card .icon.ref{ background: linear-gradient(155deg, rgba(62,213,152,0.18), transparent); }
+  .cat-card .icon.live{ background: linear-gradient(155deg, rgba(255,61,46,0.18), transparent); }
+
+  .cat-card .body{ flex:1; }
+  .cat-card .title{ font-size: 15px; font-weight:600; margin-bottom:2px; }
+  .cat-card .desc{ font-size: 12.5px; color:var(--muted); line-height:1.4; }
+
+  .cat-card .chev{ width:16px; height:16px; stroke:var(--muted); stroke-width:1.8; fill:none; flex-shrink:0; }
+
+  .badge{
+    display:inline-block;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    text-transform:uppercase;
+    padding: 2px 7px;
+    border-radius: 100px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .badge.stars{ background: rgba(242,183,5,0.15); color: var(--gold); }
+  .badge.live{ background: rgba(255,61,46,0.15); color: var(--live); }
+
+  .section-label{
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 18px 0 10px;
+  }
+  .section-label:first-child{ margin-top:0; }
+
+  /* league ladder */
+  .league-row{
+    display:flex;
+    align-items:center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    margin-bottom: 8px;
+  }
+  .league-row.current{ border-color: var(--gold); background: linear-gradient(155deg, rgba(242,183,5,0.08), var(--panel)); }
+  .league-row.major{ border-color: var(--live); background: linear-gradient(155deg, rgba(255,61,46,0.1), var(--panel)); }
+  .league-dot{ width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .league-row:nth-child(1) .league-dot{ background:#B08D57; }
+  .league-row:nth-child(2) .league-dot{ background:#C9C9CE; }
+  .league-row:nth-child(3) .league-dot{ background:#F2B705; }
+  .league-row.major .league-dot{ background: var(--live); }
+  .league-name{ font-size:14px; font-weight:600; flex:1; }
+  .league-range{ font-size:11.5px; color:var(--muted); }
+
+  .stat-line{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding: 12px 14px;
+    background: var(--panel-2);
+    border-radius: 12px;
+    margin-bottom: 14px;
+    font-size: 13px;
+  }
+  .stat-line .val{ font-family:'Bebas Neue', sans-serif; font-size:18px; letter-spacing:0.5px; color: var(--gold); }
+
+  .sheet-cta{
+    width:100%;
+    padding: 15px;
+    border-radius: 14px;
+    border:none;
+    font-family:'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 1px;
+    color:#fff;
+    background: linear-gradient(135deg, #FF3D2E, #E22319);
+    cursor:pointer;
+    margin-top: 6px;
+  }
+  .sheet-cta.secondary{
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--line);
+  }
+
+  /* live tabs */
+  .tabs{
+    display:flex;
+    gap: 6px;
+    background: var(--panel-2);
+    padding: 4px;
+    border-radius: 12px;
+    margin-bottom: 14px;
+  }
+  .tab{
+    flex:1;
+    text-align:center;
+    padding: 8px 0;
+    font-size: 13px;
+    font-weight:600;
+    border-radius: 9px;
+    cursor:pointer;
+    color: var(--muted);
+  }
+  .tab.active{ background: var(--panel); color: var(--text); }
+
+  .stream-row{
+    display:flex;
+    align-items:center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--panel);
+    border:1px solid var(--line);
+    border-radius: 12px;
+    margin-bottom: 8px;
+  }
+  .stream-thumb{
+    width: 46px; height:46px;
+    border-radius: 10px;
+    background: var(--panel-2);
+    border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+    position:relative;
+  }
+  .stream-thumb svg{ width:18px; height:18px; stroke:var(--muted); stroke-width:1.7; fill:none; }
+  .stream-info{ flex:1; min-width:0; }
+  .stream-title{ font-size:13.5px; font-weight:600; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .stream-meta{ font-size:11.5px; color:var(--muted); }
+  .dl-btn{
+    width:32px; height:32px;
+    border-radius:8px;
+    background: var(--panel-2);
+    border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .dl-btn svg{ width:15px; height:15px; stroke:var(--text); stroke-width:1.8; fill:none; }
+
+  /* ===== profile sheet ===== */
+  .profile-head{
+    display:flex;
+    align-items:center;
+    gap: 14px;
+    padding: 18px 0 20px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 18px;
+  }
+  .profile-avatar{
+    width: 62px; height: 62px;
+    border-radius: 50%;
+    background: linear-gradient(155deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Bebas Neue', sans-serif;
+    font-size: 24px;
+    letter-spacing: 1px;
+    flex-shrink:0;
+  }
+  .profile-name{ font-size: 17px; font-weight: 700; margin-bottom: 2px; }
+  .profile-username{ font-size: 13px; color: var(--muted); }
+  .profile-league-tag{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    margin-top: 6px;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--gold);
+    border: 1px solid rgba(242,183,5,0.35);
+    background: rgba(242,183,5,0.08);
+    padding: 3px 9px;
+    border-radius: 100px;
+  }
+  .profile-league-tag .dot{ width:6px; height:6px; border-radius:50%; background: var(--gold); }
+
+  .balance-grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .balance-card{
+    padding: 14px;
+    border-radius: 14px;
+    border: 1px solid var(--line);
+  }
+  .balance-card.stars{ background: linear-gradient(155deg, rgba(242,183,5,0.12), var(--panel)); border-color: rgba(242,183,5,0.3); }
+  .balance-card.points{ background: linear-gradient(155deg, rgba(108,124,255,0.1), var(--panel)); border-color: rgba(108,124,255,0.3); }
+  .balance-label{ font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .balance-value{ font-family:'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 0.5px; display:flex; align-items:baseline; gap:5px; }
+  .balance-value .unit{ font-family:'Inter',sans-serif; font-size: 12px; color: var(--muted); font-weight:500; }
+
+
+  .profile-avatar.has-image{background-size:cover;background-position:center;color:transparent;}
+  .stats-grid{
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .stat-card{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 8px;
+    text-align:center;
+  }
+  .stat-card .num{ font-family:'Bebas Neue', sans-serif; font-size: 19px; letter-spacing: 0.5px; }
+  .stat-card .cap{ font-size: 10.5px; color: var(--muted); text-transform:uppercase; letter-spacing:0.4px; margin-top:2px; }
+  .stat-card.win .num{ color: #3ED598; }
+  .stat-card.loss .num{ color: var(--live); }
+
+  /* ===== settings sheet ===== */
+  .theme-grid{
+    display:grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+  .theme-card{
+    position:relative;
+    border-radius: 14px;
+    border: 1.5px solid var(--line);
+    padding: 12px;
+    cursor:pointer;
+    transition: border-color .15s ease, transform .1s ease;
+    overflow:hidden;
+  }
+  .theme-card:active{ transform: scale(0.97); }
+  .theme-card.selected{ border-color: var(--gold); }
+
+  .theme-preview{
+    height: 46px;
+    border-radius: 9px;
+    margin-bottom: 9px;
+    display:flex;
+    align-items:flex-end;
+    padding: 6px;
+    gap: 4px;
+    position:relative;
+  }
+  .theme-preview .swatch-dot{ width:9px; height:9px; border-radius:50%; }
+
+  .theme-name{ font-size: 12.5px; font-weight: 600; }
+  .theme-check{
+    position:absolute;
+    top: 8px; right: 8px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--gold);
+    display:none;
+    align-items:center;
+    justify-content:center;
+  }
+  .theme-check svg{ width:11px; height:11px; stroke:#0B0B0D; stroke-width:3; fill:none; }
+  .theme-card.selected .theme-check{ display:flex; }
+
+  .toggle-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding: 13px 4px;
+    border-bottom: 1px solid var(--line);
+  }
+  .toggle-row:last-child{ border-bottom:none; }
+  .toggle-row .t-label{ font-size: 14px; font-weight: 500; }
+  .toggle-row .t-desc{ font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+
+  .switch{
+    width: 42px; height: 24px;
+    border-radius: 100px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    position: relative;
+    cursor: pointer;
+    flex-shrink:0;
+    transition: background .15s ease;
+  }
+  .switch::after{
+    content:'';
+    position:absolute;
+    top: 2px; left: 2px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--text);
+    transition: transform .15s ease;
+  }
+  .switch.on{ background: linear-gradient(135deg, #FF3D2E, #E22319); border-color: transparent; }
+  .switch.on::after{ transform: translateX(18px); background: #fff; }
+
+  .plain-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding: 13px 4px;
+    border-bottom: 1px solid var(--line);
+    cursor:pointer;
+  }
+  .plain-row:last-child{ border-bottom:none; }
+  .plain-row .t-label{ font-size: 14px; font-weight: 500; }
+  .plain-row .t-val{ font-size: 13px; color: var(--muted); }
+
+  .version-block{
+    text-align:center;
+    padding: 18px 0 6px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .version-block .v-num{
+    font-family:'Bebas Neue', sans-serif;
+    font-size: 15px;
+    letter-spacing: 1px;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  /* ===== admin panel ===== */
+  .admin-search{
+    display:flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .admin-search input{
+    flex:1;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+  }
+  .admin-search input::placeholder{ color: var(--muted); }
+  .admin-search button{
+    background: var(--gold);
+    color: #0B0B0D;
+    border: none;
+    border-radius: 12px;
+    padding: 0 18px;
+    font-family:'Bebas Neue', sans-serif;
+    font-size: 14px;
+    letter-spacing: 1px;
+    cursor:pointer;
+  }
+
+  .admin-result{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px;
+    display:none;
+  }
+  .admin-result .r-name{ font-size: 15px; font-weight:700; margin-bottom: 2px; }
+  .admin-result .r-id{ font-size: 12.5px; color: var(--muted); margin-bottom: 14px; }
+  .admin-result .r-toggle-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+  .admin-result .r-toggle-label{ font-size: 14px; font-weight:600; }
+
+  .admin-empty{
+    text-align:center;
+    color: var(--muted);
+    font-size: 13px;
+    padding: 20px 0;
+  }
+
+  .role-option{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1.5px solid var(--line);
+    background: var(--panel-2);
+    cursor:pointer;
+    font-size: 14px;
+    font-weight:600;
+  }
+  .role-option.active{ border-color: var(--gold); background: rgba(242,183,5,0.1); color: var(--gold); }
+  .role-option.disabled{ opacity: 0.4; cursor:not-allowed; }
+  .role-option .r-check{ width:16px; height:16px; stroke: var(--gold); stroke-width:2.5; fill:none; display:none; }
+  .role-option.active .r-check{ display:block; }
+
+  .user-row{
+    display:flex;
+    align-items:center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    cursor:pointer;
+  }
+  .user-row:hover{ border-color: #3A3A42; }
+  .user-row .u-avatar{
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Bebas Neue', sans-serif;
+    font-size: 13px;
+    flex-shrink:0;
+    position:relative;
+  }
+  .user-row .u-online-dot{
+    position:absolute;
+    bottom: -1px; right: -1px;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #3ED598;
+    border: 2px solid var(--panel);
+    display:none;
+  }
+  .user-row.online .u-online-dot{ display:block; }
+  .user-row .u-info{ flex:1; min-width:0; }
+  .user-row .u-name{ font-size: 13.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .user-row .u-id{ font-size: 11.5px; color: var(--muted); }
+  .user-row .u-role-badge{
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 100px;
+    flex-shrink:0;
+  }
+  .u-role-badge.role-user{ background: var(--panel-2); color: var(--muted); }
+  .u-role-badge.role-moderator{ background: rgba(108,124,255,0.15); color: #6C7CFF; }
+  .u-role-badge.role-admin{ background: rgba(255,61,46,0.15); color: var(--live); }
+  .u-role-badge.role-superadmin{ background: rgba(242,183,5,0.15); color: var(--gold); }
+</style>
+</head>
+<body>
+
+<div class="device">
+
+  <div class="topbar">
+    <div class="brand">MIC<span>BATTLE</span></div>
+    <div class="status-pill">
+      <div class="status-dot"></div>
+      <span id="online-count">онлайн …</span>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="ring-wrap">
+      <div class="ring-pulse"></div>
+      <div class="ring-pulse delay"></div>
+      <div class="avatar">
+        <svg class="mic-icon" viewBox="0 0 24 24">
+          <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/>
+          <path d="M6 11v1a6 6 0 0 0 12 0v-1"/>
+          <line x1="12" y1="20" x2="12" y2="23"/>
+          <line x1="8" y1="23" x2="16" y2="23"/>
+        </svg>
+        <div class="on-air">В ЭФИРЕ</div>
+      </div>
+    </div>
+
+    <h1 class="headline">Тролль<span class="accent">-баттл</span></h1>
+    <p class="subline">Голосовой баттл 1×1 — острые языки, живой рефери и зрители, которые решают, кто сильнее</p>
+
+    <div class="waveform">
+      <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+  </div>
+
+  <div class="actions">
+
+    <div class="action-row cta-join">
+      <div class="icon">
+        <svg viewBox="0 0 24 24"><path d="M5 3l14 9-14 9V3z"/></svg>
+      </div>
+      <div class="label-wrap">
+        <div class="label">УЧАСТВОВАТЬ</div>
+        <div class="desc">Встать в очередь на баттл</div>
+      </div>
+      <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+    </div>
+
+    <div class="action-row" id="profile-btn">
+      <div class="icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1.2-3.6 4-5.5 7-5.5s5.8 1.9 7 5.5"/></svg>
+      </div>
+      <div class="label-wrap">
+        <div class="label">Профиль</div>
+        <div class="desc">Статистика, рейтинг, история баттлов</div>
+      </div>
+      <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+    </div>
+
+    <div class="action-row" id="settings-btn">
+      <div class="icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.97 7.97 0 0 0 0-2l2-1.5-2-3.4-2.4 1a8.1 8.1 0 0 0-1.7-1L15 3h-4l-.3 2.6a8.1 8.1 0 0 0-1.7 1l-2.4-1-2 3.4L6.6 11a7.97 7.97 0 0 0 0 2l-2 1.5 2 3.4 2.4-1c.5.4 1.1.75 1.7 1L11 21h4l.3-2.6c.6-.25 1.2-.6 1.7-1l2.4 1 2-3.4-2-1.5z"/></svg>
+      </div>
+      <div class="label-wrap">
+        <div class="label">Настройки</div>
+        <div class="desc">Микрофон, уведомления, аккаунт</div>
+      </div>
+      <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+    </div>
+
+    <div class="action-row" id="admin-btn" style="display:none; border-color: rgba(242,183,5,0.35);">
+      <div class="icon" style="background: linear-gradient(155deg, rgba(242,183,5,0.18), transparent);">
+        <svg viewBox="0 0 24 24"><path d="M12 2l3 6.5 7 .9-5.2 4.9 1.4 7-6.2-3.6-6.2 3.6 1.4-7L2 9.4l7-.9z"/></svg>
+      </div>
+      <div class="label-wrap">
+        <div class="label" id="admin-btn-label">Админ-панель</div>
+        <div class="desc" id="admin-btn-desc">Управление доступом по ID игрока</div>
+      </div>
+      <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+    </div>
+
+    <div class="action-row" id="log-btn" style="display:none; border-color: rgba(108,124,255,0.35);">
+      <div class="icon" style="background: linear-gradient(155deg, rgba(108,124,255,0.18), transparent);">
+        <svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+      </div>
+      <div class="label-wrap">
+        <div class="label">Журнал событий</div>
+        <div class="desc">Все действия модерации на площадке</div>
+      </div>
+      <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ===== bottom sheet ===== -->
+<div class="overlay" id="overlay">
+  <div class="sheet" id="sheet">
+    <div class="sheet-grabber"></div>
+    <div class="sheet-head">
+      <div class="back hidden" id="back-btn">
+        <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+      </div>
+      <div class="sheet-title" id="sheet-title">Участвовать</div>
+      <div class="sheet-close" id="close-btn">
+        <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+
+    <div class="sheet-body">
+
+      <!-- level 0: main — теперь сразу ведёт в баттл с другом -->
+      <div class="sheet-view active" data-view="main">
+
+        <div class="cat-card" data-goto="friend-create">
+          <div class="icon training">
+            <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c.8-3 3-4.6 6-4.6s5.2 1.6 6 4.6"/><path d="M15 15.5c2.4.2 4 1.6 4.6 4.5"/></svg>
+          </div>
+          <div class="body">
+            <div class="title">Создать баттл с другом</div>
+            <div class="desc">Получишь код — отправь его сопернику</div>
+          </div>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+
+        <div class="cat-card" data-goto="friend-join">
+          <div class="icon points">
+            <svg viewBox="0 0 24 24"><path d="M12 20v-6M12 14l-4 4M12 14l4 4"/><rect x="4" y="3" width="16" height="8" rx="2"/></svg>
+          </div>
+          <div class="body">
+            <div class="title">Ввести код друга</div>
+            <div class="desc">Присоединиться к уже созданному баттлу</div>
+          </div>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+
+      </div>
+
+      <!-- level 1: создание комнаты -->
+      <div class="sheet-view" data-view="friend-create">
+        <div id="fc-idle">
+          <p style="color:var(--muted); font-size:13.5px; line-height:1.5; margin-bottom:16px;">
+            Нажми «Создать», получишь код из 5 символов. Перешли его другу — как только он введёт его на своём телефоне, баттл начнётся у вас обоих.
+          </p>
+          <button class="sheet-cta" id="btn-create-room">Создать комнату</button>
+        </div>
+
+        <div id="fc-waiting" style="display:none; text-align:center;">
+          <div class="section-label" style="text-align:center;">Код комнаты</div>
+          <div id="room-code-display" style="font-family:'Bebas Neue',sans-serif; font-size:44px; letter-spacing:6px; color:var(--gold); margin:6px 0 18px;">—————</div>
+          <button class="sheet-cta secondary" id="btn-copy-code" style="margin-bottom:10px;">Скопировать код</button>
+          <div style="display:flex; align-items:center; justify-content:center; gap:8px; color:var(--muted); font-size:13px; margin-top:14px;">
+            <div class="status-dot"></div> Ждём соперника…
+          </div>
+        </div>
+      </div>
+
+      <!-- level 1: ввод кода -->
+      <div class="sheet-view" data-view="friend-join">
+        <p style="color:var(--muted); font-size:13.5px; line-height:1.5; margin-bottom:16px;">
+          Введи код, который прислал друг — баттл начнётся сразу у вас обоих.
+        </p>
+        <div class="admin-search">
+          <input type="text" id="join-code-input" placeholder="XXXXX" style="text-transform:uppercase; letter-spacing:3px; text-align:center; font-family:'Bebas Neue',sans-serif; font-size:18px;">
+          <button id="btn-join-room">Войти</button>
+        </div>
+        <div id="join-error" style="display:none; color:var(--live); font-size:13px; margin-top:10px; text-align:center;"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ===== battle room — комната ожидает / уже идёт баттл ===== -->
+<div class="overlay" id="room-overlay">
+  <div class="sheet">
+    <div class="sheet-grabber"></div>
+    <div class="sheet-head">
+      <div class="back hidden"></div>
+      <div class="sheet-title">Баттл</div>
+      <div class="sheet-close" id="room-close-btn">
+        <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+    <div class="sheet-body" style="text-align:center; padding-top:24px;">
+      <div style="font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:1px; color:var(--live); margin-bottom:20px;">СОПЕРНИК НАЙДЕН</div>
+      <div style="display:flex; align-items:center; justify-content:center; gap:20px; margin-bottom:24px;">
+        <div style="text-align:center;">
+          <div class="profile-avatar" id="room-host-avatar" style="margin:0 auto 8px;">—</div>
+          <div style="font-size:13px; font-weight:600;" id="room-host-name">—</div>
+        </div>
+        <div style="font-family:'Bebas Neue',sans-serif; font-size:20px; color:var(--muted);">VS</div>
+        <div style="text-align:center;">
+          <div class="profile-avatar" id="room-guest-avatar" style="margin:0 auto 8px;">—</div>
+          <div style="font-size:13px; font-weight:600;" id="room-guest-name">—</div>
+        </div>
+      </div>
+
+      <div id="voice-status" style="display:flex; align-items:center; justify-content:center; gap:8px; color:var(--muted); font-size:13px; margin-bottom:20px;">
+        <div class="status-dot"></div> Подключаем голос…
+      </div>
+
+      <div style="display:flex; justify-content:center;">
+        <button id="btn-toggle-mute" style="width:64px; height:64px; border-radius:50%; border:none; background:var(--panel-2); border:1px solid var(--line); cursor:pointer; display:flex; align-items:center; justify-content:center;">
+          <svg id="mute-icon" viewBox="0 0 24 24" style="width:26px;height:26px;stroke:var(--text);stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;">
+            <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/>
+            <path d="M6 11v1a6 6 0 0 0 12 0v-1"/>
+            <line x1="12" y1="20" x2="12" y2="23"/>
+          </svg>
+        </button>
+      </div>
+
+      <audio id="room-remote-audio" autoplay playsinline></audio>
+    </div>
+  </div>
+</div>
+
+<script>
+  const overlay = document.getElementById('overlay');
+  const sheet = document.getElementById('sheet');
+  const titleEl = document.getElementById('sheet-title');
+  const backBtn = document.getElementById('back-btn');
+
+  const titles = {
+    main: 'Участвовать',
+    'friend-create': 'Создать баттл',
+    'friend-join': 'Ввести код'
+  };
+
+  function showView(name){
+    document.querySelectorAll('.sheet-view').forEach(v => v.classList.remove('active'));
+    document.querySelector(`.sheet-view[data-view="${name}"]`).classList.add('active');
+    titleEl.textContent = titles[name];
+    backBtn.classList.toggle('hidden', name === 'main');
+    sheet.dataset.current = name;
+    sheet.scrollTop = 0;
+  }
+
+  function openSheet(){
+    showView('main');
+    overlay.classList.add('open');
+  }
+  function closeSheet(){
+    overlay.classList.remove('open');
+  }
+
+  document.querySelector('.cta-join').addEventListener('click', openSheet);
+  document.getElementById('close-btn').addEventListener('click', closeSheet);
+  overlay.addEventListener('click', (e) => { if(e.target === overlay) closeSheet(); });
+  backBtn.addEventListener('click', () => showView('main'));
+
+  document.querySelectorAll('[data-goto]').forEach(el => {
+    el.addEventListener('click', () => showView(el.dataset.goto));
+  });
+
+  // ===== баттл с другом — реальная логика через Firebase =====
+  function generateRoomCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    return code;
+  }
+
+  const roomOverlay = document.getElementById('room-overlay');
+  let myRoomListener = null;
+  let myRoomCode = null;
+
+  function showRoom(code, data, isHost) {
+    myRoomCode = code;
+    document.getElementById('room-host-name').textContent = data.hostName || '—';
+    document.getElementById('room-host-avatar').textContent = (data.hostName || '??').slice(0, 2).toUpperCase();
+    document.getElementById('room-guest-name').textContent = data.guestName || '—';
+    document.getElementById('room-guest-avatar').textContent = (data.guestName || '??').slice(0, 2).toUpperCase();
+    overlay.classList.remove('open');
+    roomOverlay.classList.add('open');
+    if (typeof setupVoiceConnection === 'function') setupVoiceConnection(code, isHost);
+  }
+
+  document.getElementById('btn-create-room').addEventListener('click', () => {
+    const me = window.currentPlayer || { firstName: 'Игрок', playerId: 'guest' };
+    const code = generateRoomCode();
+
+    db.ref('battles/' + code).set({
+      hostId: me.playerId,
+      hostName: me.firstName,
+      guestId: null,
+      guestName: null,
+      status: 'waiting',
+      createdAt: Date.now()
+    }).then(() => {
+      document.getElementById('fc-idle').style.display = 'none';
+      document.getElementById('fc-waiting').style.display = 'block';
+      document.getElementById('room-code-display').textContent = code;
+
+      // слушаем — как только друг присоединится, статус сменится на 'active'
+      myRoomListener = db.ref('battles/' + code).on('value', (snap) => {
+        const data = snap.val();
+        if (data && data.status === 'active') {
+          db.ref('battles/' + code).off('value', myRoomListener);
+          showRoom(code, data, true);
+        }
+      });
+    });
+  });
+
+  document.getElementById('btn-copy-code').addEventListener('click', () => {
+    const code = document.getElementById('room-code-display').textContent;
+    navigator.clipboard?.writeText(code);
+  });
+
+  document.getElementById('btn-join-room').addEventListener('click', () => {
+    const input = document.getElementById('join-code-input');
+    const code = input.value.trim().toUpperCase();
+    const errorEl = document.getElementById('join-error');
+    errorEl.style.display = 'none';
+    if (!code) return;
+
+    const me = window.currentPlayer || { firstName: 'Игрок', playerId: 'guest' };
+
+    // transaction() гарантирует атомарность: Firebase сама разрулит ситуацию,
+    // если два человека одновременно жмут "Войти" в одну комнату — займёт
+    // только один, второй получит committed:false без гонки состояний
+    db.ref('battles/' + code).transaction((data) => {
+      if (data === null) return undefined; // комнаты нет — отменяем транзакцию, ничего не создаём
+      if (data.status !== 'waiting') return; // уже занята — отменяем транзакцию
+      data.guestId = me.playerId;
+      data.guestName = me.firstName;
+      data.status = 'active';
+      return data;
+    }).then((result) => {
+      const { committed, snapshot } = result;
+      const data = snapshot.val();
+
+      if (!data) {
+        errorEl.textContent = 'Комната с таким кодом не найдена';
+        errorEl.style.display = 'block';
+        return;
+      }
+      if (!committed) {
+        errorEl.textContent = 'Эта комната уже занята';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      showRoom(code, data, false);
+    }).catch(() => {
+      errorEl.textContent = 'Не удалось подключиться, попробуй ещё раз';
+      errorEl.style.display = 'block';
+    });
+  });
+
+  document.getElementById('room-close-btn').addEventListener('click', () => {
+    roomOverlay.classList.remove('open');
+    teardownVoiceConnection();
+  });
+
+  // ===== WebRTC — реальный голосовой канал между двумя участниками комнаты =====
+  // Firebase используется только как сигнальный сервер: через него оппоненты
+  // обмениваются offer/answer/ICE-кандидатами, а сам звук потом идёт напрямую,
+  // peer-to-peer, минуя базу данных.
+  let peerConnection = null;
+  let localStream = null;
+  let voiceSignalingRefs = [];
+  let isMuted = false;
+
+  const rtcConfig = {
+    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    // без TURN-сервера связь может не установиться у части пользователей за
+    // жёстким NAT/мобильным оператором — для полной надёжности нужен свой TURN,
+    // это отдельный шаг на будущее
+  };
+
+  function setVoiceStatus(text) {
+    const el = document.getElementById('voice-status');
+    if (el) el.innerHTML = `<div class="status-dot"></div> ${text}`;
+  }
+
+  async function setupVoiceConnection(code, isHost) {
+    if (!window.micPermissionGranted) {
+      setVoiceStatus('Нет доступа к микрофону — разреши в Настройках');
+      return;
+    }
+
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+      });
+    } catch (err) {
+      setVoiceStatus('Не удалось получить микрофон');
+      return;
+    }
+
+    setVoiceStatus('Соединяем…');
+
+    peerConnection = new RTCPeerConnection(rtcConfig);
+    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+    const remoteAudio = document.getElementById('room-remote-audio');
+    peerConnection.ontrack = (event) => {
+      remoteAudio.srcObject = event.streams[0];
+      setVoiceStatus('Связь установлена');
+    };
+
+    peerConnection.oniceconnectionstatechange = () => {
+      if (['failed', 'disconnected'].includes(peerConnection.iceConnectionState)) {
+        setVoiceStatus('Связь потеряна — попробуй переподключиться');
+      }
+    };
+
+    const myRole = isHost ? 'host' : 'guest';
+    const otherRole = isHost ? 'guest' : 'host';
+    const sigBase = `battles/${code}/signaling`;
+
+    peerConnection.onicecandidate = (event) => {
+      if (event.candidate) {
+        db.ref(`${sigBase}/candidates/${myRole}`).push(event.candidate.toJSON());
+      }
+    };
+
+    const candidatesRef = db.ref(`${sigBase}/candidates/${otherRole}`);
+    candidatesRef.on('child_added', (snap) => {
+      const candidate = snap.val();
+      if (candidate) peerConnection.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
+    });
+    voiceSignalingRefs.push(candidatesRef);
+
+    if (isHost) {
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+      await db.ref(`${sigBase}/offer`).set({ sdp: offer.sdp, type: offer.type });
+
+      const answerRef = db.ref(`${sigBase}/answer`);
+      answerRef.on('value', async (snap) => {
+        const answer = snap.val();
+        if (answer && !peerConnection.currentRemoteDescription) {
+          await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        }
+      });
+      voiceSignalingRefs.push(answerRef);
+    } else {
+      const offerRef = db.ref(`${sigBase}/offer`);
+      offerRef.on('value', async (snap) => {
+        const offer = snap.val();
+        if (offer && !peerConnection.currentRemoteDescription) {
+          await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+          const answer = await peerConnection.createAnswer();
+          await peerConnection.setLocalDescription(answer);
+          await db.ref(`${sigBase}/answer`).set({ sdp: answer.sdp, type: answer.type });
+        }
+      });
+      voiceSignalingRefs.push(offerRef);
+    }
+  }
+
+  function teardownVoiceConnection() {
+    if (localStream) {
+      localStream.getTracks().forEach(t => t.stop());
+      localStream = null;
+    }
+    if (peerConnection) {
+      peerConnection.close();
+      peerConnection = null;
+    }
+    voiceSignalingRefs.forEach(ref => ref.off());
+    voiceSignalingRefs = [];
+    isMuted = false;
+  }
+
+  document.getElementById('btn-toggle-mute').addEventListener('click', () => {
+    if (!localStream) return;
+    isMuted = !isMuted;
+    localStream.getAudioTracks().forEach(t => t.enabled = !isMuted);
+    document.getElementById('btn-toggle-mute').style.background = isMuted ? 'var(--live)' : 'var(--panel-2)';
+  });
+</script>
+
+<!-- ===== profile sheet ===== -->
+<div class="overlay" id="profile-overlay">
+  <div class="sheet">
+    <div class="sheet-grabber"></div>
+    <div class="sheet-head">
+      <div class="back hidden"></div>
+      <div class="sheet-title">Профиль</div>
+      <div class="sheet-close" id="profile-close-btn">
+        <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+
+    <div class="sheet-body">
+
+      <div class="profile-head">
+        <div style="position:relative;flex-shrink:0;">
+          <div class="profile-avatar" id="profile-avatar">ОК</div>
+          <button id="profile-avatar-btn" type="button" style="position:absolute;right:-4px;bottom:-4px;width:28px;height:28px;border-radius:50%;border:2px solid var(--bg);background:var(--gold);color:#0B0B0D;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;">+</button>
+          <input id="profile-avatar-input" type="file" accept="image/*" style="display:none">
+        </div>
+        <div style="min-width:0;">
+          <div class="profile-name" id="profile-name">Олег</div>
+          <div class="profile-username" id="profile-username">PLR-XXXXXX</div>
+          <div class="profile-league-tag" style="display:none"><span class="dot"></span></div>
+        </div>
+      </div>
+
+      <div class="balance-grid">
+        <div class="balance-card stars">
+          <div class="balance-label">Баланс Stars</div>
+          <div class="balance-value" id="profile-stars">0 <span class="unit">⭐</span></div>
+        </div>
+        <div class="balance-card points">
+          <div class="balance-label">Баланс поинтов</div>
+          <div class="balance-value" id="profile-points">0 <span class="unit">pts</span></div>
+        </div>
+      </div>
+
+      <div class="section-label">Статистика</div>
+      <div class="stats-grid">
+        <div class="stat-card win"><div class="num" id="stat-wins">0</div><div class="cap">Побед</div></div>
+        <div class="stat-card loss"><div class="num" id="stat-losses">0</div><div class="cap">Поражений</div></div>
+        <div class="stat-card"><div class="num" id="stat-winrate">0%</div><div class="cap">Винрейт</div></div>
+        <div class="stat-card"><div class="num" id="stat-battles">0</div><div class="cap">Баттлов</div></div>
+        <div class="stat-card"><div class="num" id="stat-referee">0</div><div class="cap">Как рефери</div></div>
+        <div class="stat-card"><div class="num" id="stat-likes">0</div><div class="cap">Симпатий</div></div>
+      </div>
+
+      <div class="section-label">Матчи</div>
+      <div id="profile-match-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;">
+        <div class="admin-empty">Матчей пока нет</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  const profileOverlay = document.getElementById('profile-overlay');
+  document.getElementById('profile-btn').addEventListener('click', () => {
+    profileOverlay.classList.add('open');
+    if (typeof renderProfileFromMatches === 'function') renderProfileFromMatches();
+  });
+  document.getElementById('profile-close-btn').addEventListener('click', () => profileOverlay.classList.remove('open'));
+  profileOverlay.addEventListener('click', (e) => { if(e.target === profileOverlay) profileOverlay.classList.remove('open'); });
+
+  const avatarBtn = document.getElementById('profile-avatar-btn');
+  const avatarInput = document.getElementById('profile-avatar-input');
+  avatarBtn?.addEventListener('click', () => avatarInput?.click());
+  avatarInput?.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    const me = window.currentPlayer;
+    if (!file || !me || !window.currentTelegramId) return;
+    if (!file.type.startsWith('image/')) return;
+    try {
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;});
+      const size = 256;
+      const canvas = document.createElement('canvas'); canvas.width=size; canvas.height=size;
+      const ctx=canvas.getContext('2d');
+      const scale=Math.max(size/img.width,size/img.height);
+      const w=img.width*scale,h=img.height*scale;
+      ctx.drawImage(img,(size-w)/2,(size-h)/2,w,h);
+      URL.revokeObjectURL(img.src);
+      const dataUrl=canvas.toDataURL('image/jpeg',0.82);
+      await db.ref('users/'+window.currentTelegramId).update({avatarData:dataUrl});
+      me.avatarData=dataUrl;
+      applyProfileUser(me);
+    } catch(err) { console.error('avatar upload failed',err); }
+    e.target.value='';
+  });
+</script>
+
+<!-- ===== settings sheet ===== -->
+<div class="overlay" id="settings-overlay">
+  <div class="sheet">
+    <div class="sheet-grabber"></div>
+    <div class="sheet-head">
+      <div class="back hidden"></div>
+      <div class="sheet-title">Настройки</div>
+      <div class="sheet-close" id="settings-close-btn">
+        <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+
+    <div class="sheet-body">
+
+      <div class="section-label">Цветовая тема</div>
+      <div class="theme-grid" id="theme-grid">
+
+        <div class="theme-card selected" data-theme="classic">
+          <div class="theme-check"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></div>
+          <div class="theme-preview" style="background:#0B0B0D">
+            <span class="swatch-dot" style="background:#FF3D2E"></span>
+            <span class="swatch-dot" style="background:#F2B705"></span>
+            <span class="swatch-dot" style="background:#6C7CFF"></span>
+          </div>
+          <div class="theme-name">Классика</div>
+        </div>
+
+        <div class="theme-card" data-theme="neon">
+          <div class="theme-check"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></div>
+          <div class="theme-preview" style="background:#050810">
+            <span class="swatch-dot" style="background:#00E5A8"></span>
+            <span class="swatch-dot" style="background:#6C7CFF"></span>
+            <span class="swatch-dot" style="background:#F2B705"></span>
+          </div>
+          <div class="theme-name">Неон</div>
+        </div>
+
+        <div class="theme-card" data-theme="oled">
+          <div class="theme-check"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></div>
+          <div class="theme-preview" style="background:#000000">
+            <span class="swatch-dot" style="background:#E63946"></span>
+            <span class="swatch-dot" style="background:#EDEDED"></span>
+            <span class="swatch-dot" style="background:#4A4A4A"></span>
+          </div>
+          <div class="theme-name">OLED чёрный</div>
+        </div>
+
+        <div class="theme-card" data-theme="light">
+          <div class="theme-check"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></div>
+          <div class="theme-preview" style="background:#F4F1EA">
+            <span class="swatch-dot" style="background:#D97757"></span>
+            <span class="swatch-dot" style="background:#2A2A2A"></span>
+            <span class="swatch-dot" style="background:#8A8A92"></span>
+          </div>
+          <div class="theme-name">Светлая</div>
+        </div>
+
+      </div>
+
+      <div class="section-label">Микрофон</div>
+
+      <div id="mic-permission-block" style="background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:16px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+          <div>
+            <div class="t-label">Доступ к микрофону</div>
+            <div class="t-desc" id="mic-status-text">Проверяем статус…</div>
+          </div>
+          <div id="mic-status-dot" style="width:10px; height:10px; border-radius:50%; background:var(--muted); flex-shrink:0;"></div>
+        </div>
+        <button id="btn-request-mic" style="width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:11px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer;">Запросить доступ</button>
+      </div>
+
+      <div class="toggle-row">
+        <div>
+          <div class="t-label">Автоусиление громкости</div>
+          <div class="t-desc">Компенсация тихого голоса</div>
+        </div>
+        <div class="switch on" data-toggle></div>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="t-label">Шумоподавление</div>
+          <div class="t-desc">Фильтр фонового шума</div>
+        </div>
+        <div class="switch on" data-toggle></div>
+      </div>
+
+      <div class="section-label">Уведомления</div>
+      <div class="toggle-row">
+        <div>
+          <div class="t-label">Начало баттла</div>
+          <div class="t-desc">Когда найден соперник</div>
+        </div>
+        <div class="switch on" data-toggle></div>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="t-label">Приглашения от друзей</div>
+        </div>
+        <div class="switch" data-toggle></div>
+      </div>
+
+      <div class="section-label">Аккаунт</div>
+      <div class="plain-row" onclick="alert('→ Управление привязкой Telegram-аккаунта')">
+        <div class="t-label">Telegram-аккаунт</div>
+        <div class="t-val">@oleg_leipzig</div>
+      </div>
+      <div class="plain-row" onclick="alert('→ Язык интерфейса')">
+        <div class="t-label">Язык</div>
+        <div class="t-val">Русский</div>
+      </div>
+
+      <div class="version-block">
+        <div class="v-num">MICBATTLE v0.3.1</div>
+        Прототип · сборка от 09.08.2026
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  const settingsOverlay = document.getElementById('settings-overlay');
+  document.getElementById('settings-btn').addEventListener('click', () => {
+    settingsOverlay.classList.add('open');
+    refreshMicStatus();
+  });
+  document.getElementById('settings-close-btn').addEventListener('click', () => settingsOverlay.classList.remove('open'));
+  settingsOverlay.addEventListener('click', (e) => { if(e.target === settingsOverlay) settingsOverlay.classList.remove('open'); });
+
+  // ===== разрешение на микрофон — запрашивается ТОЛЬКО здесь, по явному нажатию,
+  // а не автоматически при каждом запуске приложения (чтобы не ловить
+  // "заблокированный навсегда" статус в Telegram WebView после случайного "Запретить") =====
+  window.micPermissionGranted = false;
+
+  function setMicStatusUI(state) {
+    const dot = document.getElementById('mic-status-dot');
+    const text = document.getElementById('mic-status-text');
+    const btn = document.getElementById('btn-request-mic');
+    if (state === 'granted') {
+      dot.style.background = '#3ED598';
+      text.textContent = 'Доступ разрешён';
+      btn.textContent = 'Проверить ещё раз';
+      window.micPermissionGranted = true;
+    } else if (state === 'denied') {
+      dot.style.background = 'var(--live)';
+      text.textContent = 'Доступ заблокирован — разреши в настройках браузера/Telegram';
+      btn.textContent = 'Запросить снова';
+      window.micPermissionGranted = false;
+    } else {
+      dot.style.background = 'var(--muted)';
+      text.textContent = 'Ещё не запрашивали';
+      btn.textContent = 'Запросить доступ';
+      window.micPermissionGranted = false;
+    }
+  }
+
+  async function refreshMicStatus() {
+    // Permissions API поддерживается не везде (Safari/iOS WebView — нет),
+    // поэтому если недоступно — просто оставляем нейтральный статус до нажатия кнопки
+    if (navigator.permissions?.query) {
+      try {
+        const status = await navigator.permissions.query({ name: 'microphone' });
+        setMicStatusUI(status.state); // 'granted' | 'denied' | 'prompt'
+        status.onchange = () => setMicStatusUI(status.state);
+        return;
+      } catch (e) { /* Permissions API не знает про 'microphone' в этом браузере — идём дальше */ }
+    }
+    setMicStatusUI('unknown');
+  }
+
+  // проверяем статус сразу при загрузке страницы — иначе флаг micPermissionGranted
+  // остаётся false до первого открытия Настроек, и голос в комнате не подключается
+  // даже если разрешение реально уже выдано в прошлый раз
+  refreshMicStatus();
+
+  document.getElementById('btn-request-mic').addEventListener('click', async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // сразу останавливаем — нам нужно было только подтверждение разрешения,
+      // реальный поток будет запрошен заново при входе в комнату баттла
+      stream.getTracks().forEach(t => t.stop());
+      setMicStatusUI('granted');
+    } catch (err) {
+      setMicStatusUI('denied');
+    }
+  });
+
+  // toggles
+  document.querySelectorAll('[data-toggle]').forEach(sw => {
+    sw.addEventListener('click', () => sw.classList.toggle('on'));
+  });
+
+  // theme switching — actually repaints the whole app via CSS custom properties
+  const themes = {
+    classic: { bg:'#0B0B0D', panel:'#17171B', panel2:'#1F1F24', line:'#2A2A30', text:'#F2F1EE', muted:'#8A8A92', live:'#FF3D2E', gold:'#F2B705' },
+    neon:    { bg:'#050810', panel:'#0E1524', panel2:'#141D33', line:'#20304F', text:'#EAF4FF', muted:'#7E92B3', live:'#00E5A8', gold:'#6C7CFF' },
+    oled:    { bg:'#000000', panel:'#0D0D0D', panel2:'#161616', line:'#292929', text:'#EDEDED', muted:'#7A7A7A', live:'#E63946', gold:'#C9C9C9' },
+    light:   { bg:'#F4F1EA', panel:'#FFFFFF', panel2:'#ECE8E0', line:'#DEDACF', text:'#221F1B', muted:'#8A8478', live:'#D97757', gold:'#B8860B' }
+  };
+
+  function applyTheme(name){
+    const t = themes[name];
+    const root = document.documentElement.style;
+    root.setProperty('--bg', t.bg);
+    root.setProperty('--panel', t.panel);
+    root.setProperty('--panel-2', t.panel2);
+    root.setProperty('--line', t.line);
+    root.setProperty('--text', t.text);
+    root.setProperty('--muted', t.muted);
+    root.setProperty('--live', t.live);
+    root.setProperty('--gold', t.gold);
+  }
+
+  document.querySelectorAll('.theme-card').forEach(card => {
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      applyTheme(card.dataset.theme);
+    });
+  });
+</script>
+
+<!-- ===== Telegram — идентификация пользователя ===== -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+  const tg = window.Telegram?.WebApp;
+  tg?.ready();
+  tg?.expand();
+
+  // initDataUnsafe.user.id — numeric ID Telegram-аккаунта.
+  // В отличие от username, он есть всегда и никогда не меняется —
+  // именно на него привязываем внутренний профиль.
+  const tgUser = tg?.initDataUnsafe?.user;
+  const telegramId = tgUser ? String(tgUser.id) : 'guest_' + Math.random().toString(36).slice(2, 9);
+  window.currentTelegramId = telegramId;
+  const displayFirstName = tgUser?.first_name || 'Гость';
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBe2eSG48yzv_9r6Q5yUF7fe2b6YLQGuQg",
+    authDomain: "zolotaya-kletka.firebaseapp.com",
+    databaseURL: "https://zolotaya-kletka-default-rtdb.firebaseio.com",
+    projectId: "zolotaya-kletka",
+    storageBucket: "zolotaya-kletka.firebasestorage.app",
+    messagingSenderId: "570732456851",
+    appId: "1:570732456851:web:1a5e2ec46f5abf0e22d666"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  // Генерирует случайный внутренний ID игрока, например "PLR-8X3F9K"
+  function generatePlayerId() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // без похожих символов (0/O, 1/I)
+    let code = '';
+    for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    return 'PLR-' + code;
+  }
+
+  const userRef = db.ref('users/' + telegramId);
+
+  userRef.get().then((snap) => {
+    let userData;
+
+    if (snap.exists()) {
+      // такой Telegram-аккаунт уже заходил — просто достаём его данные, ID не трогаем
+      userData = snap.val();
+    } else {
+      // первый визит с этого Telegram-аккаунта — создаём запись намертво
+      userData = {
+        playerId: generatePlayerId(),
+        firstName: displayFirstName,
+        username: tgUser?.username ? '@' + tgUser.username : null,
+        role: 'user', // 'user' | 'moderator' | 'admin' | 'superadmin'
+        points: 0,
+        starsBalance: 0,
+        stats: { battles: 0, wins: 0, losses: 0, draws: 0, refereeBattles: 0, audienceLikes: 0 },
+        avatarData: null,
+        status: 'active', // 'active' | 'restricted' | 'banned'
+        restrictedUntil: null,
+        createdAt: Date.now()
+      };
+      userRef.set(userData);
+    }
+
+    // подставляем в профиль; статистика будет пересчитываться из матчей
+    applyProfileUser(userData);
+
+    // обратная совместимость: если у записи ещё старое поле isAdmin: true
+    // (выданное раньше вручную), а нового role ещё нет — считаем админом
+    if (!userData.role) {
+      userData.role = userData.isAdmin ? 'admin' : 'user';
+    }
+
+    function applyProfileUser(userData) {
+      const name = userData.firstName || 'Игрок';
+      document.getElementById('profile-name').textContent = name;
+      document.getElementById('profile-username').textContent = userData.playerId || 'PLR-XXXXXX';
+      const avatar = document.getElementById('profile-avatar');
+      if (userData.avatarData) { avatar.style.backgroundImage = `url(${userData.avatarData})`; avatar.classList.add('has-image'); avatar.textContent=''; }
+      else { avatar.style.backgroundImage=''; avatar.classList.remove('has-image'); avatar.textContent=name.slice(0,2).toUpperCase(); }
+      document.getElementById('profile-stars').innerHTML = `${Number(userData.starsBalance || 0).toLocaleString('ru-RU')} <span class="unit">⭐</span>`;
+      document.getElementById('profile-points').innerHTML = `${Number(userData.points || 0).toLocaleString('ru-RU')} <span class="unit">pts</span>`;
+    }
+    window.applyProfileUser = applyProfileUser; // доступна из любого другого JS-блока на странице (глобальная область видимости)
+
+    function renderProfileStats(stats) {
+      const s = stats || {};
+      const battles = Number(s.battles || 0);
+      const wins = Number(s.wins || 0);
+      const losses = Number(s.losses || 0);
+      const winrate = battles ? Math.round((wins / battles) * 100) : 0;
+      document.getElementById('stat-wins').textContent = wins;
+      document.getElementById('stat-losses').textContent = losses;
+      document.getElementById('stat-winrate').textContent = winrate + '%';
+      document.getElementById('stat-battles').textContent = battles;
+      document.getElementById('stat-referee').textContent = Number(s.refereeBattles || 0);
+      document.getElementById('stat-likes').textContent = Number(s.audienceLikes || 0);
+    }
+    window.renderProfileStats = renderProfileStats;
+
+    function renderMatchList(matches) {
+      const el=document.getElementById('profile-match-list');
+      const arr=Object.entries(matches||{}).sort((a,b)=>(b[1].finishedAt||b[1].createdAt||0)-(a[1].finishedAt||a[1].createdAt||0)).slice(0,8);
+      if(!arr.length){el.innerHTML='<div class="admin-empty">Матчей пока нет</div>';return;}
+      el.innerHTML=arr.map(([id,m])=>{
+        const me=window.currentPlayer?.playerId;
+        const result=m.refereeId===me?'Рефери':(m.winnerId===me?'Победа':(m.loserId===me?'Поражение':'Матч'));
+        const opp=(m.hostId===me?m.guestName:(m.guestId===me?m.hostName:''))||'Соперник';
+        const date=m.finishedAt?new Date(m.finishedAt).toLocaleDateString('ru-RU'):'';
+        return `<div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;gap:10px;"><div><div style="font-size:13px;font-weight:600;">${result} · ${opp}</div><div style="font-size:10.5px;color:var(--muted);">${date}</div></div><div style="font-family:'Bebas Neue',sans-serif;font-size:16px;">${m.pointsAwarded?.[me] ? '+'+m.pointsAwarded[me]+' pts':''}</div></div>`;
+      }).join('');
+    }
+    window.renderMatchList = renderMatchList;
+
+    function renderProfileFromMatches() {
+      const me=window.currentPlayer; if(!me) return;
+      db.ref('users/'+window.currentTelegramId+'/stats').once('value').then(s=>renderProfileStats(s.val()||{}));
+      db.ref('matches').once('value').then(snap=>{
+        const all=snap.val()||{}; const mine={};
+        Object.entries(all).forEach(([id,m])=>{ if(m && [m.hostId,m.guestId,m.refereeId].includes(me.playerId) && m.status==='finished') mine[id]=m; });
+        renderMatchList(mine);
+      });
+    }
+    window.renderProfileFromMatches = renderProfileFromMatches;
+
+    const roleLabels = {
+      superadmin: 'СУПЕРДОСТУП',
+      admin: 'АДМИН',
+      moderator: 'МОДЕРАТОР'
+    };
+
+    if (roleLabels[userData.role]) {
+      const tag = document.querySelector('.profile-league-tag');
+      if (tag) tag.insertAdjacentHTML('afterend',
+        `<div class="badge stars" style="margin-top:6px;display:inline-block">${roleLabels[userData.role]}</div>`);
+
+      // панель управления видна и модераторам, и админам, и супердоступу —
+      // а вот выдавать чужой уровень сможет только супердоступ (см. ниже)
+      const adminMenuBtn = document.getElementById('admin-btn');
+      if (adminMenuBtn) {
+        adminMenuBtn.style.display = 'flex';
+        const labelEl = document.getElementById('admin-btn-label');
+        const descEl = document.getElementById('admin-btn-desc');
+        if (userData.role === 'superadmin') {
+          labelEl.textContent = 'Супердоступ';
+          descEl.textContent = 'Полный контроль — все пользователи и роли';
+        } else if (userData.role === 'admin') {
+          labelEl.textContent = 'Админ-панель';
+          descEl.textContent = 'Управление игроками и баттлами';
+        } else {
+          labelEl.textContent = 'Модерация';
+          descEl.textContent = 'Ограниченный доступ к игрокам';
+        }
+      }
+
+      const logMenuBtn = document.getElementById('log-btn');
+      if (logMenuBtn) logMenuBtn.style.display = 'flex';
+    }
+
+    window.currentPlayer = userData; // доступно из остальных скриптов при необходимости
+    renderProfileStats(userData.stats || {});
+    renderProfileFromMatches();
+
+    // если игрок забанен или временно ограничен — блокируем доступ к приложению
+    const now = Date.now();
+    const isBanned = userData.status === 'banned';
+    const isRestricted = userData.status === 'restricted' && userData.restrictedUntil && userData.restrictedUntil > now;
+
+    if (isBanned || isRestricted) {
+      document.body.innerHTML = `
+        <div style="min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:32px; background:#0B0B0D; color:#F2F1EE; font-family:'Inter',sans-serif;">
+          <div style="font-family:'Bebas Neue',sans-serif; font-size:32px; color:#FF3D2E; letter-spacing:1px; margin-bottom:12px;">
+            ${isBanned ? 'ДОСТУП ЗАБЛОКИРОВАН' : 'ВРЕМЕННОЕ ОГРАНИЧЕНИЕ'}
+          </div>
+          <div style="color:#8A8A92; font-size:14px; max-width:280px; line-height:1.5;">
+            ${isBanned
+              ? 'Твой аккаунт заблокирован администрацией навсегда.'
+              : `Доступ ограничен до ${new Date(userData.restrictedUntil).toLocaleString('ru-RU')}.`}
+          </div>
+        </div>
+      `;
+      return; // дальше приложение не инициализируется для забаненного
+    }
+
+    // "онлайн" — регистрируем по telegramId, автоматически убирается при выходе
+    const myPresenceRef = db.ref('presence/' + telegramId);
+    myPresenceRef.set(true);
+    myPresenceRef.onDisconnect().remove();
+  });
+
+  // Слушаем список всех "онлайн" записей и обновляем счётчик вживую
+  const onlineCountEl = document.getElementById('online-count');
+  db.ref('presence').on('value', (snapshot) => {
+    const count = snapshot.numChildren();
+    onlineCountEl.textContent = `онлайн ${count.toLocaleString('ru-RU')}`;
+  });
+</script>
+
+<!-- ===== admin panel ===== -->
+<div class="overlay" id="admin-overlay">
+  <div class="sheet">
+    <div class="sheet-grabber"></div>
+    <div class="sheet-head">
+      <div class="back hidden"></div>
+      <div class="sheet-title">Админ-панель</div>
+      <div class="sheet-close" id="admin-close-btn">
+        <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+
+    <div class="sheet-body">
+      <button id="btn-open-logs" style="width:100%; margin-bottom:18px; background:var(--panel); border:1.5px solid var(--line); color:var(--text); border-radius:14px; padding:14px; font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:1px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+        <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:var(--gold);stroke-width:1.8;fill:none;"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+        ЖУРНАЛ ДЕЙСТВИЙ
+      </button>
+
+      <div class="section-label">Найти игрока по ID</div>
+      <div class="admin-search">
+        <input type="text" id="admin-search-input" placeholder="PLR-XXXXXX" autocomplete="off">
+        <button id="admin-search-btn">Найти</button>
+      </div>
+
+      <button id="btn-toggle-user-list" style="width:100%; margin-bottom:16px; background:var(--panel); border:1.5px solid var(--line); color:var(--text); border-radius:14px; padding:13px 14px; font-family:'Inter',sans-serif; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:space-between;">
+        <span style="display:flex;align-items:center;gap:9px;">
+          <span>СПИСОК ПОЛЬЗОВАТЕЛЕЙ</span>
+          <span id="user-count-badge" style="display:inline-flex;min-width:24px;height:24px;padding:0 7px;align-items:center;justify-content:center;border-radius:999px;background:var(--panel-2);border:1px solid var(--line);color:var(--gold);font-size:11px;">0</span>
+        </span>
+        <span id="user-list-chevron" style="font-size:16px;transition:transform .18s ease;">⌄</span>
+      </button>
+      <div id="user-list-wrap" style="display:none;">
+        <div class="section-label" id="user-list-label">Все игроки (0)</div>
+        <div id="user-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px;"></div>
+      </div>
+
+      <div class="admin-empty" id="admin-empty">Введи ID игрока, чтобы посмотреть или изменить его доступ</div>
+
+      <div class="admin-result" id="admin-result">
+        <div class="r-name" id="r-name">—</div>
+        <div class="r-id" id="r-id">—</div>
+        <div id="r-status-badge" style="margin-bottom:12px;"></div>
+
+        <div class="r-toggle-row" style="flex-direction:column; align-items:stretch; gap:10px;">
+          <div class="r-toggle-label">Уровень доступа</div>
+          <div id="role-buttons" style="display:flex; flex-direction:column; gap:8px;"></div>
+        </div>
+
+        <div class="r-toggle-row" style="flex-direction:column; align-items:stretch; gap:10px;">
+          <div class="r-toggle-label">Корректировка статистики</div>
+          <div id="stats-edit-block" style="display:none; flex-direction:column; gap:8px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <label style="font-size:11px;color:var(--muted)">Points<input type="number" id="edit-points" min="0" style="width:100%;box-sizing:border-box;margin-top:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px;color:var(--text)"></label>
+              <label style="font-size:11px;color:var(--muted)">Stars<input type="number" id="edit-stars" min="0" style="width:100%;box-sizing:border-box;margin-top:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px;color:var(--text)"></label>
+              <label style="font-size:11px;color:var(--muted)">Battles<input type="number" id="edit-battles" min="0" style="width:100%;box-sizing:border-box;margin-top:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px;color:var(--text)"></label>
+              <label style="font-size:11px;color:var(--muted)">Победы<input type="number" id="edit-wins" min="0" style="width:100%;box-sizing:border-box;margin-top:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px;color:var(--text)"></label>
+              <label style="font-size:11px;color:var(--muted)">Поражения<input type="number" id="edit-losses" min="0" style="width:100%;box-sizing:border-box;margin-top:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px;color:var(--text)"></label>
+              <label style="font-size:11px;color:var(--muted)">Ничьи<input type="number" id="edit-draws" min="0" style="width:100%;box-sizing:border-box;margin-top:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px;color:var(--text)"></label>
+              <label style="font-size:11px;color:var(--muted)">Как рефери<input type="number" id="edit-referee" min="0" style="width:100%;box-sizing:border-box;margin-top:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px;color:var(--text)"></label>
+              <label style="font-size:11px;color:var(--muted)">Симпатии<input type="number" id="edit-likes" min="0" style="width:100%;box-sizing:border-box;margin-top:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px;color:var(--text)"></label>
+            </div>
+            <button id="btn-save-stats" style="background:var(--gold);border:none;color:#0B0B0D;border-radius:10px;padding:11px;font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:1px;cursor:pointer;">СОХРАНИТЬ СТАТИСТИКУ</button>
+          </div>
+          <div id="stats-edit-locked-note" class="admin-empty" style="display:none;padding:2px 0;">Изменять статистику могут только Админ и Супердоступ</div>
+        </div>
+
+        <div class="r-toggle-row" style="flex-direction:column; align-items:stretch; gap:10px;">
+          <div class="r-toggle-label">Бан и ограничения</div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <div style="display:flex; gap:8px;">
+              <button class="ban-duration-btn" data-hours="1" style="flex:1; background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:10px 4px; font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; cursor:pointer;">1 час</button>
+              <button class="ban-duration-btn" data-hours="24" style="flex:1; background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:10px 4px; font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; cursor:pointer;">24 часа</button>
+              <button class="ban-duration-btn" data-hours="168" style="flex:1; background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:10px 4px; font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; cursor:pointer;">7 дней</button>
+            </div>
+            <button id="btn-ban-forever" style="background:linear-gradient(135deg,#FF3D2E,#E22319); border:none; color:#fff; border-radius:10px; padding:12px; font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:1px; cursor:pointer;">Забанить навсегда</button>
+            <button id="btn-unban" style="background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:11px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer;">Снять бан / ограничение</button>
+          </div>
+        </div>
+
+        <button id="btn-open-player-history" style="width:100%; margin-top:4px; background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:12px; padding:12px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer;">📜 История этого игрока</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const adminOverlay = document.getElementById('admin-overlay');
+  const adminBtn = document.getElementById('admin-btn');
+  const adminResult = document.getElementById('admin-result');
+  const adminEmpty = document.getElementById('admin-empty');
+  const roleButtonsEl = document.getElementById('role-buttons');
+  let foundUserKey = null;
+  let foundUserRole = 'user';
+
+  const ROLES = [
+    { key: 'user',       label: 'Без доступа' },
+    { key: 'moderator',  label: 'Модератор' },
+    { key: 'admin',      label: 'Админ' },
+    { key: 'superadmin', label: 'Супердоступ' }
+  ];
+
+  adminBtn.addEventListener('click', () => {
+    adminOverlay.classList.add('open');
+    loadUserList(false);
+  });
+  document.getElementById('admin-close-btn').addEventListener('click', () => adminOverlay.classList.remove('open'));
+  adminOverlay.addEventListener('click', (e) => { if (e.target === adminOverlay) adminOverlay.classList.remove('open'); });
+
+  const userListWrap = document.getElementById('user-list-wrap');
+  const userListChevron = document.getElementById('user-list-chevron');
+  document.getElementById('btn-toggle-user-list').addEventListener('click', () => {
+    const isOpen = userListWrap.style.display !== 'none';
+    userListWrap.style.display = isOpen ? 'none' : 'block';
+    userListChevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+    if (!isOpen) loadUserList(true); // разворачиваем — тогда и отрисовываем сами строки
+  });
+
+  function renderRoleButtons(currentRole) {
+    const myRole = window.currentPlayer?.role || 'user';
+    const iAmSuperadmin = myRole === 'superadmin';
+
+    roleButtonsEl.innerHTML = '';
+
+    if (!iAmSuperadmin) {
+      // менять роли может только супердоступ — остальные видят карточку
+      // игрока только для просмотра, без права что-либо выдавать
+      const note = document.createElement('div');
+      note.className = 'admin-empty';
+      note.style.padding = '4px 0 0';
+      note.textContent = 'Менять уровень доступа может только Супердоступ';
+      roleButtonsEl.appendChild(note);
+    }
+
+    ROLES.forEach(r => {
+      const locked = !iAmSuperadmin;
+
+      const el = document.createElement('div');
+      el.className = 'role-option' + (r.key === currentRole ? ' active' : '') + (locked ? ' disabled' : '');
+      el.innerHTML = `
+        <span>${r.label}</span>
+        <svg class="r-check" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>
+      `;
+      if (!locked) {
+        el.addEventListener('click', () => setRole(r.key));
+      }
+      roleButtonsEl.appendChild(el);
+    });
+  }
+
+  function setRole(newRole) {
+    if (!foundUserKey) return;
+    if ((window.currentPlayer?.role || 'user') !== 'superadmin') return; // защита от прямого вызова из консоли
+    const targetName = document.getElementById('r-name').textContent;
+    const targetPlayerId = document.getElementById('r-id').textContent;
+    foundUserRole = newRole;
+    db.ref('users/' + foundUserKey).update({ role: newRole });
+    renderRoleButtons(newRole);
+    loadUserList(); // обновляем бейджи в списке сразу
+    if (typeof logAction === 'function') {
+      logAction('role_change', foundUserKey, targetName, targetPlayerId, `Новая роль: ${newRole}`);
+    }
+  }
+
+  // Открывает карточку конкретного игрока (общая для списка и поиска)
+  function openUserDetail(userKey, user) {
+    foundUserKey = userKey;
+    foundUserRole = user.role || (user.isAdmin ? 'admin' : 'user');
+
+    document.getElementById('r-name').textContent = user.firstName || 'Без имени';
+    document.getElementById('r-id').textContent = user.playerId;
+    document.getElementById('r-points-val').textContent = user.points ?? 0;
+    renderRoleButtons(foundUserRole);
+    renderStatusBadge(user);
+
+    const myRole = window.currentPlayer?.role || 'user';
+    const canEditStats = myRole === 'admin' || myRole === 'superadmin';
+    const stats = user.stats || {};
+    document.getElementById('stats-edit-block').style.display = canEditStats ? 'flex' : 'none';
+    document.getElementById('stats-edit-locked-note').style.display = canEditStats ? 'none' : 'block';
+    const statFields = {
+      'edit-points': user.points ?? 0, 'edit-stars': user.starsBalance ?? 0,
+      'edit-battles': stats.battles ?? 0, 'edit-wins': stats.wins ?? 0,
+      'edit-losses': stats.losses ?? 0, 'edit-draws': stats.draws ?? 0,
+      'edit-referee': stats.refereeBattles ?? 0, 'edit-likes': stats.audienceLikes ?? 0
+    };
+    Object.entries(statFields).forEach(([id, value]) => { const el=document.getElementById(id); if(el) el.value=value; });
+
+    adminEmpty.style.display = 'none';
+    adminResult.style.display = 'block';
+    adminResult.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function renderStatusBadge(user) {
+    const badgeEl = document.getElementById('r-status-badge');
+    const now = Date.now();
+    if (user.status === 'banned') {
+      badgeEl.innerHTML = '<span class="badge live">ЗАБАНЕН НАВСЕГДА</span>';
+    } else if (user.status === 'restricted' && user.restrictedUntil && user.restrictedUntil > now) {
+      const left = user.restrictedUntil - now;
+      const hoursLeft = Math.ceil(left / 3600000);
+      badgeEl.innerHTML = `<span class="badge live">ОГРАНИЧЕН ещё ~${hoursLeft} ч.</span>`;
+    } else {
+      badgeEl.innerHTML = '';
+    }
+  }
+
+  // Загружает и отрисовывает список ВСЕХ, кто когда-либо заходил, с онлайн-статусом
+  function loadUserList(renderList = true) {
+    Promise.all([
+      db.ref('users').once('value'),
+      db.ref('presence').once('value')
+    ]).then(([usersSnap, presenceSnap]) => {
+      const users = usersSnap.val() || {};
+      const onlineIds = presenceSnap.val() || {};
+      const listEl = document.getElementById('user-list');
+      const entries = Object.entries(users).sort((a, b) => (b[1].createdAt || 0) - (a[1].createdAt || 0));
+
+      document.getElementById('user-list-label').textContent = `Все игроки (${entries.length})`;
+      document.getElementById('user-count-badge').textContent = entries.length.toLocaleString('ru-RU');
+      if (!renderList) return;
+      listEl.innerHTML = '';
+
+      entries.forEach(([key, user]) => {
+        const role = user.role || (user.isAdmin ? 'admin' : 'user');
+        const isOnline = !!onlineIds[key];
+        const isBanned = user.status === 'banned';
+        const isRestricted = user.status === 'restricted' && user.restrictedUntil && user.restrictedUntil > Date.now();
+        const row = document.createElement('div');
+        row.className = 'user-row' + (isOnline ? ' online' : '');
+        row.innerHTML = `
+          <div class="u-avatar">${(user.firstName || '??').slice(0, 2).toUpperCase()}<div class="u-online-dot"></div></div>
+          <div class="u-info">
+            <div class="u-name">${user.firstName || 'Без имени'}</div>
+            <div class="u-id">${user.playerId || key}</div>
+          </div>
+          ${isBanned ? '<div class="u-role-badge role-admin">BAN</div>' : (isRestricted ? '<div class="u-role-badge role-admin">TIMEOUT</div>' : '')}
+          <div class="u-role-badge role-${role}">${role}</div>
+        `;
+        row.addEventListener('click', () => openUserDetail(key, user));
+        listEl.appendChild(row);
+      });
+    });
+  }
+
+  function searchPlayer() {
+    const query = document.getElementById('admin-search-input').value.trim().toUpperCase();
+    if (!query) return;
+
+    db.ref('users').orderByChild('playerId').equalTo(query).once('value').then((snap) => {
+      if (!snap.exists()) {
+        adminResult.style.display = 'none';
+        adminEmpty.style.display = 'block';
+        adminEmpty.textContent = 'Игрок с таким ID не найден';
+        foundUserKey = null;
+        return;
+      }
+      const data = snap.val();
+      const userKey = Object.keys(data)[0];
+      openUserDetail(userKey, data[userKey]);
+    });
+  }
+
+  document.getElementById('admin-search-btn').addEventListener('click', searchPlayer);
+  document.getElementById('admin-search-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') searchPlayer();
+  });
+
+  // ===== статистика =====
+  function canEditStats(){
+    const role = window.currentPlayer?.role || 'user';
+    return role === 'admin' || role === 'superadmin';
+  }
+
+  document.getElementById('btn-save-stats').addEventListener('click', () => {
+    if (!foundUserKey || !canEditStats()) return;
+    const val = id => Math.max(0, parseInt(document.getElementById(id).value, 10) || 0);
+    const updates = {
+      points: val('edit-points'), starsBalance: val('edit-stars'),
+      'stats/battles': val('edit-battles'), 'stats/wins': val('edit-wins'),
+      'stats/losses': val('edit-losses'), 'stats/draws': val('edit-draws'),
+      'stats/refereeBattles': val('edit-referee'), 'stats/audienceLikes': val('edit-likes')
+    };
+    const targetName=document.getElementById('r-name').textContent;
+    const targetPlayerId=document.getElementById('r-id').textContent;
+    db.ref('users/'+foundUserKey).update(updates).then(() => {
+      document.getElementById('r-points-val').textContent=updates.points;
+      if(foundUserKey===window.currentTelegramId && window.currentPlayer){
+        window.currentPlayer.points=updates.points; window.currentPlayer.starsBalance=updates.starsBalance;
+        window.currentPlayer.stats={...(window.currentPlayer.stats||{}),battles:updates['stats/battles'],wins:updates['stats/wins'],losses:updates['stats/losses'],draws:updates['stats/draws'],refereeBattles:updates['stats/refereeBattles'],audienceLikes:updates['stats/audienceLikes']};
+        renderProfileStats(window.currentPlayer.stats); renderProfileFromMatches();
+      }
+      if(typeof logAction==='function') logAction('stats_change',foundUserKey,targetName,targetPlayerId,'Статистика изменена администратором');
+    }).catch(err => { console.error(err); alert('Не удалось сохранить статистику'); });
+  });
+
+  // ===== бан / ограничения =====
+  document.querySelectorAll('.ban-duration-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!foundUserKey) return;
+      const hours = parseInt(btn.dataset.hours, 10);
+      const until = Date.now() + hours * 3600000;
+      const targetName = document.getElementById('r-name').textContent;
+      const targetPlayerId = document.getElementById('r-id').textContent;
+      db.ref('users/' + foundUserKey).update({ status: 'restricted', restrictedUntil: until }).then(() => {
+        db.ref('users/' + foundUserKey).once('value').then((snap) => renderStatusBadge(snap.val()));
+        if (typeof logAction === 'function') {
+          logAction('ban_temp', foundUserKey, targetName, targetPlayerId, `Ограничение на ${hours} ч.`);
+        }
+      });
+    });
+  });
+
+  document.getElementById('btn-ban-forever').addEventListener('click', () => {
+    if (!foundUserKey) return;
+    const targetName = document.getElementById('r-name').textContent;
+    const targetPlayerId = document.getElementById('r-id').textContent;
+    db.ref('users/' + foundUserKey).update({ status: 'banned', restrictedUntil: null }).then(() => {
+      db.ref('users/' + foundUserKey).once('value').then((snap) => renderStatusBadge(snap.val()));
+      if (typeof logAction === 'function') {
+        logAction('ban_forever', foundUserKey, targetName, targetPlayerId, 'Забанен навсегда');
+      }
+    });
+  });
+
+  document.getElementById('btn-unban').addEventListener('click', () => {
+    if (!foundUserKey) return;
+    const targetName = document.getElementById('r-name').textContent;
+    const targetPlayerId = document.getElementById('r-id').textContent;
+    db.ref('users/' + foundUserKey).update({ status: 'active', restrictedUntil: null }).then(() => {
+      db.ref('users/' + foundUserKey).once('value').then((snap) => renderStatusBadge(snap.val()));
+      if (typeof logAction === 'function') {
+        logAction('unban', foundUserKey, targetName, targetPlayerId, 'Бан/ограничение снято');
+      }
+    });
+  });
+</script>
+
+<!-- ===== log viewer ===== -->
+<div class="overlay" id="log-overlay">
+  <div class="sheet">
+    <div class="sheet-grabber"></div>
+    <div class="sheet-head">
+      <div class="back hidden"></div>
+      <div class="sheet-title" id="log-sheet-title">Журнал действий</div>
+      <div class="sheet-close" id="log-close-btn">
+        <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+    <div class="sheet-body">
+      <div id="log-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+      <div class="admin-empty" id="log-empty" style="display:none;">Записей пока нет</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const logOverlay = document.getElementById('log-overlay');
+  const logListEl = document.getElementById('log-list');
+  const logEmptyEl = document.getElementById('log-empty');
+  const logSheetTitle = document.getElementById('log-sheet-title');
+
+  document.getElementById('log-close-btn').addEventListener('click', () => logOverlay.classList.remove('open'));
+  logOverlay.addEventListener('click', (e) => { if (e.target === logOverlay) logOverlay.classList.remove('open'); });
+
+  // Кнопка "Журнал событий" в главном меню — открывает общий журнал напрямую
+  const mainMenuLogBtn = document.getElementById('log-btn');
+  if (mainMenuLogBtn) {
+    mainMenuLogBtn.addEventListener('click', () => {
+      logSheetTitle.textContent = 'Журнал действий (все)';
+      db.ref('logs').limitToLast(100).once('value').then((snap) => {
+        const data = snap.val() || {};
+        const entries = Object.values(data).sort((a, b) => b.timestamp - a.timestamp);
+        renderLogEntries(entries);
+        logOverlay.classList.add('open');
+      });
+    });
+  }
+
+  const ACTION_LABELS = {
+    role_change: 'Изменение роли',
+    points_reset: 'Обнуление очков',
+    points_given: 'Начисление очков',
+    ban_temp: 'Временный бан',
+    ban_forever: 'Бан навсегда',
+    unban: 'Снятие бана'
+  };
+
+  // Пишет запись в общий журнал — вызывается из каждого админ-действия
+  function logAction(actionType, targetKey, targetName, targetPlayerId, details) {
+    const me = window.currentPlayer || {};
+    db.ref('logs').push({
+      timestamp: Date.now(),
+      actorPlayerId: me.playerId || '—',
+      actorName: me.firstName || '—',
+      actionType,
+      targetKey,
+      targetName,
+      targetPlayerId,
+      details: details || ''
+    });
+  }
+
+  function renderLogEntries(entries) {
+    logListEl.innerHTML = '';
+    if (entries.length === 0) {
+      logEmptyEl.style.display = 'block';
+      return;
+    }
+    logEmptyEl.style.display = 'none';
+
+    entries.forEach(entry => {
+      const row = document.createElement('div');
+      row.style.cssText = 'background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;';
+      const date = new Date(entry.timestamp).toLocaleString('ru-RU');
+      row.innerHTML = `
+        <div style="font-size:13px;font-weight:600;margin-bottom:3px;">${ACTION_LABELS[entry.actionType] || entry.actionType}</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.5;">
+          ${entry.actorName} (${entry.actorPlayerId}) → ${entry.targetName || '—'} (${entry.targetPlayerId || '—'})
+          ${entry.details ? '<br>' + entry.details : ''}
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">${date}</div>
+      `;
+      logListEl.appendChild(row);
+    });
+  }
+
+  // Массовый журнал — последние 100 записей по всей платформе
+  document.getElementById('btn-open-logs').addEventListener('click', () => {
+    logSheetTitle.textContent = 'Журнал действий (все)';
+    db.ref('logs').limitToLast(100).once('value').then((snap) => {
+      const data = snap.val() || {};
+      const entries = Object.values(data).sort((a, b) => b.timestamp - a.timestamp);
+      renderLogEntries(entries);
+      logOverlay.classList.add('open');
+    });
+  });
+
+  // Личная история — только записи, где этот игрок был целью действия
+  document.getElementById('btn-open-player-history').addEventListener('click', () => {
+    if (!foundUserKey) return;
+    logSheetTitle.textContent = 'История: ' + document.getElementById('r-id').textContent;
+    db.ref('logs').orderByChild('targetKey').equalTo(foundUserKey).once('value').then((snap) => {
+      const data = snap.val() || {};
+      const entries = Object.values(data).sort((a, b) => b.timestamp - a.timestamp);
+      renderLogEntries(entries);
+      logOverlay.classList.add('open');
+    });
+  });
+</script>
+
+
+<script>
+  // ===== Match ledger / automatic profile statistics =====
+  // Завершённый матч является единственным источником игровых статистик.
+  // Вызывается будущим движком баттла: finishMatch(matchId, result).
+  window.ensureMatchRecord = async function(matchId, battle) {
+    const ref=db.ref('matches/'+matchId);
+    const snap=await ref.once('value');
+    if(snap.exists()) return;
+    await ref.set({
+      status:'active',
+      type:'1v1',
+      roomCode:matchId,
+      hostId:battle.hostId||null,
+      hostName:battle.hostName||null,
+      guestId:battle.guestId||null,
+      guestName:battle.guestName||null,
+      refereeId:null,
+      createdAt:battle.createdAt||Date.now()
+    });
+  };
+
+  window.finishMatch = async function(matchId, result) {
+    const ref=db.ref('matches/'+matchId);
+    const snap=await ref.once('value'); const match=snap.val();
+    if(!match || match.status==='finished') return false;
+    const winnerId=result?.winnerId || null;
+    const loserId=result?.loserId || null;
+    const refereeId=result?.refereeId || match.refereeId || null;
+    const pointsAwarded=result?.pointsAwarded || {};
+    const audienceVotes=result?.audienceVotes || {};
+    const finishedAt=Date.now();
+    await ref.update({status:'finished',winnerId,loserId,refereeId,pointsAwarded,audienceVotes,finishedAt});
+
+    const players=[match.hostId,match.guestId].filter(Boolean);
+    for(const playerId of players){
+      const q=await db.ref('users').orderByChild('playerId').equalTo(playerId).once('value');
+      if(!q.exists()) continue;
+      const key=Object.keys(q.val())[0]; const u=q.val()[key]||{};
+      const delta=Number(pointsAwarded[playerId]||0);
+      const likeDelta=Number(audienceVotes[playerId]||0);
+      const stats=u.stats||{};
+      const update={};
+      update['users/'+key+'/points']=Number(u.points||0)+delta;
+      update['users/'+key+'/stats/battles']=Number(stats.battles||0)+1;
+      update['users/'+key+'/stats/wins']=Number(stats.wins||0)+(winnerId===playerId?1:0);
+      update['users/'+key+'/stats/losses']=Number(stats.losses||0)+(loserId===playerId?1:0);
+      update['users/'+key+'/stats/draws']=Number(stats.draws||0)+(!winnerId&&!loserId?1:0);
+      update['users/'+key+'/stats/audienceLikes']=Number(stats.audienceLikes||0)+likeDelta;
+      await db.ref().update(update);
+    }
+    if(refereeId){
+      const q=await db.ref('users').orderByChild('playerId').equalTo(refereeId).once('value');
+      if(q.exists()){ const key=Object.keys(q.val())[0]; const u=q.val()[key]||{}; const refUpdate={}; refUpdate['users/'+key+'/stats/refereeBattles']=Number(u.stats?.refereeBattles||0)+1; await db.ref().update(refUpdate); }
+    }
+    if(window.currentPlayer) {
+      const q=await db.ref('users').orderByChild('playerId').equalTo(window.currentPlayer.playerId).once('value');
+      if(q.exists()) { const key=Object.keys(q.val())[0]; const fresh=(await db.ref('users/'+key).once('value')).val(); window.currentPlayer=fresh; applyProfileUser(fresh); }
+    }
+    renderProfileFromMatches?.();
+    return true;
+  };
+</script>
+</body>
+</html>
