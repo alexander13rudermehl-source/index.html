@@ -1629,9 +1629,9 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.1.8 · pre-alpha</div>
+        <div class="v-num">MICBATTLE v0.1.9 · pre-alpha</div>
         Внутренний тест · обновлено 16.08.2026<br>
-        <span style="font-size:11px;">v0.1.7: TURN-сервер + очередь ICE-кандидатов + диагностика voice. v0.1.8: убран глючивший transaction() при входе в комнату → read-then-write; вернулась автоочистка гостевых аккаунтов (24ч)</span>
+        <span style="font-size:11px;">v0.1.7: TURN-сервер + очередь ICE-кандидатов + диагностика voice. v0.1.8: убран глючивший transaction() при входе в комнату → read-then-write; вернулась автоочистка гостевых аккаунтов (24ч). v0.1.9: debug-лог теперь пишет точную строку/стек JS-ошибок</span>
       </div>
 
     </div>
@@ -2521,6 +2521,9 @@
       let details = '';
       if (err instanceof Error) {
         details = (err.code ? '[' + err.code + '] ' : '') + err.message;
+        // stack первой строкой обычно даёт файл:строку:колонку — это и есть
+        // точное место сбоя, без него на 2500+ строк искать вслепую
+        if (err.stack) details += '\n' + err.stack.split('\n').slice(0, 3).join('\n');
       } else if (err && typeof err === 'object') {
         try { details = JSON.stringify(err); } catch(e) { details = String(err); }
       } else {
@@ -2528,10 +2531,10 @@
       }
       const text = `[${time}] ${label}: ${details}`;
       const line = document.createElement('div');
-      line.style.cssText = 'padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.08); word-break:break-word;';
+      line.style.cssText = 'padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.08); word-break:break-word; white-space:pre-wrap;';
       line.textContent = text;
       body.prepend(line);
-      lastLine.textContent = text;
+      lastLine.textContent = text.split('\n')[0];
       panel.style.display = 'block';
     };
 
@@ -2547,7 +2550,15 @@
     });
 
     window.addEventListener('error', (e) => {
-      window.showDebugError('JS-ошибка', e.error || e.message);
+      // e.error обычно содержит .stack с точным местом; на случай, если его
+      // нет — добавляем filename:lineno:colno из самого события
+      const err = e.error instanceof Error ? e.error : new Error(e.message);
+      if (!err.stack || !err.stack.includes(':')) {
+        err.stack = `${e.filename || '?'}:${e.lineno || '?'}:${e.colno || '?'}`;
+      } else if (e.filename) {
+        err.stack += `\n(источник события: ${e.filename}:${e.lineno}:${e.colno})`;
+      }
+      window.showDebugError('JS-ошибка', err);
     });
     window.addEventListener('unhandledrejection', (e) => {
       window.showDebugError('Промис отклонён', e.reason);
