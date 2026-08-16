@@ -1629,8 +1629,9 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.1.7 · pre-alpha · fix: очередь ICE-кандидатов + диагностика TURN-ошибок</div>
-        Внутренний тест · обновлено 16.08.2026
+        <div class="v-num">MICBATTLE v0.1.8 · pre-alpha</div>
+        Внутренний тест · обновлено 16.08.2026<br>
+        <span style="font-size:11px;">v0.1.7: TURN-сервер + очередь ICE-кандидатов + диагностика voice. v0.1.8: убран глючивший transaction() при входе в комнату → read-then-write; вернулась автоочистка гостевых аккаунтов (24ч)</span>
       </div>
 
     </div>
@@ -2171,6 +2172,7 @@
         const isOnline = !!onlineIds[key];
         const isBanned = user.status === 'banned';
         const isRestricted = user.status === 'restricted' && user.restrictedUntil && user.restrictedUntil > Date.now();
+        const isGuest = key.startsWith('guest_');
         const row = document.createElement('div');
         row.className = 'user-row' + (isOnline ? ' online' : '');
         row.innerHTML = `
@@ -2179,12 +2181,41 @@
             <div class="u-name">${user.firstName || 'Без имени'}</div>
             <div class="u-id">${user.playerId || key}</div>
           </div>
+          ${isGuest ? '<div class="u-role-badge role-user" style="opacity:0.6;">guest</div>' : ''}
           ${isBanned ? '<div class="u-role-badge role-admin">BAN</div>' : (isRestricted ? '<div class="u-role-badge role-admin">TIMEOUT</div>' : '')}
           <div class="u-role-badge role-${role}">${role}</div>
         `;
         row.addEventListener('click', () => openUserDetail(key, user));
         listEl.appendChild(row);
       });
+    });
+
+    // автоочистка "гостей" — временных аккаунтов от захода вне Telegram (ключ guest_...),
+    // удаляются, если старше 24 часов. Опортунистически, при каждом открытии
+    // панели супердоступом — не настоящая фоновая задача по расписанию.
+    cleanupStaleGuests();
+  }
+
+  function cleanupStaleGuests() {
+    const GUEST_TTL_MS = 24 * 60 * 60 * 1000; // 24 часа
+    db.ref('users').once('value').then((snap) => {
+      const users = snap.val() || {};
+      const now = Date.now();
+      let removed = 0;
+
+      Object.entries(users).forEach(([key, user]) => {
+        if (!key.startsWith('guest_')) return;
+        const age = now - (user.createdAt || 0);
+        if (age > GUEST_TTL_MS) {
+          db.ref('users/' + key).remove();
+          db.ref('presence/' + key).remove();
+          removed++;
+        }
+      });
+
+      if (removed > 0) {
+        window.showDebugError?.('Автоочистка гостей', `Удалено записей: ${removed}`);
+      }
     });
   }
 
