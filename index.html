@@ -21,6 +21,8 @@
     --text: #F2F1EE;
     --muted: #8A8A92;
     --live: #FF3D2E;
+    --live-dark: #E22319;
+    --live-rgb: 255,61,46;
     --gold: #F2B705;
   }
 
@@ -47,7 +49,7 @@
     max-width: 420px;
     min-height: 100vh;
     background:
-      radial-gradient(120% 60% at 50% -10%, rgba(255,61,46,0.14), transparent 60%),
+      radial-gradient(120% 60% at 50% -10%, rgba(var(--live-rgb),0.14), transparent 60%),
       var(--bg);
     position: relative;
     overflow: hidden;
@@ -114,7 +116,7 @@
     position:absolute;
     inset:0;
     border-radius:50%;
-    border: 1.5px solid rgba(255,61,46,0.55);
+    border: 1.5px solid rgba(var(--live-rgb),0.55);
     animation: pulse 2.4s ease-out infinite;
   }
   .ring-pulse.delay{ animation-delay: 1.2s; }
@@ -160,7 +162,7 @@
     padding: 3px 10px;
     border-radius: 4px;
     z-index:3;
-    box-shadow: 0 4px 14px rgba(255,61,46,0.35);
+    box-shadow: 0 4px 14px rgba(var(--live-rgb),0.35);
   }
 
   .headline{
@@ -211,17 +213,19 @@
     padding: 6px 20px 28px;
     display:flex;
     flex-direction:column;
-    gap: 10px;
+    gap: 18px;
   }
 
   .action-row{
+    position: relative;
     display:flex;
     align-items:center;
     gap: 14px;
-    padding: 15px 16px;
+    padding: 16px 22px 16px 76px;
+    min-height: 62px;
     background: var(--panel);
     border: 1px solid var(--line);
-    border-radius: 14px;
+    border-radius: 999px;
     text-decoration:none;
     color: var(--text);
     cursor:pointer;
@@ -230,18 +234,23 @@
   .action-row:active{ transform: scale(0.98); }
 
   .action-row .icon{
-    width: 38px;
-    height: 38px;
-    border-radius: 10px;
+    position: absolute;
+    left: -2px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
     display:flex;
     align-items:center;
     justify-content:center;
     flex-shrink:0;
     background: var(--panel-2);
     border: 1px solid var(--line);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
   }
   .action-row .icon svg{
-    width: 18px; height:18px;
+    width: 19px; height:19px;
     stroke: var(--text);
     stroke-width: 1.7;
     fill:none;
@@ -271,9 +280,9 @@
 
   /* primary CTA — join battle */
   .cta-join{
-    background: linear-gradient(135deg, #FF3D2E, #E22319);
+    background: linear-gradient(135deg, var(--live), var(--live-dark));
     border: none;
-    box-shadow: 0 10px 28px rgba(255,61,46,0.28);
+    box-shadow: 0 10px 28px rgba(var(--live-rgb),0.28);
   }
   .cta-join .icon{
     background: rgba(0,0,0,0.18);
@@ -284,6 +293,54 @@
   .cta-join .desc{ color: rgba(255,255,255,0.75); }
   .cta-join .chev{ stroke: rgba(255,255,255,0.8); }
 
+  /* счётчик "онлайн", выступающий поверх нижнего края кнопки "Участвовать" */
+  .cta-join .online-badge{
+    position:absolute;
+    left: 56px;
+    bottom: -10px;
+    display:flex;
+    align-items:center;
+    gap:5px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 3px 10px 3px 8px;
+    font-size: 10.5px;
+    color: var(--muted);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+  }
+  .cta-join .online-badge .status-dot{ width:6px; height:6px; }
+
+  /* приветственный блок со своей аватаркой над кнопками */
+  .home-profile{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding: 4px 20px 18px;
+    text-align:center;
+  }
+  .home-profile .home-avatar{
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--live), var(--live-dark));
+    border: 2px solid var(--line);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-family:'Bebas Neue', sans-serif;
+    font-size: 26px;
+    color:#fff;
+    background-size:cover;
+    background-position:center;
+    margin-bottom: 10px;
+    box-shadow: 0 8px 20px rgba(var(--live-rgb),0.22);
+  }
+  .home-profile .home-name{
+    font-size: 15.5px;
+    font-weight: 600;
+    color: var(--text);
+  }
   /* footer roles legend */
   .roles-legend{
     display:flex;
@@ -407,7 +464,7 @@
   .cat-card .icon.training{ background: linear-gradient(155deg, rgba(108,124,255,0.18), transparent); }
   .cat-card .icon.points{ background: linear-gradient(155deg, rgba(242,183,5,0.18), transparent); }
   .cat-card .icon.ref{ background: linear-gradient(155deg, rgba(62,213,152,0.18), transparent); }
-  .cat-card .icon.live{ background: linear-gradient(155deg, rgba(255,61,46,0.18), transparent); }
+  .cat-card .icon.live{ background: linear-gradient(155deg, rgba(var(--live-rgb),0.18), transparent); }
 
   .cat-card .body{ flex:1; }
   .cat-card .title{ font-size: 15px; font-weight:600; margin-bottom:2px; }
@@ -426,7 +483,7 @@
     vertical-align: middle;
   }
   .badge.stars{ background: rgba(242,183,5,0.15); color: var(--gold); }
-  .badge.live{ background: rgba(255,61,46,0.15); color: var(--live); }
+  .badge.live{ background: rgba(var(--live-rgb),0.15); color: var(--live); }
 
   .section-label{
     font-size: 11px;
@@ -449,7 +506,7 @@
     margin-bottom: 8px;
   }
   .league-row.current{ border-color: var(--gold); background: linear-gradient(155deg, rgba(242,183,5,0.08), var(--panel)); }
-  .league-row.major{ border-color: var(--live); background: linear-gradient(155deg, rgba(255,61,46,0.1), var(--panel)); }
+  .league-row.major{ border-color: var(--live); background: linear-gradient(155deg, rgba(var(--live-rgb),0.1), var(--panel)); }
   .league-dot{ width:10px; height:10px; border-radius:50%; flex-shrink:0; }
   .league-row:nth-child(1) .league-dot{ background:#B08D57; }
   .league-row:nth-child(2) .league-dot{ background:#C9C9CE; }
@@ -479,7 +536,7 @@
     font-size: 16px;
     letter-spacing: 1px;
     color:#fff;
-    background: linear-gradient(135deg, #FF3D2E, #E22319);
+    background: linear-gradient(135deg, var(--live), var(--live-dark));
     cursor:pointer;
     margin-top: 6px;
   }
@@ -694,7 +751,7 @@
     background: var(--text);
     transition: transform .15s ease;
   }
-  .switch.on{ background: linear-gradient(135deg, #FF3D2E, #E22319); border-color: transparent; }
+  .switch.on{ background: linear-gradient(135deg, var(--live), var(--live-dark)); border-color: transparent; }
   .switch.on::after{ transform: translateX(18px); background: #fff; }
 
   .plain-row{
@@ -839,7 +896,7 @@
   }
   .u-role-badge.role-user{ background: var(--panel-2); color: var(--muted); }
   .u-role-badge.role-moderator{ background: rgba(108,124,255,0.15); color: #6C7CFF; }
-  .u-role-badge.role-admin{ background: rgba(255,61,46,0.15); color: var(--live); }
+  .u-role-badge.role-admin{ background: rgba(var(--live-rgb),0.15); color: var(--live); }
   .u-role-badge.role-superadmin{ background: rgba(242,183,5,0.15); color: var(--gold); }
 </style>
 </head>
@@ -880,6 +937,11 @@
 
   <div class="actions">
 
+    <div class="home-profile">
+      <div class="home-avatar" id="home-avatar">??</div>
+      <div class="home-name" id="home-name">Игрок</div>
+    </div>
+
     <div class="action-row cta-join">
       <div class="icon">
         <svg viewBox="0 0 24 24"><path d="M5 3l14 9-14 9V3z"/></svg>
@@ -889,6 +951,10 @@
         <div class="desc">Встать в очередь на баттл</div>
       </div>
       <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+      <div class="online-badge">
+        <div class="status-dot"></div>
+        <span id="online-count-badge">онлайн …</span>
+      </div>
     </div>
 
     <div class="action-row" id="profile-btn">
@@ -1228,24 +1294,38 @@
   let voiceSignalingRefs = [];
   let isMuted = false;
 
+  // ЖДЁТ НАСТРОЙКИ: TURN-сервер отсутствует. Раньше здесь стоял бесплатный
+  // публичный Open Relay Project (openrelay.metered.ca) со статическими
+  // логином/паролем "openrelayproject"/"openrelayproject" — по debug-логам с
+  // тестов в разных странах выяснилось, что этот хост вообще не резолвится
+  // (STUN host lookup received error, code 701) — сервис больше не пускает
+  // без регистрации и API-ключа. Статических TURN "без аккаунта" в 2026 году
+  // по факту не осталось: все рабочие бесплатные варианты (ExpressTURN,
+  // Metered.ca, Cloudflare) требуют завести свой аккаунт и получить личные
+  // username/credential — это нельзя сделать за пользователя автоматически.
+  //
+  // Как включить TURN обратно:
+  // 1) Зарегистрируйся на https://www.expressturn.com/ (бесплатно, без карты,
+  //    1 ТБ/мес) или https://www.metered.ca/
+  // 2) Возьми выданные username и credential
+  // 3) Впиши их в объект ниже вместо null — и звонки между жёсткими NAT
+  //    (мобильный интернет, разные страны) снова заработают
+  const TURN_USERNAME = null;
+  const TURN_CREDENTIAL = null;
+  const TURN_URLS = []; // например: ['turn:relay1.expressturn.com:3480']
+
   const rtcConfig = {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
-      // Бесплатный публичный TURN (Open Relay Project) — нужен, чтобы связь
-      // устанавливалась и между двумя телефонами на мобильном интернете/за
-      // жёстким NAT, где одного STUN часто недостаточно. Это временное
-      // решение для тестов — для продакшена лучше свой TURN (Twilio/Xirsys/coturn).
-      {
-        urls: [
-          'turn:openrelay.metered.ca:80',
-          'turn:openrelay.metered.ca:443',
-          'turn:openrelay.metered.ca:443?transport=tcp'
-        ],
-        username: 'openrelayproject',
-        credential: 'openrelayproject'
-      }
+      ...(TURN_USERNAME && TURN_CREDENTIAL && TURN_URLS.length
+        ? [{ urls: TURN_URLS, username: TURN_USERNAME, credential: TURN_CREDENTIAL }]
+        : [])
     ]
   };
+
+  if (!TURN_USERNAME) {
+    window.showDebugError?.('Голос', 'TURN не настроен — звонки между жёсткими NAT (разные страны/операторы) могут не устанавливаться. Нужны свои TURN-креды, см. комментарий в коде.');
+  }
 
   function setVoiceStatus(text) {
     const el = document.getElementById('voice-status');
@@ -1549,14 +1629,14 @@
           <div class="theme-name">Классика</div>
         </div>
 
-        <div class="theme-card" data-theme="neon">
+        <div class="theme-card" data-theme="darkgray">
           <div class="theme-check"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></div>
-          <div class="theme-preview" style="background:#050810">
-            <span class="swatch-dot" style="background:#00E5A8"></span>
-            <span class="swatch-dot" style="background:#6C7CFF"></span>
+          <div class="theme-preview" style="background:#26262B">
+            <span class="swatch-dot" style="background:#8A8A92"></span>
             <span class="swatch-dot" style="background:#F2B705"></span>
+            <span class="swatch-dot" style="background:#FF3D2E"></span>
           </div>
-          <div class="theme-name">Неон</div>
+          <div class="theme-name">Тёмно-серая</div>
         </div>
 
         <div class="theme-card" data-theme="oled">
@@ -1579,6 +1659,49 @@
           <div class="theme-name">Светлая</div>
         </div>
 
+      </div>
+
+      <div class="section-label">Акцентный цвет</div>
+      <div id="accent-row" style="display:flex; gap:12px; margin-bottom:22px; flex-wrap:wrap;">
+        <!-- data-accent = основной цвет (кнопки, "В ЭФИРЕ", live-бейджи и т.п.) -->
+        <div class="accent-swatch" data-accent="theme" data-hex="" style="width:38px;height:38px;border-radius:50%;border:2px solid var(--gold);position:relative;cursor:pointer;background:conic-gradient(from 0deg,#FF3D2E,#F2B705,#00E5A8,#6C7CFF,#FF3D2E);" title="Цвет темы по умолчанию"></div>
+        <div class="accent-swatch" data-accent="custom" data-hex="#FF3D2E" style="width:38px;height:38px;border-radius:50%;border:2px solid transparent;cursor:pointer;background:#FF3D2E;"></div>
+        <div class="accent-swatch" data-accent="custom" data-hex="#F2B705" style="width:38px;height:38px;border-radius:50%;border:2px solid transparent;cursor:pointer;background:#F2B705;"></div>
+        <div class="accent-swatch" data-accent="custom" data-hex="#00E5A8" style="width:38px;height:38px;border-radius:50%;border:2px solid transparent;cursor:pointer;background:#00E5A8;"></div>
+        <div class="accent-swatch" data-accent="custom" data-hex="#6C7CFF" style="width:38px;height:38px;border-radius:50%;border:2px solid transparent;cursor:pointer;background:#6C7CFF;"></div>
+        <div class="accent-swatch" data-accent="custom" data-hex="#FF7AC6" style="width:38px;height:38px;border-radius:50%;border:2px solid transparent;cursor:pointer;background:#FF7AC6;"></div>
+        <div class="accent-swatch" data-accent="custom" data-hex="#3ED598" style="width:38px;height:38px;border-radius:50%;border:2px solid transparent;cursor:pointer;background:#3ED598;"></div>
+        <label style="width:38px;height:38px;border-radius:50%;border:2px dashed var(--line);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--muted);position:relative;">
+          +
+          <input type="color" id="accent-custom-picker" value="#FF3D2E" style="position:absolute;inset:0;opacity:0;cursor:pointer;">
+        </label>
+      </div>
+
+      <div class="section-label" id="deep-theme-toggle" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+        <span>Тонкая настройка (как в Telegram)</span>
+        <span id="deep-theme-arrow" style="color:var(--muted); font-size:16px; transition:transform .2s ease;">›</span>
+      </div>
+      <div id="deep-theme-panel" style="display:none; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:22px;">
+        <div style="font-size:12px; color:var(--muted); line-height:1.5; margin-bottom:14px;">
+          Красит каждый элемент по отдельности поверх выбранной темы. «Сбросить» возвращает цвета текущей темы.
+        </div>
+        <div id="deep-theme-rows" style="display:flex; flex-direction:column; gap:12px;"></div>
+        <button id="btn-reset-deep-theme" style="margin-top:14px; width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:11px; font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:1px; cursor:pointer;">СБРОСИТЬ К ТЕМЕ</button>
+      </div>
+
+      <div class="section-label">Поделиться темой</div>
+      <div style="background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:22px;">
+        <div style="font-size:12px; color:var(--muted); line-height:1.5; margin-bottom:12px;">
+          Твоя цветовая схема сохраняется автоматически и никуда не денется при перезаходе. Чтобы передать её другу — скопируй код и отправь, ему останется только вставить его у себя.
+        </div>
+        <button id="btn-copy-theme-code" style="width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:11px; font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:1px; cursor:pointer; margin-bottom:12px;">СКОПИРОВАТЬ КОД ТЕМЫ</button>
+        <div id="theme-code-copied-note" style="display:none; font-size:12px; color:var(--live); margin:-6px 0 12px; text-align:center;">Код скопирован</div>
+
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="theme-code-input" placeholder="Код от друга" style="flex:1; min-width:0; background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:11px; color:var(--text); font-size:13px;">
+          <button id="btn-apply-theme-code" style="background:var(--gold); border:none; color:#0B0B0D; border-radius:10px; padding:0 16px; font-family:'Bebas Neue',sans-serif; font-size:13px; letter-spacing:1px; cursor:pointer; flex-shrink:0;">ПРИМЕНИТЬ</button>
+        </div>
+        <div id="theme-code-error" style="display:none; font-size:12px; color:var(--live); margin-top:8px;">Код не распознан — проверь, что скопировали полностью</div>
       </div>
 
       <div class="section-label">Микрофон</div>
@@ -1635,9 +1758,9 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.2.2 · pre-alpha</div>
+        <div class="v-num">MICBATTLE v0.3.2 · pre-alpha</div>
         Внутренний тест · обновлено 16.08.2026<br>
-        <span style="font-size:11px;">v0.2.1: no-cache мета-теги. v0.2.2: добавлена аватарка в карточку игрока в админ-панели (раньше не показывалась даже при наличии загруженного фото); аватарки в общем списке игроков теперь тоже подтягиваются, а не только инициалы</span>
+        <span style="font-size:11px;">v0.3.1: fix — убран мёртвый TURN. v0.3.2: редизайн главного экрана по макету — кнопки-пилюли с иконкой, выступающей за левый край, счётчик онлайна выступает на кнопке "Участвовать", над кнопками добавлен блок со своей аватаркой и именем. Цвета оставлены прежние (переменные темы), не из макета</span>
       </div>
 
     </div>
@@ -1719,10 +1842,35 @@
   // theme switching — actually repaints the whole app via CSS custom properties
   const themes = {
     classic: { bg:'#0B0B0D', panel:'#17171B', panel2:'#1F1F24', line:'#2A2A30', text:'#F2F1EE', muted:'#8A8A92', live:'#FF3D2E', gold:'#F2B705' },
-    neon:    { bg:'#050810', panel:'#0E1524', panel2:'#141D33', line:'#20304F', text:'#EAF4FF', muted:'#7E92B3', live:'#00E5A8', gold:'#6C7CFF' },
+    darkgray:{ bg:'#26262B', panel:'#302F35', panel2:'#3A393F', line:'#48474D', text:'#F2F1EE', muted:'#A3A2A8', live:'#FF3D2E', gold:'#F2B705' },
     oled:    { bg:'#000000', panel:'#0D0D0D', panel2:'#161616', line:'#292929', text:'#EDEDED', muted:'#7A7A7A', live:'#E63946', gold:'#C9C9C9' },
     light:   { bg:'#F4F1EA', panel:'#FFFFFF', panel2:'#ECE8E0', line:'#DEDACF', text:'#221F1B', muted:'#8A8478', live:'#D97757', gold:'#B8860B' }
   };
+
+  // Затемняет hex-цвет на заданный процент — используется для градиентов у
+  // кнопок/бейджей ("live" → "live-dark"), чтобы при смене акцентного цвета
+  // градиент оставался согласованным, а не жёстко зашитым #E22319
+  function darkenHex(hex, amount = 0.22) {
+    const h = hex.replace('#', '');
+    const num = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
+    let r = (num >> 16) & 0xFF, g = (num >> 8) & 0xFF, b = num & 0xFF;
+    r = Math.round(r * (1 - amount));
+    g = Math.round(g * (1 - amount));
+    b = Math.round(b * (1 - amount));
+    return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+  }
+
+  function hexToRgbStr(hex) {
+    const h = hex.replace('#', '');
+    const num = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
+    return `${(num >> 16) & 0xFF},${(num >> 8) & 0xFF},${num & 0xFF}`;
+  }
+
+  function setLiveColor(hex) {
+    document.documentElement.style.setProperty('--live', hex);
+    document.documentElement.style.setProperty('--live-dark', darkenHex(hex));
+    document.documentElement.style.setProperty('--live-rgb', hexToRgbStr(hex));
+  }
 
   function applyTheme(name){
     const t = themes[name];
@@ -1733,16 +1881,181 @@
     root.setProperty('--line', t.line);
     root.setProperty('--text', t.text);
     root.setProperty('--muted', t.muted);
-    root.setProperty('--live', t.live);
     root.setProperty('--gold', t.gold);
+    // акцентный цвет (--live) — если пользователь выбрал свой, тема его не
+    // перекрывает; если выбран пункт "цвет темы по умолчанию" — берём из темы
+    setLiveColor(customAccentHex || t.live);
   }
+
+  let customAccentHex = null; // null = используем цвет из текущей темы
+
+  function applyAccent(hex) {
+    customAccentHex = hex;
+    setLiveColor(hex || themes[currentThemeName].live);
+    document.querySelectorAll('.accent-swatch').forEach(s => {
+      const isSelected = hex ? (s.dataset.hex === hex) : (s.dataset.accent === 'theme');
+      s.style.borderColor = isSelected ? 'var(--gold)' : 'transparent';
+    });
+    saveThemeState();
+  }
+
+  let currentThemeName = 'classic';
 
   document.querySelectorAll('.theme-card').forEach(card => {
     card.addEventListener('click', () => {
       document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('selected'));
       card.classList.add('selected');
-      applyTheme(card.dataset.theme);
+      currentThemeName = card.dataset.theme;
+      applyTheme(currentThemeName);
     });
+  });
+
+  document.querySelectorAll('.accent-swatch').forEach(swatch => {
+    swatch.addEventListener('click', () => {
+      applyAccent(swatch.dataset.accent === 'theme' ? null : swatch.dataset.hex);
+    });
+  });
+
+  const accentPicker = document.getElementById('accent-custom-picker');
+  accentPicker.addEventListener('input', () => {
+    applyAccent(accentPicker.value);
+  });
+
+  applyAccent(null); // по умолчанию выделяем "цвет темы"
+
+  // ===== Тонкая настройка (как в Telegram) — красим каждую CSS-переменную
+  // темы отдельно, поверх выбранного пресета =====
+  const DEEP_VARS = [
+    { key: 'bg',     label: 'Фон' },
+    { key: 'panel',  label: 'Панели' },
+    { key: 'panel2', label: 'Панели (второй слой)' },
+    { key: 'line',   label: 'Линии/границы' },
+    { key: 'text',   label: 'Текст' },
+    { key: 'muted',  label: 'Приглушённый текст' },
+    { key: 'gold',   label: 'Золотой (вторичный акцент)' }
+  ];
+  const deepRows = document.getElementById('deep-theme-rows');
+  const customDeepColors = {}; // { key: hex } — только то, что пользователь явно поменял
+
+  function currentValueFor(key) {
+    return customDeepColors[key] || themes[currentThemeName][key];
+  }
+
+  function renderDeepRows() {
+    deepRows.innerHTML = DEEP_VARS.map(v => `
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+        <span style="font-size:13.5px;">${v.label}</span>
+        <label style="width:34px;height:34px;border-radius:8px;border:1px solid var(--line);position:relative;cursor:pointer;background:${currentValueFor(v.key)};flex-shrink:0;">
+          <input type="color" data-deep-key="${v.key}" value="${currentValueFor(v.key)}" style="position:absolute;inset:0;opacity:0;cursor:pointer;">
+        </label>
+      </div>
+    `).join('');
+
+    deepRows.querySelectorAll('input[data-deep-key]').forEach(input => {
+      input.addEventListener('input', () => {
+        const key = input.dataset.deepKey;
+        customDeepColors[key] = input.value;
+        document.documentElement.style.setProperty('--' + (key === 'panel2' ? 'panel-2' : key), input.value);
+        input.parentElement.style.background = input.value;
+        saveThemeState();
+      });
+    });
+  }
+  renderDeepRows();
+
+  document.getElementById('deep-theme-toggle').addEventListener('click', () => {
+    const panel = document.getElementById('deep-theme-panel');
+    const arrow = document.getElementById('deep-theme-arrow');
+    const isOpen = panel.style.display === 'block';
+    panel.style.display = isOpen ? 'none' : 'block';
+    arrow.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(90deg)';
+  });
+
+  document.getElementById('btn-reset-deep-theme').addEventListener('click', () => {
+    Object.keys(customDeepColors).forEach(key => delete customDeepColors[key]);
+    applyTheme(currentThemeName);
+    renderDeepRows();
+    saveThemeState();
+  });
+
+  // при смене темы через карточки — тонкие правки сбрасываются, чтобы не
+  // путать пользователя смесью цветов от разных тем
+  document.querySelectorAll('.theme-card').forEach(card => {
+    card.addEventListener('click', () => {
+      Object.keys(customDeepColors).forEach(key => delete customDeepColors[key]);
+      renderDeepRows();
+      saveThemeState();
+    });
+  });
+
+  // ===== Сохранение темы между открытиями + обмен кодом с другом =====
+  const THEME_STORAGE_KEY = 'micbattle_theme_v1';
+
+  function getThemeState() {
+    return { theme: currentThemeName, accent: customAccentHex, deep: customDeepColors };
+  }
+
+  function saveThemeState() {
+    try { localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(getThemeState())); } catch (e) { /* приватный режим и т.п. — не критично */ }
+  }
+
+  // Применяет полностью готовое состояние темы (используется и при загрузке
+  // сохранённого состояния, и при вставке кода от друга)
+  function applyThemeState(state) {
+    if (!state || typeof state !== 'object' || !state.theme || !themes[state.theme]) return false;
+
+    currentThemeName = state.theme;
+    document.querySelectorAll('.theme-card').forEach(c => c.classList.toggle('selected', c.dataset.theme === state.theme));
+    applyTheme(state.theme);
+
+    Object.keys(customDeepColors).forEach(k => delete customDeepColors[k]);
+    if (state.deep && typeof state.deep === 'object') {
+      Object.entries(state.deep).forEach(([k, v]) => {
+        if (DEEP_VARS.some(dv => dv.key === k) && /^#[0-9a-fA-F]{6}$/i.test(v)) {
+          customDeepColors[k] = v;
+          document.documentElement.style.setProperty('--' + (k === 'panel2' ? 'panel-2' : k), v);
+        }
+      });
+    }
+    renderDeepRows();
+
+    const accent = (state.accent && /^#[0-9a-fA-F]{6}$/i.test(state.accent)) ? state.accent : null;
+    applyAccent(accent); // applyAccent сам вызовет saveThemeState()
+    return true;
+  }
+
+  (function loadSavedTheme() {
+    try {
+      const raw = localStorage.getItem(THEME_STORAGE_KEY);
+      if (raw) applyThemeState(JSON.parse(raw));
+    } catch (e) { /* битые данные в localStorage — просто остаёмся на теме по умолчанию */ }
+  })();
+
+  document.getElementById('btn-copy-theme-code').addEventListener('click', () => {
+    const code = btoa(unescape(encodeURIComponent(JSON.stringify(getThemeState()))));
+    const note = document.getElementById('theme-code-copied-note');
+    const showCopied = () => { note.style.display = 'block'; setTimeout(() => note.style.display = 'none', 2000); };
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(code).then(showCopied).catch(() => window.prompt('Скопируй код вручную:', code));
+    } else {
+      window.prompt('Скопируй код вручную:', code);
+    }
+  });
+
+  document.getElementById('btn-apply-theme-code').addEventListener('click', () => {
+    const input = document.getElementById('theme-code-input');
+    const errorEl = document.getElementById('theme-code-error');
+    errorEl.style.display = 'none';
+    const code = input.value.trim();
+    if (!code) return;
+    try {
+      const state = JSON.parse(decodeURIComponent(escape(atob(code))));
+      if (!applyThemeState(state)) throw new Error('Некорректный формат кода темы');
+      input.value = '';
+    } catch (e) {
+      errorEl.style.display = 'block';
+      window.showDebugError?.('Тема: применение кода', e);
+    }
   });
 </script>
 
@@ -1825,6 +2138,15 @@
       const avatar = document.getElementById('profile-avatar');
       if (userData.avatarData) { avatar.style.backgroundImage = `url(${userData.avatarData})`; avatar.classList.add('has-image'); avatar.textContent=''; }
       else { avatar.style.backgroundImage=''; avatar.classList.remove('has-image'); avatar.textContent=name.slice(0,2).toUpperCase(); }
+
+      // тот же аватар/имя дублируем в приветственный блок на главном экране
+      const homeAvatar = document.getElementById('home-avatar');
+      const homeName = document.getElementById('home-name');
+      if (homeAvatar && homeName) {
+        homeName.textContent = name;
+        if (userData.avatarData) { homeAvatar.style.backgroundImage = `url(${userData.avatarData})`; homeAvatar.textContent = ''; }
+        else { homeAvatar.style.backgroundImage = ''; homeAvatar.textContent = name.slice(0, 2).toUpperCase(); }
+      }
       document.getElementById('profile-stars').innerHTML = `${Number(userData.starsBalance || 0).toLocaleString('ru-RU')} <span class="unit">⭐</span>`;
       document.getElementById('profile-points').innerHTML = `${Number(userData.points || 0).toLocaleString('ru-RU')} <span class="unit">pts</span>`;
 
@@ -1924,7 +2246,7 @@
     if (isBanned || isRestricted) {
       document.body.innerHTML = `
         <div style="min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:32px; background:#0B0B0D; color:#F2F1EE; font-family:'Inter',sans-serif;">
-          <div style="font-family:'Bebas Neue',sans-serif; font-size:32px; color:#FF3D2E; letter-spacing:1px; margin-bottom:12px;">
+          <div style="font-family:'Bebas Neue',sans-serif; font-size:32px; color:var(--live); letter-spacing:1px; margin-bottom:12px;">
             ${isBanned ? 'ДОСТУП ЗАБЛОКИРОВАН' : 'ВРЕМЕННОЕ ОГРАНИЧЕНИЕ'}
           </div>
           <div style="color:#8A8A92; font-size:14px; max-width:280px; line-height:1.5;">
@@ -1945,9 +2267,12 @@
 
   // Слушаем список всех "онлайн" записей и обновляем счётчик вживую
   const onlineCountEl = document.getElementById('online-count');
+  const onlineCountBadgeEl = document.getElementById('online-count-badge');
   db.ref('presence').on('value', (snapshot) => {
     const count = snapshot.numChildren();
-    onlineCountEl.textContent = `онлайн ${count.toLocaleString('ru-RU')}`;
+    const text = `онлайн ${count.toLocaleString('ru-RU')}`;
+    onlineCountEl.textContent = text;
+    if (onlineCountBadgeEl) onlineCountBadgeEl.textContent = text;
   });
 </script>
 
@@ -2027,7 +2352,7 @@
               <button class="ban-duration-btn" data-hours="24" style="flex:1; background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:10px 4px; font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; cursor:pointer;">24 часа</button>
               <button class="ban-duration-btn" data-hours="168" style="flex:1; background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:10px 4px; font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; cursor:pointer;">7 дней</button>
             </div>
-            <button id="btn-ban-forever" style="background:linear-gradient(135deg,#FF3D2E,#E22319); border:none; color:#fff; border-radius:10px; padding:12px; font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:1px; cursor:pointer;">Забанить навсегда</button>
+            <button id="btn-ban-forever" style="background:linear-gradient(135deg,var(--live),var(--live-dark)); border:none; color:#fff; border-radius:10px; padding:12px; font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:1px; cursor:pointer;">Забанить навсегда</button>
             <button id="btn-unban" style="background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:11px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer;">Снять бан / ограничение</button>
           </div>
         </div>
