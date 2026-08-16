@@ -1169,6 +1169,7 @@
       if (!initialSnap.exists()) {
         errorEl.textContent = 'Комната с таким кодом не найдена';
         errorEl.style.display = 'block';
+        window.showDebugError?.('Вход по коду', `код "${code}" не найден в battles/ при первичном чтении`);
         return null;
       }
 
@@ -1195,8 +1196,10 @@
         roomRef.once('value').then((recheckSnap) => {
           if (recheckSnap.exists() && recheckSnap.val().status === 'waiting') {
             errorEl.textContent = 'Не удалось подключиться, попробуй ещё раз';
+            window.showDebugError?.('Вход по коду', `транзакция вернула пустой snapshot для "${code}", хотя комната реально существует (status: waiting) — гонка при синхронизации`);
           } else {
             errorEl.textContent = 'Комната с таким кодом не найдена';
+            window.showDebugError?.('Вход по коду', `транзакция вернула пустой snapshot для "${code}"; при перепроверке комната тоже не найдена или уже не waiting`);
           }
           errorEl.style.display = 'block';
         });
@@ -1205,13 +1208,15 @@
       if (!committed) {
         errorEl.textContent = 'Эта комната уже занята';
         errorEl.style.display = 'block';
+        window.showDebugError?.('Вход по коду', `committed=false для "${code}": ${JSON.stringify(data)}`);
         return;
       }
 
       showRoom(code, data, false);
-    }).catch(() => {
+    }).catch((err) => {
       errorEl.textContent = 'Не удалось подключиться, попробуй ещё раз';
       errorEl.style.display = 'block';
+      window.showDebugError?.('Вход по коду', err);
     });
   });
 
@@ -1547,7 +1552,7 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.1.0 · pre-alpha</div>
+        <div class="v-num">MICBATTLE v0.1.2 · pre-alpha · debug-панель ошибок внизу</div>
         Внутренний тест · обновлено 16.08.2026
       </div>
 
@@ -2374,6 +2379,54 @@
     renderProfileFromMatches?.();
     return true;
   };
+</script>
+<!-- ===== debug-панель: показывает реальный текст ошибки внизу экрана =====
+     Нужна, чтобы можно было увидеть техническую причину сбоя прямо на
+     телефоне, без доступа к консоли разработчика на компьютере. -->
+<div id="debug-panel" style="display:none; position:fixed; left:0; right:0; bottom:0; z-index:99999; max-height:40vh; overflow-y:auto; background:#1a0000; border-top:2px solid var(--live); padding:10px 14px; font-family:monospace; font-size:11px; color:#ff8a80; line-height:1.5; box-shadow:0 -6px 20px rgba(0,0,0,0.5);">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+    <span style="color:var(--live); font-weight:bold; letter-spacing:1px;">DEBUG</span>
+    <span id="debug-panel-close" style="color:var(--muted); padding:2px 8px; border:1px solid var(--line); border-radius:6px; cursor:pointer;">×</span>
+  </div>
+  <div id="debug-panel-body"></div>
+</div>
+
+<script>
+  // Простой лог для отладки на устройстве без доступа к DevTools.
+  // Показывает: 1) любые непойманные JS-ошибки и отклонённые промисы,
+  // 2) ошибки, которые явно передаются через window.showDebugError(...)
+  // из конкретных мест кода (например, из логики подключения к комнате).
+  (function(){
+    const panel = document.getElementById('debug-panel');
+    const body = document.getElementById('debug-panel-body');
+    const closeBtn = document.getElementById('debug-panel-close');
+
+    window.showDebugError = function(label, err) {
+      const time = new Date().toLocaleTimeString('ru-RU');
+      let details = '';
+      if (err instanceof Error) {
+        details = (err.code ? '[' + err.code + '] ' : '') + err.message;
+      } else if (err && typeof err === 'object') {
+        try { details = JSON.stringify(err); } catch(e) { details = String(err); }
+      } else {
+        details = String(err);
+      }
+      const line = document.createElement('div');
+      line.style.cssText = 'padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.08); word-break:break-word;';
+      line.textContent = `[${time}] ${label}: ${details}`;
+      body.prepend(line);
+      panel.style.display = 'block';
+    };
+
+    closeBtn.addEventListener('click', () => { panel.style.display = 'none'; });
+
+    window.addEventListener('error', (e) => {
+      window.showDebugError('JS-ошибка', e.error || e.message);
+    });
+    window.addEventListener('unhandledrejection', (e) => {
+      window.showDebugError('Промис отклонён', e.reason);
+    });
+  })();
 </script>
 </body>
 </html>
