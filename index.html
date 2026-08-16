@@ -1158,57 +1158,45 @@
     const me = window.currentPlayer || { firstName: 'Игрок', playerId: 'guest' };
     const roomRef = db.ref('battles/' + code);
 
-    // Баг: если клиент ещё не успел ни разу прочитать этот путь (соединение
-    // с Firebase только что установлено), первый вызов transaction() может
-    // получить локально "не синхронизированный" null вместо реальных данных
-    // с сервера — и мы ошибочно решаем, что комнаты не существует, хотя она
-    // есть (см. Firebase Console). Поэтому сначала явно читаем путь один раз —
-    // это "прогревает" соединение и даёт Firebase актуальное значение,
-    // прежде чем открывать транзакцию.
-    roomRef.once('value').then((initialSnap) => {
-      if (!initialSnap.exists()) {
+    // Раньше здесь стояла db.ref(...).transaction(...). По debug-логам
+    // выяснилось, что сама transaction() у части клиентов стабильно получает
+    // пустой snapshot, даже когда обычный once('value') секундой раньше и
+    // секундой позже прекрасно видит комнату (status: waiting). Это баг/квирк
+    // именно транзакционного механизма в Firebase JS SDK, а не проблема связи.
+    // Заменяем на простую связку "прочитать → проверить → записать" —
+    // обычные .once()/.update() отрабатывают надёжно.
+    // Небольшой риск гонки (два человека жмут "Войти" в одну и ту же секунду)
+    // тут не критичен: код комнаты знают только двое друзей, а не толпа.
+    roomRef.once('value').then((snap) => {
+      if (!snap.exists()) {
         errorEl.textContent = 'Комната с таким кодом не найдена';
         errorEl.style.display = 'block';
-        window.showDebugError?.('Вход по коду', `код "${code}" не найден в battles/ при первичном чтении`);
+        window.showDebugError?.('Вход по коду', `код "${code}" не найден в battles/`);
         return null;
       }
 
-      // transaction() гарантирует атомарность: Firebase сама разрулит ситуацию,
-      // если два человека одновременно жмут "Войти" в одну комнату — займёт
-      // только один, второй получит committed:false без гонки состояний
-      return roomRef.transaction((data) => {
-        if (data === null) return undefined; // комнаты нет — отменяем транзакцию, ничего не создаём
-        if (data.status !== 'waiting') return; // уже занята — отменяем транзакцию
-        data.guestId = me.playerId;
-        data.guestName = me.firstName;
-        data.status = 'active';
-        return data;
-      });
-    }).then((result) => {
-      if (!result) return; // уже показали ошибку выше
-
-      const { committed, snapshot } = result;
-      const data = snapshot.val();
-
-      if (!data) {
-        // Подстраховка на случай редкой гонки: перепроверяем перед тем,
-        // как окончательно сообщить, что комнаты нет.
-        roomRef.once('value').then((recheckSnap) => {
-          if (recheckSnap.exists() && recheckSnap.val().status === 'waiting') {
-            errorEl.textContent = 'Не удалось подключиться, попробуй ещё раз';
-            window.showDebugError?.('Вход по коду', `транзакция вернула пустой snapshot для "${code}", хотя комната реально существует (status: waiting) — гонка при синхронизации`);
-          } else {
-            errorEl.textContent = 'Комната с таким кодом не найдена';
-            window.showDebugError?.('Вход по коду', `транзакция вернула пустой snapshot для "${code}"; при перепроверке комната тоже не найдена или уже не waiting`);
-          }
-          errorEl.style.display = 'block';
-        });
-        return;
-      }
-      if (!committed) {
+      const data = snap.val();
+      if (data.status !== 'waiting') {
         errorEl.textContent = 'Эта комната уже занята';
         errorEl.style.display = 'block';
-        window.showDebugError?.('Вход по коду', `committed=false для "${code}": ${JSON.stringify(data)}`);
+        window.showDebugError?.('Вход по коду', `"${code}" уже не waiting: status=${data.status}`);
+        return null;
+      }
+
+      return roomRef.update({
+        guestId: me.playerId,
+        guestName: me.firstName,
+        status: 'active'
+      }).then(() => roomRef.once('value'));
+    }).then((finalSnap) => {
+      if (!finalSnap) return; // уже показали ошибку выше
+
+      const data = finalSnap.val();
+      if (!data || data.guestId !== me.playerId) {
+        // Кто-то успел зайти на долю секунды раньше нас
+        errorEl.textContent = 'Эта комната уже занята';
+        errorEl.style.display = 'block';
+        window.showDebugError?.('Вход по коду', `после записи в "${code}" guestId не совпал с нашим — комнату занял кто-то другой`);
         return;
       }
 
@@ -1552,7 +1540,7 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.1.2 · pre-alpha · debug-панель ошибок внизу</div>
+        <div class="v-num">MICBATTLE v0.1.3 · pre-alpha · fix: убрал ненадёжную transaction() при входе по коду</div>
         Внутренний тест · обновлено 16.08.2026
       </div>
 
