@@ -1301,6 +1301,13 @@
       window.showDebugError?.('Голос: ICE gathering', peerConnection.iceGatheringState);
     };
 
+    // errorCode/errorText показывают, ПОЧЕМУ конкретный STUN/TURN сервер не
+    // отвечает: например 401 = неверные логин/пароль у TURN, а таймаут/сетевая
+    // ошибка = сервер недоступен или заблокирован сетью оператора.
+    peerConnection.onicecandidateerror = (event) => {
+      window.showDebugError?.('Голос: ICE candidate error', `url=${event.url} code=${event.errorCode} text=${event.errorText}`);
+    };
+
     const myRole = isHost ? 'host' : 'guest';
     const otherRole = isHost ? 'guest' : 'host';
     const sigBase = `battles/${code}/signaling`;
@@ -1319,14 +1326,43 @@
       }
     };
 
-    const candidatesRef = db.ref(`${sigBase}/candidates/${otherRole}`);
-    candidatesRef.on('child_added', (snap) => {
-      const candidate = snap.val();
-      if (candidate) {
+    // Баг из debug-логов: "addIceCandidate ... remote description was null" —
+    // кандидаты от соперника через Firebase иногда долетают и применяются
+    // РАНЬШЕ, чем у нас завершится setRemoteDescription(offer/answer), потому
+    // что это два независимых асинхронных канала (сигналинг и кандидаты).
+    // Решение — классический паттерн буферизации: если remoteDescription ещё
+    // не установлен, кандидат складывается в очередь и применяется, как
+    // только remoteDescription появится.
+    let remoteDescSet = false;
+    let pendingCandidates = [];
+
+    function applyOrQueueCandidate(candidate) {
+      if (remoteDescSet) {
         peerConnection.addIceCandidate(new RTCIceCandidate(candidate)).catch((err) => {
           window.showDebugError?.('Голос: addIceCandidate', err);
         });
+      } else {
+        pendingCandidates.push(candidate);
       }
+    }
+
+    function flushPendingCandidates() {
+      remoteDescSet = true;
+      if (pendingCandidates.length) {
+        window.showDebugError?.('Голос', `применяем ${pendingCandidates.length} отложенных кандидатов`);
+      }
+      pendingCandidates.forEach((candidate) => {
+        peerConnection.addIceCandidate(new RTCIceCandidate(candidate)).catch((err) => {
+          window.showDebugError?.('Голос: addIceCandidate (отложенный)', err);
+        });
+      });
+      pendingCandidates = [];
+    }
+
+    const candidatesRef = db.ref(`${sigBase}/candidates/${otherRole}`);
+    candidatesRef.on('child_added', (snap) => {
+      const candidate = snap.val();
+      if (candidate) applyOrQueueCandidate(candidate);
     });
     voiceSignalingRefs.push(candidatesRef);
 
@@ -1342,6 +1378,7 @@
         if (answer && !peerConnection.currentRemoteDescription) {
           window.showDebugError?.('Голос', 'answer получен от гостя, применяем');
           await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+          flushPendingCandidates();
         }
       });
       voiceSignalingRefs.push(answerRef);
@@ -1352,6 +1389,7 @@
         if (offer && !peerConnection.currentRemoteDescription) {
           window.showDebugError?.('Голос', 'offer получен от хоста, отвечаем');
           await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+          flushPendingCandidates();
           const answer = await peerConnection.createAnswer();
           await peerConnection.setLocalDescription(answer);
           await db.ref(`${sigBase}/answer`).set({ sdp: answer.sdp, type: answer.type });
@@ -1591,7 +1629,7 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.1.6 · pre-alpha · debug: диагностика типов ICE-кандидатов при обрыве связи</div>
+        <div class="v-num">MICBATTLE v0.1.7 · pre-alpha · fix: очередь ICE-кандидатов + диагностика TURN-ошибок</div>
         Внутренний тест · обновлено 16.08.2026
       </div>
 
