@@ -1628,9 +1628,12 @@
   document.getElementById('settings-close-btn').addEventListener('click', () => settingsOverlay.classList.remove('open'));
   settingsOverlay.addEventListener('click', (e) => { if(e.target === settingsOverlay) settingsOverlay.classList.remove('open'); });
 
-  // ===== разрешение на микрофон — запрашивается ТОЛЬКО здесь, по явному нажатию,
-  // а не автоматически при каждом запуске приложения (чтобы не ловить
-  // "заблокированный навсегда" статус в Telegram WebView после случайного "Запретить") =====
+  // ===== разрешение на микрофон — теперь запрашивается СРАЗУ при заходе в
+  // приложение (нативный диалог браузера/Telegram), а не только по нажатию
+  // кнопки в Настройках. Если статус уже известен как granted/denied (через
+  // Permissions API) — повторно не дёргаем getUserMedia, чтобы не показывать
+  // диалог зря; спрашиваем по-настоящему только когда статус ещё 'prompt'
+  // (то есть пользователь реально впервые видит запрос) =====
   window.micPermissionGranted = false;
 
   function setMicStatusUI(state) {
@@ -1669,22 +1672,43 @@
     setMicStatusUI('unknown');
   }
 
-  // проверяем статус сразу при загрузке страницы — иначе флаг micPermissionGranted
-  // остаётся false до первого открытия Настроек, и голос в комнате не подключается
-  // даже если разрешение реально уже выдано в прошлый раз
-  refreshMicStatus();
-
-  document.getElementById('btn-request-mic').addEventListener('click', async () => {
+  // Реально запрашивает доступ через getUserMedia (это и вызывает нативный
+  // диалог "Разрешить микрофон?"). Сразу останавливаем поток — нам нужно
+  // было только подтверждение разрешения, реальный поток будет запрошен
+  // заново при входе в комнату баттла.
+  async function requestMicPermission() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // сразу останавливаем — нам нужно было только подтверждение разрешения,
-      // реальный поток будет запрошен заново при входе в комнату баттла
       stream.getTracks().forEach(t => t.stop());
       setMicStatusUI('granted');
     } catch (err) {
       setMicStatusUI('denied');
     }
-  });
+  }
+
+  // Запрашиваем доступ сразу при загрузке приложения. Если статус уже точно
+  // известен (granted/denied по Permissions API) — просто отображаем его без
+  // повторного диалога. Если статус 'prompt' (или Permissions API недоступен,
+  // как в Safari/iOS WebView) — сразу вызываем реальный запрос, чтобы
+  // пользователь увидел системный диалог, не открывая Настройки.
+  async function requestMicOnLoad() {
+    if (navigator.permissions?.query) {
+      try {
+        const status = await navigator.permissions.query({ name: 'microphone' });
+        status.onchange = () => setMicStatusUI(status.state);
+        if (status.state === 'granted' || status.state === 'denied') {
+          setMicStatusUI(status.state);
+          return;
+        }
+        // status.state === 'prompt' — ещё не решали, спрашиваем по-настоящему ниже
+      } catch (e) { /* Permissions API не знает про 'microphone' — просто пробуем getUserMedia */ }
+    }
+    await requestMicPermission();
+  }
+
+  requestMicOnLoad();
+
+  document.getElementById('btn-request-mic').addEventListener('click', requestMicPermission);
 
   // toggles
   document.querySelectorAll('[data-toggle]').forEach(sw => {
