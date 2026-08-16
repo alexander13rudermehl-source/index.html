@@ -3,6 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<!-- Запрещаем браузеру/Telegram WebView кэшировать страницу целиком —
+     иначе разные аккаунты/устройства могут годами видеть разные версии
+     сайта, даже когда файл на сервере (GitHub Pages) уже обновлён. -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>БАТТЛ — Главный экран</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1629,9 +1635,9 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.2.0 · pre-alpha</div>
+        <div class="v-num">MICBATTLE v0.2.2 · pre-alpha</div>
         Внутренний тест · обновлено 16.08.2026<br>
-        <span style="font-size:11px;">v0.1.9: debug-лог пишет точную строку/стек JS-ошибок. v0.2.0: fix — вернул отсутствовавший элемент "r-points-val" (очки в карточке игрока), из-за которого openUserDetail() падал с ошибкой и вся карточка админ-панели (роли/бан/статистика) не открывалась</span>
+        <span style="font-size:11px;">v0.2.1: no-cache мета-теги. v0.2.2: добавлена аватарка в карточку игрока в админ-панели (раньше не показывалась даже при наличии загруженного фото); аватарки в общем списке игроков теперь тоже подтягиваются, а не только инициалы</span>
       </div>
 
     </div>
@@ -1984,6 +1990,7 @@
       <div class="admin-empty" id="admin-empty">Введи ID игрока, чтобы посмотреть или изменить его доступ</div>
 
       <div class="admin-result" id="admin-result">
+        <div id="r-avatar" style="width:56px; height:56px; border-radius:50%; background:var(--panel-2); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-family:'Bebas Neue',sans-serif; font-size:18px; margin-bottom:12px; background-size:cover; background-position:center;"></div>
         <div class="r-name" id="r-name">—</div>
         <div class="r-id" id="r-id">—</div>
         <div class="r-id" style="margin-bottom:12px;">Очков: <span id="r-points-val">0</span></div>
@@ -2117,6 +2124,15 @@
     document.getElementById('r-name').textContent = user.firstName || 'Без имени';
     document.getElementById('r-id').textContent = user.playerId;
     document.getElementById('r-points-val').textContent = user.points ?? 0;
+
+    const rAvatar = document.getElementById('r-avatar');
+    if (user.avatarData) {
+      rAvatar.style.backgroundImage = `url('${user.avatarData}')`;
+      rAvatar.textContent = '';
+    } else {
+      rAvatar.style.backgroundImage = '';
+      rAvatar.textContent = (user.firstName || '??').slice(0, 2).toUpperCase();
+    }
     renderRoleButtons(foundUserRole);
     renderStatusBadge(user);
 
@@ -2177,7 +2193,7 @@
         const row = document.createElement('div');
         row.className = 'user-row' + (isOnline ? ' online' : '');
         row.innerHTML = `
-          <div class="u-avatar">${(user.firstName || '??').slice(0, 2).toUpperCase()}<div class="u-online-dot"></div></div>
+          <div class="u-avatar"${user.avatarData ? ` style="background-image:url('${user.avatarData}');background-size:cover;background-position:center;"` : ''}>${user.avatarData ? '' : (user.firstName || '??').slice(0, 2).toUpperCase()}<div class="u-online-dot"></div></div>
           <div class="u-info">
             <div class="u-name">${user.firstName || 'Без имени'}</div>
             <div class="u-id">${user.playerId || key}</div>
