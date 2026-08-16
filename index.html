@@ -1294,25 +1294,20 @@
   let voiceSignalingRefs = [];
   let isMuted = false;
 
-  // ЖДЁТ НАСТРОЙКИ: TURN-сервер отсутствует. Раньше здесь стоял бесплатный
-  // публичный Open Relay Project (openrelay.metered.ca) со статическими
-  // логином/паролем "openrelayproject"/"openrelayproject" — по debug-логам с
-  // тестов в разных странах выяснилось, что этот хост вообще не резолвится
-  // (STUN host lookup received error, code 701) — сервис больше не пускает
-  // без регистрации и API-ключа. Статических TURN "без аккаунта" в 2026 году
-  // по факту не осталось: все рабочие бесплатные варианты (ExpressTURN,
-  // Metered.ca, Cloudflare) требуют завести свой аккаунт и получить личные
-  // username/credential — это нельзя сделать за пользователя автоматически.
+  // TURN настроен через ExpressTURN (бесплатный план: 1 ТБ/мес, TCP+UDP на
+  // порту 3478). Раньше здесь стоял бесплатный публичный Open Relay Project
+  // (openrelay.metered.ca) со статическими логином/паролем — по debug-логам
+  // с тестов в разных странах выяснилось, что этот хост вообще не резолвится
+  // (STUN host lookup received error, code 701), сервис больше не пускает
+  // без регистрации и API-ключа. Заменили на личный аккаунт ExpressTURN.
   //
-  // Как включить TURN обратно:
-  // 1) Зарегистрируйся на https://www.expressturn.com/ (бесплатно, без карты,
-  //    1 ТБ/мес) или https://www.metered.ca/
-  // 2) Возьми выданные username и credential
-  // 3) Впиши их в объект ниже вместо null — и звонки между жёсткими NAT
-  //    (мобильный интернет, разные страны) снова заработают
-  const TURN_USERNAME = null;
-  const TURN_CREDENTIAL = null;
-  const TURN_URLS = []; // например: ['turn:relay1.expressturn.com:3480']
+  // ВАЖНО: у ExpressTURN на бесплатном плане креды статические (не меняются
+  // сами), но если понадобится их обновить/сменить — зайти на
+  // https://www.expressturn.com/ → Dashboard → Refresh Credentials, и
+  // вписать новые значения сюда вместо текущих.
+  const TURN_USERNAME = '0000000002102263421';
+  const TURN_CREDENTIAL = 'Fdo+24wCT2400Pda5/0/0Kd22C8=';
+  const TURN_URLS = ['turn:free.expressturn.com:3478'];
 
   const rtcConfig = {
     iceServers: [
@@ -1323,7 +1318,7 @@
     ]
   };
 
-  if (!TURN_USERNAME) {
+  if (!TURN_USERNAME || !TURN_CREDENTIAL || !TURN_URLS.length) {
     window.showDebugError?.('Голос', 'TURN не настроен — звонки между жёсткими NAT (разные страны/операторы) могут не устанавливаться. Нужны свои TURN-креды, см. комментарий в коде.');
   }
 
