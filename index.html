@@ -1214,24 +1214,53 @@
       window.showDebugError?.('Голос', 'ontrack сработал — получили удалённый поток');
     };
 
+    // Диагностика: смотрим, была ли вообще активная пара кандидатов на
+    // момент обрыва (и какого типа) — помогает понять, реально ли TURN
+    // был доступен или соединение держалось на прямом (host/srflx) пути.
+    async function logIceFailureStats(label) {
+      try {
+        const stats = await peerConnection.getStats();
+        let pairInfo = 'нет активной пары кандидатов';
+        stats.forEach((report) => {
+          if (report.type === 'candidate-pair' && (report.state === 'succeeded' || report.selected)) {
+            pairInfo = `пара кандидатов: state=${report.state}, nominated=${report.nominated}`;
+          }
+        });
+        window.showDebugError?.(label, pairInfo);
+      } catch (e) { /* getStats недоступен — не критично */ }
+    }
+
+    // Таймер даём ICE шанс на самовосстановление (кратковременная потеря
+    // пакетов часто проходит сама за пару секунд) — если не помогло, хост
+    // инициирует полный ICE restart: пересобирает кандидатов и заново
+    // проводит offer/answer через Firebase на тех же сигнальных путях.
+    let reconnectTimer = null;
+
     peerConnection.oniceconnectionstatechange = async () => {
       const state = peerConnection.iceConnectionState;
       window.showDebugError?.('Голос: ICE state', state);
-      if (['failed', 'disconnected'].includes(state)) {
-        setVoiceStatus('Связь потеряна — попробуй переподключиться');
-        // Смотрим статистику: удалось ли вообще выбрать пару кандидатов
-        // (и если да — какого типа: host / srflx (STUN) / relay (TURN)),
-        // чтобы понять, реально ли TURN-сервер доступен с этого устройства.
-        try {
-          const stats = await peerConnection.getStats();
-          let pairInfo = 'нет активной пары кандидатов';
-          stats.forEach((report) => {
-            if (report.type === 'candidate-pair' && (report.state === 'succeeded' || report.selected)) {
-              pairInfo = `пара кандидатов: state=${report.state}, nominated=${report.nominated}`;
+
+      if (state === 'connected' || state === 'completed') {
+        if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+        setVoiceStatus('Связь установлена');
+      } else if (state === 'disconnected') {
+        setVoiceStatus('Связь нестабильна — пробуем восстановить…');
+        logIceFailureStats('Голос: getStats после disconnected');
+        if (isHost) {
+          if (reconnectTimer) clearTimeout(reconnectTimer);
+          reconnectTimer = setTimeout(() => {
+            if (peerConnection && ['disconnected', 'failed'].includes(peerConnection.iceConnectionState)) {
+              attemptIceRestart('ICE всё ещё disconnected спустя 4с — запускаем ICE restart');
             }
-          });
-          window.showDebugError?.('Голос: getStats после failed', pairInfo);
-        } catch (e) { /* getStats недоступен — не критично */ }
+          }, 4000);
+        }
+      } else if (state === 'failed') {
+        setVoiceStatus('Связь потеряна — пробуем восстановить…');
+        logIceFailureStats('Голос: getStats после failed');
+        if (isHost) {
+          if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+          attemptIceRestart('ICE failed — запускаем ICE restart немедленно');
+        }
       }
     };
 
@@ -1304,6 +1333,25 @@
     });
     voiceSignalingRefs.push(candidatesRef);
 
+    // Инициирует ICE restart: пересоздаёт offer с флагом iceRestart, который
+    // заставляет браузер заново собрать ICE-кандидатов (актуальные для
+    // текущей сети) и провести новый offer/answer раунд — только хост
+    // инициирует, чтобы не столкнуться лбами при одновременном restart
+    // с обеих сторон (guest просто ждёт новый offer и отвечает на него).
+    async function attemptIceRestart(reason) {
+      if (!peerConnection || peerConnection.signalingState === 'closed') return;
+      setVoiceStatus('Переподключаемся…');
+      window.showDebugError?.('Голос: ICE restart', reason);
+      try {
+        const offer = await peerConnection.createOffer({ iceRestart: true });
+        await peerConnection.setLocalDescription(offer);
+        await db.ref(`${sigBase}/offer`).set({ sdp: offer.sdp, type: offer.type, restartAt: Date.now() });
+        window.showDebugError?.('Голос', 'ICE restart: новый offer записан, ждём answer');
+      } catch (err) {
+        window.showDebugError?.('Голос: ICE restart error', err);
+      }
+    }
+
     if (isHost) {
       const offer = await peerConnection.createOffer();
       await peerConnection.setLocalDescription(offer);
@@ -1313,10 +1361,17 @@
       const answerRef = db.ref(`${sigBase}/answer`);
       answerRef.on('value', async (snap) => {
         const answer = snap.val();
-        if (answer && !peerConnection.currentRemoteDescription) {
-          window.showDebugError?.('Голос', 'answer получен от гостя, применяем');
-          await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-          flushPendingCandidates();
+        if (!answer) return;
+        // signalingState 'have-local-offer' — либо ждём самый первый ответ,
+        // либо ответ на offer от ICE restart; сравниваем SDP, чтобы не
+        // применять повторно то же самое значение при лишнем срабатывании
+        if (peerConnection.signalingState === 'have-local-offer') {
+          const current = peerConnection.currentRemoteDescription;
+          if (!current || current.sdp !== answer.sdp) {
+            window.showDebugError?.('Голос', current ? 'answer после ICE restart, применяем' : 'answer получен от гостя, применяем');
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+            flushPendingCandidates();
+          }
         }
       });
       voiceSignalingRefs.push(answerRef);
@@ -1324,14 +1379,18 @@
       const offerRef = db.ref(`${sigBase}/offer`);
       offerRef.on('value', async (snap) => {
         const offer = snap.val();
-        if (offer && !peerConnection.currentRemoteDescription) {
-          window.showDebugError?.('Голос', 'offer получен от хоста, отвечаем');
-          await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-          flushPendingCandidates();
-          const answer = await peerConnection.createAnswer();
-          await peerConnection.setLocalDescription(answer);
-          await db.ref(`${sigBase}/answer`).set({ sdp: answer.sdp, type: answer.type });
-          window.showDebugError?.('Голос', 'answer записан в Firebase');
+        if (!offer) return;
+        if (peerConnection.signalingState === 'stable') {
+          const current = peerConnection.currentRemoteDescription;
+          if (!current || current.sdp !== offer.sdp) {
+            window.showDebugError?.('Голос', current ? 'offer после ICE restart, отвечаем' : 'offer получен от хоста, отвечаем');
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+            flushPendingCandidates();
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            await db.ref(`${sigBase}/answer`).set({ sdp: answer.sdp, type: answer.type });
+            window.showDebugError?.('Голос', 'answer записан в Firebase');
+          }
         }
       });
       voiceSignalingRefs.push(offerRef);
