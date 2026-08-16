@@ -1156,24 +1156,50 @@
     if (!code) return;
 
     const me = window.currentPlayer || { firstName: 'Игрок', playerId: 'guest' };
+    const roomRef = db.ref('battles/' + code);
 
-    // transaction() гарантирует атомарность: Firebase сама разрулит ситуацию,
-    // если два человека одновременно жмут "Войти" в одну комнату — займёт
-    // только один, второй получит committed:false без гонки состояний
-    db.ref('battles/' + code).transaction((data) => {
-      if (data === null) return undefined; // комнаты нет — отменяем транзакцию, ничего не создаём
-      if (data.status !== 'waiting') return; // уже занята — отменяем транзакцию
-      data.guestId = me.playerId;
-      data.guestName = me.firstName;
-      data.status = 'active';
-      return data;
+    // Баг: если клиент ещё не успел ни разу прочитать этот путь (соединение
+    // с Firebase только что установлено), первый вызов transaction() может
+    // получить локально "не синхронизированный" null вместо реальных данных
+    // с сервера — и мы ошибочно решаем, что комнаты не существует, хотя она
+    // есть (см. Firebase Console). Поэтому сначала явно читаем путь один раз —
+    // это "прогревает" соединение и даёт Firebase актуальное значение,
+    // прежде чем открывать транзакцию.
+    roomRef.once('value').then((initialSnap) => {
+      if (!initialSnap.exists()) {
+        errorEl.textContent = 'Комната с таким кодом не найдена';
+        errorEl.style.display = 'block';
+        return null;
+      }
+
+      // transaction() гарантирует атомарность: Firebase сама разрулит ситуацию,
+      // если два человека одновременно жмут "Войти" в одну комнату — займёт
+      // только один, второй получит committed:false без гонки состояний
+      return roomRef.transaction((data) => {
+        if (data === null) return undefined; // комнаты нет — отменяем транзакцию, ничего не создаём
+        if (data.status !== 'waiting') return; // уже занята — отменяем транзакцию
+        data.guestId = me.playerId;
+        data.guestName = me.firstName;
+        data.status = 'active';
+        return data;
+      });
     }).then((result) => {
+      if (!result) return; // уже показали ошибку выше
+
       const { committed, snapshot } = result;
       const data = snapshot.val();
 
       if (!data) {
-        errorEl.textContent = 'Комната с таким кодом не найдена';
-        errorEl.style.display = 'block';
+        // Подстраховка на случай редкой гонки: перепроверяем перед тем,
+        // как окончательно сообщить, что комнаты нет.
+        roomRef.once('value').then((recheckSnap) => {
+          if (recheckSnap.exists() && recheckSnap.val().status === 'waiting') {
+            errorEl.textContent = 'Не удалось подключиться, попробуй ещё раз';
+          } else {
+            errorEl.textContent = 'Комната с таким кодом не найдена';
+          }
+          errorEl.style.display = 'block';
+        });
         return;
       }
       if (!committed) {
