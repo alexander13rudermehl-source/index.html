@@ -1513,7 +1513,7 @@
       <div class="section-label">Аккаунт</div>
       <div class="plain-row" onclick="alert('→ Управление привязкой Telegram-аккаунта')">
         <div class="t-label">Telegram-аккаунт</div>
-        <div class="t-val">@oleg_leipzig</div>
+        <div class="t-val" id="settings-account-val">@oleg_leipzig</div>
       </div>
       <div class="plain-row" onclick="alert('→ Язык интерфейса')">
         <div class="t-label">Язык</div>
@@ -1521,8 +1521,8 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.3.1</div>
-        Прототип · сборка от 09.08.2026
+        <div class="v-num">MICBATTLE v0.1.0 · pre-alpha</div>
+        Внутренний тест · обновлено 16.08.2026
       </div>
 
     </div>
@@ -1712,6 +1712,14 @@
       else { avatar.style.backgroundImage=''; avatar.classList.remove('has-image'); avatar.textContent=name.slice(0,2).toUpperCase(); }
       document.getElementById('profile-stars').innerHTML = `${Number(userData.starsBalance || 0).toLocaleString('ru-RU')} <span class="unit">⭐</span>`;
       document.getElementById('profile-points').innerHTML = `${Number(userData.points || 0).toLocaleString('ru-RU')} <span class="unit">pts</span>`;
+
+      // Настройки → "Telegram-аккаунт": если есть username — показываем его,
+      // если нет (у части людей username просто не задан в Telegram) — показываем
+      // внутриигровой тег (PLR-XXXXXX), по которому всё равно можно найти игрока
+      const accountValEl = document.getElementById('settings-account-val');
+      if (accountValEl) {
+        accountValEl.textContent = userData.username || userData.playerId || 'PLR-XXXXXX';
+      }
     }
     window.applyProfileUser = applyProfileUser; // доступна из любого другого JS-блока на странице (глобальная область видимости)
 
