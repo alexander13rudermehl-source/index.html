@@ -1629,9 +1629,9 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.1.9 · pre-alpha</div>
+        <div class="v-num">MICBATTLE v0.2.0 · pre-alpha</div>
         Внутренний тест · обновлено 16.08.2026<br>
-        <span style="font-size:11px;">v0.1.7: TURN-сервер + очередь ICE-кандидатов + диагностика voice. v0.1.8: убран глючивший transaction() при входе в комнату → read-then-write; вернулась автоочистка гостевых аккаунтов (24ч). v0.1.9: debug-лог теперь пишет точную строку/стек JS-ошибок</span>
+        <span style="font-size:11px;">v0.1.9: debug-лог пишет точную строку/стек JS-ошибок. v0.2.0: fix — вернул отсутствовавший элемент "r-points-val" (очки в карточке игрока), из-за которого openUserDetail() падал с ошибкой и вся карточка админ-панели (роли/бан/статистика) не открывалась</span>
       </div>
 
     </div>
@@ -1986,6 +1986,7 @@
       <div class="admin-result" id="admin-result">
         <div class="r-name" id="r-name">—</div>
         <div class="r-id" id="r-id">—</div>
+        <div class="r-id" style="margin-bottom:12px;">Очков: <span id="r-points-val">0</span></div>
         <div id="r-status-badge" style="margin-bottom:12px;"></div>
 
         <div class="r-toggle-row" style="flex-direction:column; align-items:stretch; gap:10px;">
