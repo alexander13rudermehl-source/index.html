@@ -1223,10 +1223,22 @@
   let isMuted = false;
 
   const rtcConfig = {
-    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-    // без TURN-сервера связь может не установиться у части пользователей за
-    // жёстким NAT/мобильным оператором — для полной надёжности нужен свой TURN,
-    // это отдельный шаг на будущее
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      // Бесплатный публичный TURN (Open Relay Project) — нужен, чтобы связь
+      // устанавливалась и между двумя телефонами на мобильном интернете/за
+      // жёстким NAT, где одного STUN часто недостаточно. Это временное
+      // решение для тестов — для продакшена лучше свой TURN (Twilio/Xirsys/coturn).
+      {
+        urls: [
+          'turn:openrelay.metered.ca:80',
+          'turn:openrelay.metered.ca:443',
+          'turn:openrelay.metered.ca:443?transport=tcp'
+        ],
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      }
+    ]
   };
 
   function setVoiceStatus(text) {
@@ -1237,6 +1249,7 @@
   async function setupVoiceConnection(code, isHost) {
     if (!window.micPermissionGranted) {
       setVoiceStatus('Нет доступа к микрофону — разреши в Настройках');
+      window.showDebugError?.('Голос', 'micPermissionGranted=false — setupVoiceConnection прерван до getUserMedia');
       return;
     }
 
@@ -1244,8 +1257,10 @@
       localStream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
       });
+      window.showDebugError?.('Голос', `getUserMedia OK, треков: ${localStream.getAudioTracks().length}`);
     } catch (err) {
       setVoiceStatus('Не удалось получить микрофон');
+      window.showDebugError?.('Голос: getUserMedia', err);
       return;
     }
 
@@ -1258,12 +1273,19 @@
     peerConnection.ontrack = (event) => {
       remoteAudio.srcObject = event.streams[0];
       setVoiceStatus('Связь установлена');
+      window.showDebugError?.('Голос', 'ontrack сработал — получили удалённый поток');
     };
 
     peerConnection.oniceconnectionstatechange = () => {
-      if (['failed', 'disconnected'].includes(peerConnection.iceConnectionState)) {
+      const state = peerConnection.iceConnectionState;
+      window.showDebugError?.('Голос: ICE state', state);
+      if (['failed', 'disconnected'].includes(state)) {
         setVoiceStatus('Связь потеряна — попробуй переподключиться');
       }
+    };
+
+    peerConnection.onicegatheringstatechange = () => {
+      window.showDebugError?.('Голос: ICE gathering', peerConnection.iceGatheringState);
     };
 
     const myRole = isHost ? 'host' : 'guest';
@@ -1279,7 +1301,11 @@
     const candidatesRef = db.ref(`${sigBase}/candidates/${otherRole}`);
     candidatesRef.on('child_added', (snap) => {
       const candidate = snap.val();
-      if (candidate) peerConnection.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
+      if (candidate) {
+        peerConnection.addIceCandidate(new RTCIceCandidate(candidate)).catch((err) => {
+          window.showDebugError?.('Голос: addIceCandidate', err);
+        });
+      }
     });
     voiceSignalingRefs.push(candidatesRef);
 
@@ -1287,11 +1313,13 @@
       const offer = await peerConnection.createOffer();
       await peerConnection.setLocalDescription(offer);
       await db.ref(`${sigBase}/offer`).set({ sdp: offer.sdp, type: offer.type });
+      window.showDebugError?.('Голос', 'offer записан в Firebase, ждём answer');
 
       const answerRef = db.ref(`${sigBase}/answer`);
       answerRef.on('value', async (snap) => {
         const answer = snap.val();
         if (answer && !peerConnection.currentRemoteDescription) {
+          window.showDebugError?.('Голос', 'answer получен от гостя, применяем');
           await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
         }
       });
@@ -1301,10 +1329,12 @@
       offerRef.on('value', async (snap) => {
         const offer = snap.val();
         if (offer && !peerConnection.currentRemoteDescription) {
+          window.showDebugError?.('Голос', 'offer получен от хоста, отвечаем');
           await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
           const answer = await peerConnection.createAnswer();
           await peerConnection.setLocalDescription(answer);
           await db.ref(`${sigBase}/answer`).set({ sdp: answer.sdp, type: answer.type });
+          window.showDebugError?.('Голос', 'answer записан в Firebase');
         }
       });
       voiceSignalingRefs.push(offerRef);
@@ -1540,7 +1570,7 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.1.3 · pre-alpha · fix: убрал ненадёжную transaction() при входе по коду</div>
+        <div class="v-num">MICBATTLE v0.1.4 · pre-alpha · fix: добавлен TURN-сервер + debug-лог голосового соединения</div>
         Внутренний тест · обновлено 16.08.2026
       </div>
 
