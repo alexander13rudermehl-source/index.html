@@ -473,6 +473,43 @@
   .badge.stars{ background: rgba(242,183,5,0.15); color: var(--gold); }
   .badge.live{ background: rgba(255,61,46,0.15); color: var(--live); }
 
+  /* ачивка-шильдик: выдаётся супердоступом вручную, отображается в профиле */
+  .achievement-badge{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    font-size: 12px;
+    font-weight:600;
+    padding: 5px 10px 5px 8px;
+    border-radius: 100px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text);
+  }
+  .achievement-badge .ico{ font-size:13px; line-height:1; }
+
+  /* тот же значок, но кликабельный toggle-чип в админ-панели */
+  .achievement-toggle{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    font-size: 12.5px;
+    font-weight:600;
+    padding: 7px 12px 7px 9px;
+    border-radius: 100px;
+    background: var(--panel-2);
+    border: 1.5px solid var(--line);
+    color: var(--muted);
+    cursor:pointer;
+    user-select:none;
+  }
+  .achievement-toggle.active{
+    border-color: var(--gold);
+    background: rgba(242,183,5,0.12);
+    color: var(--gold);
+  }
+  .achievement-toggle.disabled{ opacity:0.5; cursor:not-allowed; }
+
   .section-label{
     font-size: 11px;
     letter-spacing: 1px;
@@ -1389,6 +1426,7 @@
           <div class="profile-name" id="profile-name">Олег</div>
           <div class="profile-username" id="profile-username">PLR-XXXXXX</div>
           <div class="profile-league-tag" style="display:none"><span class="dot"></span></div>
+          <div id="profile-badges" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;"></div>
         </div>
       </div>
 
@@ -1742,6 +1780,30 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
+  // ===== каталог значков-шильдиков (выдаются супердоступом вручную за
+  // заслуги — альфа-тест, помощь с багами и т.п.), хранится отдельно от
+  // самих пользователей: users/{id}/badges/{key} = true просто ссылается
+  // на ключ отсюда, чтобы не дублировать иконку/название в каждой записи
+  // пользователя =====
+  window.badgeCatalog = {};
+  const badgeCatalogRef = db.ref('badgeCatalog');
+  badgeCatalogRef.on('value', (snap) => {
+    window.badgeCatalog = snap.val() || {};
+    if (typeof window.renderProfileBadges === 'function' && window.currentPlayer) {
+      window.renderProfileBadges(window.currentPlayer.badges || {});
+    }
+    if (typeof window.renderBadgeToggleList === 'function' && window.currentAdminBadgeUser) {
+      window.renderBadgeToggleList(window.currentAdminBadgeUser);
+    }
+  });
+  // если каталог пуст (первый запуск) — заводим стартовый значок «Альфа-тестер»,
+  // дальше супердоступ сможет добавлять свои прямо из админ-панели
+  badgeCatalogRef.once('value').then((snap) => {
+    if (!snap.exists()) {
+      badgeCatalogRef.child('alpha_tester').set({ label: 'Альфа-тестер', icon: '🧪' });
+    }
+  });
+
   // Генерирует случайный внутренний ID игрока, например "PLR-8X3F9K"
   function generatePlayerId() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // без похожих символов (0/O, 1/I)
@@ -1813,6 +1875,29 @@
       }
     }
     window.applyProfileUser = applyProfileUser; // доступна из любого другого JS-блока на странице (глобальная область видимости)
+
+    // Отрисовывает шильдики в профиле по объекту {badgeKey: true, ...},
+    // подставляя иконку/название из общего каталога window.badgeCatalog
+    function renderProfileBadges(badgesObj) {
+      const wrap = document.getElementById('profile-badges');
+      if (!wrap) return;
+      const keys = Object.keys(badgesObj || {}).filter(k => badgesObj[k]);
+      if (!keys.length) { wrap.innerHTML = ''; return; }
+      wrap.innerHTML = keys.map(k => {
+        const b = window.badgeCatalog[k];
+        if (!b) return '';
+        return `<div class="achievement-badge"><span class="ico">${b.icon || '🏅'}</span>${b.label || k}</div>`;
+      }).join('');
+    }
+    window.renderProfileBadges = renderProfileBadges;
+
+    // живое обновление: если супердоступ выдаст значок прямо сейчас, пока
+    // человек уже открыл профиль — шильдик появится без перезагрузки
+    userRef.child('badges').on('value', (snap) => {
+      const badges = snap.val() || {};
+      if (window.currentPlayer) window.currentPlayer.badges = badges;
+      renderProfileBadges(badges);
+    });
 
     function renderProfileStats(stats) {
       const s = stats || {};
@@ -1978,6 +2063,16 @@
         </div>
 
         <div class="r-toggle-row" style="flex-direction:column; align-items:stretch; gap:10px;">
+          <div class="r-toggle-label">Значки</div>
+          <div id="badge-toggle-list" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+          <div id="badge-create-block" style="display:none; gap:8px; align-items:center; margin-top:2px;">
+            <input type="text" id="new-badge-icon" placeholder="🏅" maxlength="4" style="width:52px; text-align:center; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:9px 4px; color:var(--text); font-size:16px;">
+            <input type="text" id="new-badge-label" placeholder="Название значка" style="flex:1; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:9px 10px; color:var(--text); font-size:13px;">
+            <button id="btn-create-badge" style="background:var(--panel-2); border:1px solid var(--line); color:var(--gold); border-radius:10px; padding:9px 12px; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap;">+ Создать</button>
+          </div>
+        </div>
+
+        <div class="r-toggle-row" style="flex-direction:column; align-items:stretch; gap:10px;">
           <div class="r-toggle-label">Корректировка статистики</div>
           <div id="stats-edit-block" style="display:none; flex-direction:column; gap:8px;">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -2092,6 +2187,76 @@
     }
   }
 
+  function renderBadgeToggleList(user) {
+    window.currentAdminBadgeUser = user; // чтобы обновиться, если каталог поменяется в фоне
+    const myRole = window.currentPlayer?.role || 'user';
+    const iAmSuperadmin = myRole === 'superadmin';
+    const listEl = document.getElementById('badge-toggle-list');
+    const catalog = window.badgeCatalog || {};
+    const userBadges = user.badges || {};
+
+    const keys = Object.keys(catalog);
+    if (!keys.length) {
+      listEl.innerHTML = '<div class="admin-empty" style="padding:0;">Каталог значков пуст</div>';
+    } else {
+      listEl.innerHTML = keys.map(k => {
+        const b = catalog[k];
+        const active = !!userBadges[k];
+        return `<div class="achievement-toggle${active ? ' active' : ''}${iAmSuperadmin ? '' : ' disabled'}" data-badge-key="${k}">
+          <span class="ico">${b.icon || '🏅'}</span>${b.label || k}
+        </div>`;
+      }).join('');
+      if (iAmSuperadmin) {
+        listEl.querySelectorAll('[data-badge-key]').forEach(el => {
+          el.addEventListener('click', () => toggleBadge(el.dataset.badgeKey));
+        });
+      }
+    }
+
+    document.getElementById('badge-create-block').style.display = iAmSuperadmin ? 'flex' : 'none';
+  }
+  window.renderBadgeToggleList = renderBadgeToggleList;
+
+  function toggleBadge(key) {
+    if (!foundUserKey) return;
+    if ((window.currentPlayer?.role || 'user') !== 'superadmin') return; // защита от прямого вызова из консоли
+    const targetName = document.getElementById('r-name').textContent;
+    const targetPlayerId = document.getElementById('r-id').textContent;
+    const user = window.currentAdminBadgeUser || { badges: {} };
+    const isActive = !!(user.badges || {})[key];
+    const badgeRef = db.ref('users/' + foundUserKey + '/badges/' + key);
+    const label = (window.badgeCatalog[key] || {}).label || key;
+
+    if (isActive) {
+      badgeRef.remove();
+      delete (user.badges || {})[key];
+      if (typeof logAction === 'function') logAction('badge_revoke', foundUserKey, targetName, targetPlayerId, `Забран значок: ${label}`);
+    } else {
+      badgeRef.set(true);
+      user.badges = user.badges || {};
+      user.badges[key] = true;
+      if (typeof logAction === 'function') logAction('badge_grant', foundUserKey, targetName, targetPlayerId, `Выдан значок: ${label}`);
+    }
+    renderBadgeToggleList(user);
+    loadUserList(); // на будущее — если в списке появится отображение значков
+  }
+
+  document.getElementById('btn-create-badge').addEventListener('click', () => {
+    if ((window.currentPlayer?.role || 'user') !== 'superadmin') return;
+    const iconInput = document.getElementById('new-badge-icon');
+    const labelInput = document.getElementById('new-badge-label');
+    const icon = iconInput.value.trim() || '🏅';
+    const label = labelInput.value.trim();
+    if (!label) { labelInput.focus(); return; }
+
+    const key = 'b_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+    db.ref('badgeCatalog/' + key).set({ label, icon }).then(() => {
+      iconInput.value = '';
+      labelInput.value = '';
+      if (typeof logAction === 'function') logAction('badge_create', key, label, '', `Новый значок в каталоге: ${icon} ${label}`);
+    });
+  });
+
   // Открывает карточку конкретного игрока (общая для списка и поиска)
   function openUserDetail(userKey, user) {
     foundUserKey = userKey;
@@ -2112,6 +2277,7 @@
 
     renderRoleButtons(foundUserRole);
     renderStatusBadge(user);
+    renderBadgeToggleList(user);
 
     const myRole = window.currentPlayer?.role || 'user';
     const canEditStats = myRole === 'admin' || myRole === 'superadmin';
@@ -2353,7 +2519,10 @@
     points_given: 'Начисление очков',
     ban_temp: 'Временный бан',
     ban_forever: 'Бан навсегда',
-    unban: 'Снятие бана'
+    unban: 'Снятие бана',
+    badge_grant: 'Выдача значка',
+    badge_revoke: 'Отзыв значка',
+    badge_create: 'Новый значок в каталоге'
   };
 
   // Пишет запись в общий журнал — вызывается из каждого админ-действия
