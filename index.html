@@ -315,6 +315,20 @@
   .cta-join .desc{ color: rgba(255,255,255,0.75); }
   .cta-join .chev{ stroke: rgba(255,255,255,0.8); }
 
+  .cta-join.locked{
+    background: var(--panel-2);
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+  .cta-join.locked .icon{
+    background: var(--panel);
+    border-color: var(--line);
+  }
+  .cta-join.locked .icon svg{ stroke: var(--muted); }
+  .cta-join.locked .label{ color: var(--muted); }
+  .cta-join.locked .desc{ color: var(--muted); }
+  .cta-join.locked .chev{ stroke: var(--muted); }
+
   /* footer roles legend */
   .roles-legend{
     display:flex;
@@ -896,13 +910,13 @@
 
   <div class="actions">
 
-    <div class="action-row cta-join">
+    <div class="action-row cta-join" id="cta-join-btn">
       <div class="icon">
         <svg viewBox="0 0 24 24"><path d="M5 3l14 9-14 9V3z"/></svg>
       </div>
       <div class="label-wrap">
         <div class="label">УЧАСТВОВАТЬ</div>
-        <div class="desc">Встать в очередь на баттл</div>
+        <div class="desc" id="cta-join-desc">Встать в очередь на баттл</div>
       </div>
       <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
     </div>
@@ -1111,7 +1125,16 @@
     overlay.classList.remove('open');
   }
 
-  document.querySelector('.cta-join').addEventListener('click', openSheet);
+  document.querySelector('.cta-join').addEventListener('click', () => {
+    if (!window.micPermissionGranted) {
+      // не даём встать в очередь без микрофона — сразу ведём в Настройки,
+      // туда, где реально можно выдать доступ
+      document.getElementById('settings-overlay')?.classList.add('open');
+      window.refreshMicStatus?.();
+      return;
+    }
+    openSheet();
+  });
   document.getElementById('close-btn').addEventListener('click', closeSheet);
   overlay.addEventListener('click', (e) => { if(e.target === overlay) closeSheet(); });
   backBtn.addEventListener('click', () => showView('main'));
@@ -1522,9 +1545,9 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.2.3 · pre-alpha (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.2.4 · pre-alpha (LiveKit-ветка)</div>
         Внутренний тест · обновлено 16.08.2026<br>
-        <span style="font-size:11px;">v0.2.2: счётчик онлайн под кнопкой, аватарка вместо микрофона. v0.2.3: убрана надпись "MICBATTLE" сверху экрана вместе с пустым topbar-блоком</span>
+        <span style="font-size:11px;">v0.2.3: убрана надпись MICBATTLE сверху. v0.2.4: кнопка "УЧАСТВОВАТЬ" блокируется, пока не выдан доступ к микрофону — подпись меняется на "Разблокируется после доступа к микрофону в Настройках", клик по заблокированной кнопке сразу открывает Настройки вместо очереди</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
@@ -1576,6 +1599,23 @@
       text.textContent = 'Ещё не запрашивали';
       btn.textContent = 'Запросить доступ';
       window.micPermissionGranted = false;
+    }
+    updateCtaJoinLockState();
+  }
+
+  // Кнопка "УЧАСТВОВАТЬ" заблокирована, пока не выдан доступ к микрофону —
+  // без голоса баттл всё равно не состоится, лучше предупредить сразу, чем
+  // дать встать в очередь и упереться в ошибку уже при старте боя
+  function updateCtaJoinLockState() {
+    const cta = document.getElementById('cta-join-btn');
+    const desc = document.getElementById('cta-join-desc');
+    if (!cta || !desc) return;
+    if (window.micPermissionGranted) {
+      cta.classList.remove('locked');
+      desc.textContent = 'Встать в очередь на баттл';
+    } else {
+      cta.classList.add('locked');
+      desc.textContent = 'Разблокируется после доступа к микрофону в Настройках';
     }
   }
 
