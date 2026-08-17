@@ -990,8 +990,26 @@
 
     <div class="sheet-body">
 
-      <!-- level 0: main — теперь сразу ведёт в баттл с другом -->
+      <!-- level 0: main — теперь один пункт "Играть с другом", ведущий в подэкран
+           с созданием/входом по коду. Второй пункт (другой режим игры) можно
+           будет добавить сюда же рядом, когда определимся, что он делает. -->
       <div class="sheet-view active" data-view="main">
+
+        <div class="cat-card" data-goto="friend-mode">
+          <div class="icon training">
+            <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c.8-3 3-4.6 6-4.6s5.2 1.6 6 4.6"/><path d="M15 15.5c2.4.2 4 1.6 4.6 4.5"/></svg>
+          </div>
+          <div class="body">
+            <div class="title">Играть с другом</div>
+            <div class="desc">Создать комнату или зайти по коду друга</div>
+          </div>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+
+      </div>
+
+      <!-- level 0.5: выбор — создать комнату или ввести код -->
+      <div class="sheet-view" data-view="friend-mode">
 
         <div class="cat-card" data-goto="friend-create">
           <div class="icon training">
@@ -1104,8 +1122,17 @@
 
   const titles = {
     main: 'Участвовать',
+    'friend-mode': 'Играть с другом',
     'friend-create': 'Создать баттл',
     'friend-join': 'Ввести код'
+  };
+
+  // родитель для кнопки "назад" — теперь есть промежуточный уровень
+  // (friend-mode), поэтому просто "назад в main" уже не годится
+  const viewParents = {
+    'friend-mode': 'main',
+    'friend-create': 'friend-mode',
+    'friend-join': 'friend-mode'
   };
 
   function showView(name){
@@ -1137,7 +1164,7 @@
   });
   document.getElementById('close-btn').addEventListener('click', closeSheet);
   overlay.addEventListener('click', (e) => { if(e.target === overlay) closeSheet(); });
-  backBtn.addEventListener('click', () => showView('main'));
+  backBtn.addEventListener('click', () => showView(viewParents[sheet.dataset.current] || 'main'));
 
   document.querySelectorAll('[data-goto]').forEach(el => {
     el.addEventListener('click', () => showView(el.dataset.goto));
@@ -1545,9 +1572,9 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.2.4 · pre-alpha (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.2.5 · pre-alpha (LiveKit-ветка)</div>
         Внутренний тест · обновлено 16.08.2026<br>
-        <span style="font-size:11px;">v0.2.3: убрана надпись MICBATTLE сверху. v0.2.4: кнопка "УЧАСТВОВАТЬ" блокируется, пока не выдан доступ к микрофону — подпись меняется на "Разблокируется после доступа к микрофону в Настройках", клик по заблокированной кнопке сразу открывает Настройки вместо очереди</span>
+        <span style="font-size:11px;">v0.2.4: блокировка кнопки "УЧАСТВОВАТЬ" без микрофона. v0.2.5: "Создать баттл с другом" и "Ввести код друга" объединены в один пункт "Играть с другом" — открывает подэкран с этими двумя опциями; освобождено место в списке под второй режим игры</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
