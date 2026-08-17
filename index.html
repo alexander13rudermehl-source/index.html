@@ -157,6 +157,43 @@
     box-shadow: 0 4px 14px rgba(255,61,46,0.35);
   }
 
+  .stage-avatar{
+    width: 116px;
+    height: 116px;
+    border-radius:50%;
+    background: linear-gradient(155deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    z-index:2;
+    font-family:'Bebas Neue', sans-serif;
+    font-size: 32px;
+    color: var(--text);
+    background-size:cover;
+    background-position:center;
+  }
+
+  .stage-name{
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin-top: 12px;
+    margin-bottom: 6px;
+  }
+
+  .online-below-cta{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    margin: 10px 0 4px;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .online-below-cta .status-dot{ position:static; }
+
   .headline{
     font-family:'Bebas Neue', sans-serif;
     font-size: 34px;
@@ -841,28 +878,13 @@
 
 <div class="device">
 
-  <div class="topbar">
-    <div class="brand">MIC<span>BATTLE</span></div>
-    <div class="status-pill">
-      <div class="status-dot"></div>
-      <span id="online-count">онлайн …</span>
-    </div>
-  </div>
-
   <div class="stage">
     <div class="ring-wrap">
       <div class="ring-pulse"></div>
       <div class="ring-pulse delay"></div>
-      <div class="avatar">
-        <svg class="mic-icon" viewBox="0 0 24 24">
-          <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/>
-          <path d="M6 11v1a6 6 0 0 0 12 0v-1"/>
-          <line x1="12" y1="20" x2="12" y2="23"/>
-          <line x1="8" y1="23" x2="16" y2="23"/>
-        </svg>
-        <div class="on-air">В ЭФИРЕ</div>
-      </div>
+      <div class="stage-avatar" id="home-avatar">??</div>
     </div>
+    <div class="stage-name" id="home-name">Игрок</div>
 
     <h1 class="headline">Тролль<span class="accent">-баттл</span></h1>
     <p class="subline">Голосовой баттл 1×1 — острые языки, живой рефери и зрители, которые решают, кто сильнее</p>
@@ -883,6 +905,11 @@
         <div class="desc">Встать в очередь на баттл</div>
       </div>
       <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+    </div>
+
+    <div class="online-below-cta">
+      <div class="status-dot"></div>
+      <span id="online-count">онлайн …</span>
     </div>
 
     <div class="action-row" id="profile-btn">
@@ -1495,9 +1522,9 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.2.1 · pre-alpha (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.2.3 · pre-alpha (LiveKit-ветка)</div>
         Внутренний тест · обновлено 16.08.2026<br>
-        <span style="font-size:11px;">v0.2.0: голос переведён на LiveKit. v0.2.1: fix — TokenSource.developmentTokenServer не существует в SDK, правильный метод sandboxTokenServer (отсюда была ошибка "is not a function"); также вернул r-avatar/r-points-val в карточку админ-панели, которые отсутствовали в этой версии файла. ⚠️ Эта ветка собрана от более раннего снапшота — в ней пока нет кастомных тем/акцентного цвета и аватарки на главном экране из более поздних версий</span>
+        <span style="font-size:11px;">v0.2.2: счётчик онлайн под кнопкой, аватарка вместо микрофона. v0.2.3: убрана надпись "MICBATTLE" сверху экрана вместе с пустым topbar-блоком</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
@@ -1698,6 +1725,15 @@
       const avatar = document.getElementById('profile-avatar');
       if (userData.avatarData) { avatar.style.backgroundImage = `url(${userData.avatarData})`; avatar.classList.add('has-image'); avatar.textContent=''; }
       else { avatar.style.backgroundImage=''; avatar.classList.remove('has-image'); avatar.textContent=name.slice(0,2).toUpperCase(); }
+
+      // тот же аватар/имя дублируем на главный экран (вместо иконки микрофона)
+      const homeAvatar = document.getElementById('home-avatar');
+      const homeName = document.getElementById('home-name');
+      if (homeAvatar && homeName) {
+        homeName.textContent = name;
+        if (userData.avatarData) { homeAvatar.style.backgroundImage = `url(${userData.avatarData})`; homeAvatar.textContent = ''; }
+        else { homeAvatar.style.backgroundImage = ''; homeAvatar.textContent = name.slice(0, 2).toUpperCase(); }
+      }
       document.getElementById('profile-stars').innerHTML = `${Number(userData.starsBalance || 0).toLocaleString('ru-RU')} <span class="unit">⭐</span>`;
       document.getElementById('profile-points').innerHTML = `${Number(userData.points || 0).toLocaleString('ru-RU')} <span class="unit">pts</span>`;
 
