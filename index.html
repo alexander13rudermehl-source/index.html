@@ -3,12 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<!-- Запрещаем браузеру/Telegram WebView кэшировать страницу целиком —
-     иначе разные аккаунты/устройства могут годами видеть разные версии
-     сайта, даже когда файл на сервере (GitHub Pages) уже обновлён. -->
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
 <title>БАТТЛ — Главный экран</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -21,8 +15,6 @@
     --text: #F2F1EE;
     --muted: #8A8A92;
     --live: #FF3D2E;
-    --live-dark: #E22319;
-    --live-rgb: 255,61,46;
     --gold: #F2B705;
   }
 
@@ -49,13 +41,29 @@
     max-width: 420px;
     min-height: 100vh;
     background:
-      radial-gradient(120% 60% at 50% -10%, rgba(var(--live-rgb),0.14), transparent 60%),
+      radial-gradient(120% 60% at 50% -10%, rgba(255,61,46,0.14), transparent 60%),
       var(--bg);
     position: relative;
     overflow: hidden;
     display:flex;
     flex-direction:column;
   }
+
+  /* top bar */
+  .topbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding: 20px 20px 0;
+  }
+
+  .brand{
+    font-family:'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 2px;
+    color: var(--text);
+  }
+  .brand span{ color: var(--live); }
 
   .status-pill{
     display:flex;
@@ -75,6 +83,80 @@
     box-shadow: 0 0 6px #3ED598;
   }
 
+  /* hero / stage */
+  .stage{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding: 20px 24px 10px;
+    text-align:center;
+  }
+
+  .ring-wrap{
+    position:relative;
+    width: 168px;
+    height: 168px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin-bottom: 26px;
+  }
+
+  .ring-pulse{
+    position:absolute;
+    inset:0;
+    border-radius:50%;
+    border: 1.5px solid rgba(255,61,46,0.55);
+    animation: pulse 2.4s ease-out infinite;
+  }
+  .ring-pulse.delay{ animation-delay: 1.2s; }
+
+  @keyframes pulse{
+    0%   { transform: scale(0.78); opacity: 0.9; }
+    75%  { transform: scale(1.25); opacity: 0; }
+    100% { transform: scale(1.25); opacity: 0; }
+  }
+
+  .avatar{
+    width: 116px;
+    height: 116px;
+    border-radius:50%;
+    background: linear-gradient(155deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    z-index:2;
+  }
+
+  .mic-icon{ width: 40px; height: 40px; }
+  .mic-icon path, .mic-icon rect, .mic-icon line{
+    stroke: var(--text);
+    stroke-width: 1.6;
+    fill:none;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+  }
+
+  .on-air{
+    position:absolute;
+    bottom: -4px;
+    left:50%;
+    transform: translateX(-50%);
+    background: var(--live);
+    color:#fff;
+    font-family:'Bebas Neue', sans-serif;
+    font-size: 12px;
+    letter-spacing: 2px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    z-index:3;
+    box-shadow: 0 4px 14px rgba(255,61,46,0.35);
+  }
+
   .headline{
     font-family:'Bebas Neue', sans-serif;
     font-size: 34px;
@@ -91,24 +173,49 @@
     max-width: 280px;
   }
 
+  .waveform{
+    display:flex;
+    align-items:flex-end;
+    gap: 3px;
+    height: 20px;
+    margin-top: 18px;
+  }
+  .waveform span{
+    width: 3px;
+    background: var(--gold);
+    border-radius: 2px;
+    opacity: 0.85;
+    animation: bar 1.1s ease-in-out infinite;
+  }
+  .waveform span:nth-child(1){ height: 6px;  animation-delay: 0s; }
+  .waveform span:nth-child(2){ height: 14px; animation-delay: 0.1s; }
+  .waveform span:nth-child(3){ height: 20px; animation-delay: 0.2s; }
+  .waveform span:nth-child(4){ height: 10px; animation-delay: 0.3s; }
+  .waveform span:nth-child(5){ height: 16px; animation-delay: 0.4s; }
+  .waveform span:nth-child(6){ height: 8px;  animation-delay: 0.5s; }
+  .waveform span:nth-child(7){ height: 13px; animation-delay: 0.6s; }
+
+  @keyframes bar{
+    0%, 100% { transform: scaleY(0.55); }
+    50%      { transform: scaleY(1); }
+  }
+
   /* action menu */
   .actions{
     padding: 6px 20px 28px;
     display:flex;
     flex-direction:column;
-    gap: 18px;
+    gap: 10px;
   }
 
   .action-row{
-    position: relative;
     display:flex;
     align-items:center;
     gap: 14px;
-    padding: 16px 22px 16px 76px;
-    min-height: 62px;
+    padding: 15px 16px;
     background: var(--panel);
     border: 1px solid var(--line);
-    border-radius: 999px;
+    border-radius: 14px;
     text-decoration:none;
     color: var(--text);
     cursor:pointer;
@@ -117,23 +224,18 @@
   .action-row:active{ transform: scale(0.98); }
 
   .action-row .icon{
-    position: absolute;
-    left: -2px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 58px;
-    height: 58px;
-    border-radius: 50%;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
     display:flex;
     align-items:center;
     justify-content:center;
     flex-shrink:0;
     background: var(--panel-2);
     border: 1px solid var(--line);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
   }
   .action-row .icon svg{
-    width: 19px; height:19px;
+    width: 18px; height:18px;
     stroke: var(--text);
     stroke-width: 1.7;
     fill:none;
@@ -163,9 +265,9 @@
 
   /* primary CTA — join battle */
   .cta-join{
-    background: linear-gradient(135deg, var(--live), var(--live-dark));
+    background: linear-gradient(135deg, #FF3D2E, #E22319);
     border: none;
-    box-shadow: 0 10px 28px rgba(var(--live-rgb),0.28);
+    box-shadow: 0 10px 28px rgba(255,61,46,0.28);
   }
   .cta-join .icon{
     background: rgba(0,0,0,0.18);
@@ -176,54 +278,6 @@
   .cta-join .desc{ color: rgba(255,255,255,0.75); }
   .cta-join .chev{ stroke: rgba(255,255,255,0.8); }
 
-  /* счётчик "онлайн", выступающий поверх нижнего края кнопки "Участвовать" */
-  .cta-join .online-badge{
-    position:absolute;
-    left: 56px;
-    bottom: -10px;
-    display:flex;
-    align-items:center;
-    gap:5px;
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    padding: 3px 10px 3px 8px;
-    font-size: 10.5px;
-    color: var(--muted);
-    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
-  }
-  .cta-join .online-badge .status-dot{ width:6px; height:6px; }
-
-  /* приветственный блок со своей аватаркой над кнопками */
-  .home-profile{
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    padding: 4px 20px 18px;
-    text-align:center;
-  }
-  .home-profile .home-avatar{
-    width: 84px;
-    height: 84px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--live), var(--live-dark));
-    border: 2px solid var(--line);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-family:'Bebas Neue', sans-serif;
-    font-size: 26px;
-    color:#fff;
-    background-size:cover;
-    background-position:center;
-    margin-bottom: 10px;
-    box-shadow: 0 8px 20px rgba(var(--live-rgb),0.22);
-  }
-  .home-profile .home-name{
-    font-size: 15.5px;
-    font-weight: 600;
-    color: var(--text);
-  }
   /* footer roles legend */
   .roles-legend{
     display:flex;
@@ -347,7 +401,7 @@
   .cat-card .icon.training{ background: linear-gradient(155deg, rgba(108,124,255,0.18), transparent); }
   .cat-card .icon.points{ background: linear-gradient(155deg, rgba(242,183,5,0.18), transparent); }
   .cat-card .icon.ref{ background: linear-gradient(155deg, rgba(62,213,152,0.18), transparent); }
-  .cat-card .icon.live{ background: linear-gradient(155deg, rgba(var(--live-rgb),0.18), transparent); }
+  .cat-card .icon.live{ background: linear-gradient(155deg, rgba(255,61,46,0.18), transparent); }
 
   .cat-card .body{ flex:1; }
   .cat-card .title{ font-size: 15px; font-weight:600; margin-bottom:2px; }
@@ -366,7 +420,7 @@
     vertical-align: middle;
   }
   .badge.stars{ background: rgba(242,183,5,0.15); color: var(--gold); }
-  .badge.live{ background: rgba(var(--live-rgb),0.15); color: var(--live); }
+  .badge.live{ background: rgba(255,61,46,0.15); color: var(--live); }
 
   .section-label{
     font-size: 11px;
@@ -389,7 +443,7 @@
     margin-bottom: 8px;
   }
   .league-row.current{ border-color: var(--gold); background: linear-gradient(155deg, rgba(242,183,5,0.08), var(--panel)); }
-  .league-row.major{ border-color: var(--live); background: linear-gradient(155deg, rgba(var(--live-rgb),0.1), var(--panel)); }
+  .league-row.major{ border-color: var(--live); background: linear-gradient(155deg, rgba(255,61,46,0.1), var(--panel)); }
   .league-dot{ width:10px; height:10px; border-radius:50%; flex-shrink:0; }
   .league-row:nth-child(1) .league-dot{ background:#B08D57; }
   .league-row:nth-child(2) .league-dot{ background:#C9C9CE; }
@@ -419,7 +473,7 @@
     font-size: 16px;
     letter-spacing: 1px;
     color:#fff;
-    background: linear-gradient(135deg, var(--live), var(--live-dark));
+    background: linear-gradient(135deg, #FF3D2E, #E22319);
     cursor:pointer;
     margin-top: 6px;
   }
@@ -634,7 +688,7 @@
     background: var(--text);
     transition: transform .15s ease;
   }
-  .switch.on{ background: linear-gradient(135deg, var(--live), var(--live-dark)); border-color: transparent; }
+  .switch.on{ background: linear-gradient(135deg, #FF3D2E, #E22319); border-color: transparent; }
   .switch.on::after{ transform: translateX(18px); background: #fff; }
 
   .plain-row{
@@ -779,7 +833,7 @@
   }
   .u-role-badge.role-user{ background: var(--panel-2); color: var(--muted); }
   .u-role-badge.role-moderator{ background: rgba(108,124,255,0.15); color: #6C7CFF; }
-  .u-role-badge.role-admin{ background: rgba(var(--live-rgb),0.15); color: var(--live); }
+  .u-role-badge.role-admin{ background: rgba(255,61,46,0.15); color: var(--live); }
   .u-role-badge.role-superadmin{ background: rgba(242,183,5,0.15); color: var(--gold); }
 </style>
 </head>
@@ -787,17 +841,38 @@
 
 <div class="device">
 
-  <div style="padding: 24px 24px 10px; text-align:center;">
+  <div class="topbar">
+    <div class="brand">MIC<span>BATTLE</span></div>
+    <div class="status-pill">
+      <div class="status-dot"></div>
+      <span id="online-count">онлайн …</span>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="ring-wrap">
+      <div class="ring-pulse"></div>
+      <div class="ring-pulse delay"></div>
+      <div class="avatar">
+        <svg class="mic-icon" viewBox="0 0 24 24">
+          <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/>
+          <path d="M6 11v1a6 6 0 0 0 12 0v-1"/>
+          <line x1="12" y1="20" x2="12" y2="23"/>
+          <line x1="8" y1="23" x2="16" y2="23"/>
+        </svg>
+        <div class="on-air">В ЭФИРЕ</div>
+      </div>
+    </div>
+
     <h1 class="headline">Тролль<span class="accent">-баттл</span></h1>
-    <p class="subline" style="margin:0 auto;">Голосовой баттл 1×1 — острые языки, живой рефери и зрители, которые решают, кто сильнее</p>
+    <p class="subline">Голосовой баттл 1×1 — острые языки, живой рефери и зрители, которые решают, кто сильнее</p>
+
+    <div class="waveform">
+      <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
   </div>
 
   <div class="actions">
-
-    <div class="home-profile">
-      <div class="home-avatar" id="home-avatar">??</div>
-      <div class="home-name" id="home-name">Игрок</div>
-    </div>
 
     <div class="action-row cta-join">
       <div class="icon">
@@ -808,10 +883,6 @@
         <div class="desc">Встать в очередь на баттл</div>
       </div>
       <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
-      <div class="online-badge">
-        <div class="status-dot"></div>
-        <span id="online-count-badge">онлайн …</span>
-      </div>
     </div>
 
     <div class="action-row" id="profile-btn">
@@ -1142,42 +1213,14 @@
     teardownVoiceConnection();
   });
 
-  // ===== WebRTC — реальный голосовой канал между двумя участниками комнаты =====
-  // Firebase используется только как сигнальный сервер: через него оппоненты
-  // обмениваются offer/answer/ICE-кандидатами, а сам звук потом идёт напрямую,
-  // peer-to-peer, минуя базу данных.
-  let peerConnection = null;
-  let localStream = null;
-  let voiceSignalingRefs = [];
+  // ===== Голос через LiveKit — вместо самодельного WebRTC =====
+  // LiveKit сам разруливает ICE/TURN/переподключения — то, с чем мы мучились
+  // руками раньше. Development token server выдаёт токены без своего бэкенда
+  // (подходит для теста/пре-альфы, для продакшена нужен будет свой сервер токенов).
+  const LIVEKIT_TOKEN_SERVER_ID = 'zolotayakletka-27g1yr';
+
+  let lkRoom = null;
   let isMuted = false;
-
-  // TURN настроен через ExpressTURN (бесплатный план: 1 ТБ/мес, TCP+UDP на
-  // порту 3478). Раньше здесь стоял бесплатный публичный Open Relay Project
-  // (openrelay.metered.ca) со статическими логином/паролем — по debug-логам
-  // с тестов в разных странах выяснилось, что этот хост вообще не резолвится
-  // (STUN host lookup received error, code 701), сервис больше не пускает
-  // без регистрации и API-ключа. Заменили на личный аккаунт ExpressTURN.
-  //
-  // ВАЖНО: у ExpressTURN на бесплатном плане креды статические (не меняются
-  // сами), но если понадобится их обновить/сменить — зайти на
-  // https://www.expressturn.com/ → Dashboard → Refresh Credentials, и
-  // вписать новые значения сюда вместо текущих.
-  const TURN_USERNAME = '000000002102275245';
-  const TURN_CREDENTIAL = '8RziIhrqrA5m+iv7HYnalghNtdk=';
-  const TURN_URLS = ['turn:free.expressturn.com:3478', 'turn:free.expressturn.com:3478?transport=tcp'];
-
-  const rtcConfig = {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      ...(TURN_USERNAME && TURN_CREDENTIAL && TURN_URLS.length
-        ? [{ urls: TURN_URLS, username: TURN_USERNAME, credential: TURN_CREDENTIAL }]
-        : [])
-    ]
-  };
-
-  if (!TURN_USERNAME || !TURN_CREDENTIAL || !TURN_URLS.length) {
-    window.showDebugError?.('Голос', 'TURN не настроен — звонки между жёсткими NAT (разные страны/операторы) могут не устанавливаться. Нужны свои TURN-креды, см. комментарий в коде.');
-  }
 
   function setVoiceStatus(text) {
     const el = document.getElementById('voice-status');
@@ -1187,234 +1230,58 @@
   async function setupVoiceConnection(code, isHost) {
     if (!window.micPermissionGranted) {
       setVoiceStatus('Нет доступа к микрофону — разреши в Настройках');
-      window.showDebugError?.('Голос', 'micPermissionGranted=false — setupVoiceConnection прерван до getUserMedia');
+      window.showDebugError?.('Голос (LiveKit)', 'micPermissionGranted=false — подключение прервано до getUserMedia');
       return;
     }
+
+    setVoiceStatus('Соединяем через LiveKit…');
 
     try {
-      localStream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+      const tokenSource = LivekitClient.TokenSource.developmentTokenServer(LIVEKIT_TOKEN_SERVER_ID);
+      const { serverUrl, participantToken } = await tokenSource.fetch({ roomName: code });
+      window.showDebugError?.('Голос (LiveKit)', `токен получен, serverUrl=${serverUrl}`);
+
+      const room = new LivekitClient.Room();
+
+      room.on(LivekitClient.RoomEvent.TrackSubscribed, (track) => {
+        if (track.kind === 'audio') {
+          const remoteAudio = document.getElementById('room-remote-audio');
+          track.attach(remoteAudio);
+          setVoiceStatus('Связь установлена');
+          window.showDebugError?.('Голос (LiveKit)', 'получили аудио-трек соперника');
+        }
       });
-      window.showDebugError?.('Голос', `getUserMedia OK, треков: ${localStream.getAudioTracks().length}`);
+
+      room.on(LivekitClient.RoomEvent.ConnectionStateChanged, (state) => {
+        window.showDebugError?.('Голос (LiveKit): состояние', state);
+        if (state === 'disconnected' || state === 'failed') {
+          setVoiceStatus('Связь потеряна — попробуй переподключиться');
+        }
+      });
+
+      await room.connect(serverUrl, participantToken);
+      await room.localParticipant.setMicrophoneEnabled(true);
+      window.showDebugError?.('Голос (LiveKit)', 'подключено и микрофон включён');
+
+      lkRoom = room;
     } catch (err) {
-      setVoiceStatus('Не удалось получить микрофон');
-      window.showDebugError?.('Голос: getUserMedia', err);
-      return;
-    }
-
-    setVoiceStatus('Соединяем…');
-
-    peerConnection = new RTCPeerConnection(rtcConfig);
-    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
-    const remoteAudio = document.getElementById('room-remote-audio');
-    peerConnection.ontrack = (event) => {
-      remoteAudio.srcObject = event.streams[0];
-      setVoiceStatus('Связь установлена');
-      window.showDebugError?.('Голос', 'ontrack сработал — получили удалённый поток');
-    };
-
-    // Диагностика: смотрим, была ли вообще активная пара кандидатов на
-    // момент обрыва (и какого типа) — помогает понять, реально ли TURN
-    // был доступен или соединение держалось на прямом (host/srflx) пути.
-    async function logIceFailureStats(label) {
-      try {
-        const stats = await peerConnection.getStats();
-        let pairInfo = 'нет активной пары кандидатов';
-        stats.forEach((report) => {
-          if (report.type === 'candidate-pair' && (report.state === 'succeeded' || report.selected)) {
-            pairInfo = `пара кандидатов: state=${report.state}, nominated=${report.nominated}`;
-          }
-        });
-        window.showDebugError?.(label, pairInfo);
-      } catch (e) { /* getStats недоступен — не критично */ }
-    }
-
-    // Таймер даём ICE шанс на самовосстановление (кратковременная потеря
-    // пакетов часто проходит сама за пару секунд) — если не помогло, хост
-    // инициирует полный ICE restart: пересобирает кандидатов и заново
-    // проводит offer/answer через Firebase на тех же сигнальных путях.
-    let reconnectTimer = null;
-
-    peerConnection.oniceconnectionstatechange = async () => {
-      const state = peerConnection.iceConnectionState;
-      window.showDebugError?.('Голос: ICE state', state);
-
-      if (state === 'connected' || state === 'completed') {
-        if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
-        setVoiceStatus('Связь установлена');
-      } else if (state === 'disconnected') {
-        setVoiceStatus('Связь нестабильна — пробуем восстановить…');
-        logIceFailureStats('Голос: getStats после disconnected');
-        if (isHost) {
-          if (reconnectTimer) clearTimeout(reconnectTimer);
-          reconnectTimer = setTimeout(() => {
-            if (peerConnection && ['disconnected', 'failed'].includes(peerConnection.iceConnectionState)) {
-              attemptIceRestart('ICE всё ещё disconnected спустя 4с — запускаем ICE restart');
-            }
-          }, 4000);
-        }
-      } else if (state === 'failed') {
-        setVoiceStatus('Связь потеряна — пробуем восстановить…');
-        logIceFailureStats('Голос: getStats после failed');
-        if (isHost) {
-          if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
-          attemptIceRestart('ICE failed — запускаем ICE restart немедленно');
-        }
-      }
-    };
-
-    peerConnection.onicegatheringstatechange = () => {
-      window.showDebugError?.('Голос: ICE gathering', peerConnection.iceGatheringState);
-    };
-
-    // errorCode/errorText показывают, ПОЧЕМУ конкретный STUN/TURN сервер не
-    // отвечает: например 401 = неверные логин/пароль у TURN, а таймаут/сетевая
-    // ошибка = сервер недоступен или заблокирован сетью оператора.
-    peerConnection.onicecandidateerror = (event) => {
-      window.showDebugError?.('Голос: ICE candidate error', `url=${event.url} code=${event.errorCode} text=${event.errorText}`);
-    };
-
-    const myRole = isHost ? 'host' : 'guest';
-    const otherRole = isHost ? 'guest' : 'host';
-    const sigBase = `battles/${code}/signaling`;
-
-    let gatheredTypes = { host: 0, srflx: 0, relay: 0 };
-    peerConnection.onicecandidate = (event) => {
-      if (event.candidate) {
-        // тип кандидата виден в самой SDP-строке candidate: "... typ host/srflx/relay ..."
-        const typeMatch = /typ (\w+)/.exec(event.candidate.candidate);
-        const type = typeMatch ? typeMatch[1] : 'unknown';
-        gatheredTypes[type] = (gatheredTypes[type] || 0) + 1;
-        db.ref(`${sigBase}/candidates/${myRole}`).push(event.candidate.toJSON());
-      } else {
-        // event.candidate === null означает "сбор кандидатов завершён"
-        window.showDebugError?.('Голос: собрано кандидатов', JSON.stringify(gatheredTypes) + (gatheredTypes.relay === 0 ? ' — TURN(relay) НЕ СОБРАН!' : ' — relay есть'));
-      }
-    };
-
-    // Баг из debug-логов: "addIceCandidate ... remote description was null" —
-    // кандидаты от соперника через Firebase иногда долетают и применяются
-    // РАНЬШЕ, чем у нас завершится setRemoteDescription(offer/answer), потому
-    // что это два независимых асинхронных канала (сигналинг и кандидаты).
-    // Решение — классический паттерн буферизации: если remoteDescription ещё
-    // не установлен, кандидат складывается в очередь и применяется, как
-    // только remoteDescription появится.
-    let remoteDescSet = false;
-    let pendingCandidates = [];
-
-    function applyOrQueueCandidate(candidate) {
-      if (remoteDescSet) {
-        peerConnection.addIceCandidate(new RTCIceCandidate(candidate)).catch((err) => {
-          window.showDebugError?.('Голос: addIceCandidate', err);
-        });
-      } else {
-        pendingCandidates.push(candidate);
-      }
-    }
-
-    function flushPendingCandidates() {
-      remoteDescSet = true;
-      if (pendingCandidates.length) {
-        window.showDebugError?.('Голос', `применяем ${pendingCandidates.length} отложенных кандидатов`);
-      }
-      pendingCandidates.forEach((candidate) => {
-        peerConnection.addIceCandidate(new RTCIceCandidate(candidate)).catch((err) => {
-          window.showDebugError?.('Голос: addIceCandidate (отложенный)', err);
-        });
-      });
-      pendingCandidates = [];
-    }
-
-    const candidatesRef = db.ref(`${sigBase}/candidates/${otherRole}`);
-    candidatesRef.on('child_added', (snap) => {
-      const candidate = snap.val();
-      if (candidate) applyOrQueueCandidate(candidate);
-    });
-    voiceSignalingRefs.push(candidatesRef);
-
-    // Инициирует ICE restart: пересоздаёт offer с флагом iceRestart, который
-    // заставляет браузер заново собрать ICE-кандидатов (актуальные для
-    // текущей сети) и провести новый offer/answer раунд — только хост
-    // инициирует, чтобы не столкнуться лбами при одновременном restart
-    // с обеих сторон (guest просто ждёт новый offer и отвечает на него).
-    async function attemptIceRestart(reason) {
-      if (!peerConnection || peerConnection.signalingState === 'closed') return;
-      setVoiceStatus('Переподключаемся…');
-      window.showDebugError?.('Голос: ICE restart', reason);
-      try {
-        const offer = await peerConnection.createOffer({ iceRestart: true });
-        await peerConnection.setLocalDescription(offer);
-        await db.ref(`${sigBase}/offer`).set({ sdp: offer.sdp, type: offer.type, restartAt: Date.now() });
-        window.showDebugError?.('Голос', 'ICE restart: новый offer записан, ждём answer');
-      } catch (err) {
-        window.showDebugError?.('Голос: ICE restart error', err);
-      }
-    }
-
-    if (isHost) {
-      const offer = await peerConnection.createOffer();
-      await peerConnection.setLocalDescription(offer);
-      await db.ref(`${sigBase}/offer`).set({ sdp: offer.sdp, type: offer.type });
-      window.showDebugError?.('Голос', 'offer записан в Firebase, ждём answer');
-
-      const answerRef = db.ref(`${sigBase}/answer`);
-      answerRef.on('value', async (snap) => {
-        const answer = snap.val();
-        if (!answer) return;
-        // signalingState 'have-local-offer' — либо ждём самый первый ответ,
-        // либо ответ на offer от ICE restart; сравниваем SDP, чтобы не
-        // применять повторно то же самое значение при лишнем срабатывании
-        if (peerConnection.signalingState === 'have-local-offer') {
-          const current = peerConnection.currentRemoteDescription;
-          if (!current || current.sdp !== answer.sdp) {
-            window.showDebugError?.('Голос', current ? 'answer после ICE restart, применяем' : 'answer получен от гостя, применяем');
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-            flushPendingCandidates();
-          }
-        }
-      });
-      voiceSignalingRefs.push(answerRef);
-    } else {
-      const offerRef = db.ref(`${sigBase}/offer`);
-      offerRef.on('value', async (snap) => {
-        const offer = snap.val();
-        if (!offer) return;
-        if (peerConnection.signalingState === 'stable') {
-          const current = peerConnection.currentRemoteDescription;
-          if (!current || current.sdp !== offer.sdp) {
-            window.showDebugError?.('Голос', current ? 'offer после ICE restart, отвечаем' : 'offer получен от хоста, отвечаем');
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-            flushPendingCandidates();
-            const answer = await peerConnection.createAnswer();
-            await peerConnection.setLocalDescription(answer);
-            await db.ref(`${sigBase}/answer`).set({ sdp: answer.sdp, type: answer.type });
-            window.showDebugError?.('Голос', 'answer записан в Firebase');
-          }
-        }
-      });
-      voiceSignalingRefs.push(offerRef);
+      setVoiceStatus('Не удалось подключить голос');
+      window.showDebugError?.('Голос (LiveKit): ошибка подключения', err.message || String(err));
     }
   }
 
   function teardownVoiceConnection() {
-    if (localStream) {
-      localStream.getTracks().forEach(t => t.stop());
-      localStream = null;
+    if (lkRoom) {
+      lkRoom.disconnect();
+      lkRoom = null;
     }
-    if (peerConnection) {
-      peerConnection.close();
-      peerConnection = null;
-    }
-    voiceSignalingRefs.forEach(ref => ref.off());
-    voiceSignalingRefs = [];
     isMuted = false;
   }
 
   document.getElementById('btn-toggle-mute').addEventListener('click', () => {
-    if (!localStream) return;
+    if (!lkRoom) return;
     isMuted = !isMuted;
-    localStream.getAudioTracks().forEach(t => t.enabled = !isMuted);
+    lkRoom.localParticipant.setMicrophoneEnabled(!isMuted);
     document.getElementById('btn-toggle-mute').style.background = isMuted ? 'var(--live)' : 'var(--panel-2)';
   });
 </script>
@@ -1540,14 +1407,14 @@
           <div class="theme-name">Классика</div>
         </div>
 
-        <div class="theme-card" data-theme="darkgray">
+        <div class="theme-card" data-theme="neon">
           <div class="theme-check"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></div>
-          <div class="theme-preview" style="background:#26262B">
-            <span class="swatch-dot" style="background:#8A8A92"></span>
+          <div class="theme-preview" style="background:#050810">
+            <span class="swatch-dot" style="background:#00E5A8"></span>
+            <span class="swatch-dot" style="background:#6C7CFF"></span>
             <span class="swatch-dot" style="background:#F2B705"></span>
-            <span class="swatch-dot" style="background:#FF3D2E"></span>
           </div>
-          <div class="theme-name">Тёмно-серая</div>
+          <div class="theme-name">Неон</div>
         </div>
 
         <div class="theme-card" data-theme="oled">
@@ -1570,49 +1437,6 @@
           <div class="theme-name">Светлая</div>
         </div>
 
-      </div>
-
-      <div class="section-label">Акцентный цвет</div>
-      <div id="accent-row" style="display:flex; gap:12px; margin-bottom:22px; flex-wrap:wrap;">
-        <!-- data-accent = основной цвет (кнопки, "В ЭФИРЕ", live-бейджи и т.п.) -->
-        <div class="accent-swatch" data-accent="theme" data-hex="" style="width:38px;height:38px;border-radius:50%;border:2px solid var(--gold);position:relative;cursor:pointer;background:conic-gradient(from 0deg,#FF3D2E,#F2B705,#00E5A8,#6C7CFF,#FF3D2E);" title="Цвет темы по умолчанию"></div>
-        <div class="accent-swatch" data-accent="custom" data-hex="#FF3D2E" style="width:38px;height:38px;border-radius:50%;border:2px solid transparent;cursor:pointer;background:#FF3D2E;"></div>
-        <div class="accent-swatch" data-accent="custom" data-hex="#F2B705" style="width:38px;height:38px;border-radius:50%;border:2px solid transparent;cursor:pointer;background:#F2B705;"></div>
-        <div class="accent-swatch" data-accent="custom" data-hex="#00E5A8" style="width:38px;height:38px;border-radius:50%;border:2px solid transparent;cursor:pointer;background:#00E5A8;"></div>
-        <div class="accent-swatch" data-accent="custom" data-hex="#6C7CFF" style="width:38px;height:38px;border-radius:50%;border:2px solid transparent;cursor:pointer;background:#6C7CFF;"></div>
-        <div class="accent-swatch" data-accent="custom" data-hex="#FF7AC6" style="width:38px;height:38px;border-radius:50%;border:2px solid transparent;cursor:pointer;background:#FF7AC6;"></div>
-        <div class="accent-swatch" data-accent="custom" data-hex="#3ED598" style="width:38px;height:38px;border-radius:50%;border:2px solid transparent;cursor:pointer;background:#3ED598;"></div>
-        <label style="width:38px;height:38px;border-radius:50%;border:2px dashed var(--line);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--muted);position:relative;">
-          +
-          <input type="color" id="accent-custom-picker" value="#FF3D2E" style="position:absolute;inset:0;opacity:0;cursor:pointer;">
-        </label>
-      </div>
-
-      <div class="section-label" id="deep-theme-toggle" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
-        <span>Тонкая настройка (как в Telegram)</span>
-        <span id="deep-theme-arrow" style="color:var(--muted); font-size:16px; transition:transform .2s ease;">›</span>
-      </div>
-      <div id="deep-theme-panel" style="display:none; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:22px;">
-        <div style="font-size:12px; color:var(--muted); line-height:1.5; margin-bottom:14px;">
-          Красит каждый элемент по отдельности поверх выбранной темы. «Сбросить» возвращает цвета текущей темы.
-        </div>
-        <div id="deep-theme-rows" style="display:flex; flex-direction:column; gap:12px;"></div>
-        <button id="btn-reset-deep-theme" style="margin-top:14px; width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:11px; font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:1px; cursor:pointer;">СБРОСИТЬ К ТЕМЕ</button>
-      </div>
-
-      <div class="section-label">Поделиться темой</div>
-      <div style="background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:22px;">
-        <div style="font-size:12px; color:var(--muted); line-height:1.5; margin-bottom:12px;">
-          Твоя цветовая схема сохраняется автоматически и никуда не денется при перезаходе. Чтобы передать её другу — скопируй код и отправь, ему останется только вставить его у себя.
-        </div>
-        <button id="btn-copy-theme-code" style="width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:11px; font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:1px; cursor:pointer; margin-bottom:12px;">СКОПИРОВАТЬ КОД ТЕМЫ</button>
-        <div id="theme-code-copied-note" style="display:none; font-size:12px; color:var(--live); margin:-6px 0 12px; text-align:center;">Код скопирован</div>
-
-        <div style="display:flex; gap:8px;">
-          <input type="text" id="theme-code-input" placeholder="Код от друга" style="flex:1; min-width:0; background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:11px; color:var(--text); font-size:13px;">
-          <button id="btn-apply-theme-code" style="background:var(--gold); border:none; color:#0B0B0D; border-radius:10px; padding:0 16px; font-family:'Bebas Neue',sans-serif; font-size:13px; letter-spacing:1px; cursor:pointer; flex-shrink:0;">ПРИМЕНИТЬ</button>
-        </div>
-        <div id="theme-code-error" style="display:none; font-size:12px; color:var(--live); margin-top:8px;">Код не распознан — проверь, что скопировали полностью</div>
       </div>
 
       <div class="section-label">Микрофон</div>
@@ -1669,9 +1493,17 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.3.2 · pre-alpha</div>
+        <div class="v-num">MICBATTLE v0.2.0 · pre-alpha</div>
         Внутренний тест · обновлено 16.08.2026<br>
-        <span style="font-size:11px;">v0.3.1: fix — убран мёртвый TURN. v0.3.2: редизайн главного экрана по макету — кнопки-пилюли с иконкой, выступающей за левый край, счётчик онлайна выступает на кнопке "Участвовать", над кнопками добавлен блок со своей аватаркой и именем. Цвета оставлены прежние (переменные темы), не из макета</span>
+        <span style="font-size:11px;">v0.2.0: голос переведён с самодельного WebRTC на LiveKit (Development token server) — избавились от ручной сборки ICE/TURN/сигналинга через Firebase</span>
+      </div>
+      <div style="text-align:center; margin-top:10px;">
+        <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
+        <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.1.8 — убран глючивший transaction() при входе в комнату → read-then-write; вернулась автоочистка гостевых аккаунтов (24ч)<br>
+          v0.1.7 — TURN-сервер (Open Relay) + очередь ICE-кандидатов + диагностика voice-ошибок<br>
+          v0.1.0 — первая версия с ручным номером в Настройках
+        </div>
       </div>
 
     </div>
@@ -1680,6 +1512,10 @@
 
 <script>
   const settingsOverlay = document.getElementById('settings-overlay');
+  document.getElementById('btn-history-toggle')?.addEventListener('click', () => {
+    const el = document.getElementById('version-history-full');
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  });
   document.getElementById('settings-btn').addEventListener('click', () => {
     settingsOverlay.classList.add('open');
     refreshMicStatus();
@@ -1687,12 +1523,9 @@
   document.getElementById('settings-close-btn').addEventListener('click', () => settingsOverlay.classList.remove('open'));
   settingsOverlay.addEventListener('click', (e) => { if(e.target === settingsOverlay) settingsOverlay.classList.remove('open'); });
 
-  // ===== разрешение на микрофон — теперь запрашивается СРАЗУ при заходе в
-  // приложение (нативный диалог браузера/Telegram), а не только по нажатию
-  // кнопки в Настройках. Если статус уже известен как granted/denied (через
-  // Permissions API) — повторно не дёргаем getUserMedia, чтобы не показывать
-  // диалог зря; спрашиваем по-настоящему только когда статус ещё 'prompt'
-  // (то есть пользователь реально впервые видит запрос) =====
+  // ===== разрешение на микрофон — запрашивается ТОЛЬКО здесь, по явному нажатию,
+  // а не автоматически при каждом запуске приложения (чтобы не ловить
+  // "заблокированный навсегда" статус в Telegram WebView после случайного "Запретить") =====
   window.micPermissionGranted = false;
 
   function setMicStatusUI(state) {
@@ -1731,43 +1564,22 @@
     setMicStatusUI('unknown');
   }
 
-  // Реально запрашивает доступ через getUserMedia (это и вызывает нативный
-  // диалог "Разрешить микрофон?"). Сразу останавливаем поток — нам нужно
-  // было только подтверждение разрешения, реальный поток будет запрошен
-  // заново при входе в комнату баттла.
-  async function requestMicPermission() {
+  // проверяем статус сразу при загрузке страницы — иначе флаг micPermissionGranted
+  // остаётся false до первого открытия Настроек, и голос в комнате не подключается
+  // даже если разрешение реально уже выдано в прошлый раз
+  refreshMicStatus();
+
+  document.getElementById('btn-request-mic').addEventListener('click', async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // сразу останавливаем — нам нужно было только подтверждение разрешения,
+      // реальный поток будет запрошен заново при входе в комнату баттла
       stream.getTracks().forEach(t => t.stop());
       setMicStatusUI('granted');
     } catch (err) {
       setMicStatusUI('denied');
     }
-  }
-
-  // Запрашиваем доступ сразу при загрузке приложения. Если статус уже точно
-  // известен (granted/denied по Permissions API) — просто отображаем его без
-  // повторного диалога. Если статус 'prompt' (или Permissions API недоступен,
-  // как в Safari/iOS WebView) — сразу вызываем реальный запрос, чтобы
-  // пользователь увидел системный диалог, не открывая Настройки.
-  async function requestMicOnLoad() {
-    if (navigator.permissions?.query) {
-      try {
-        const status = await navigator.permissions.query({ name: 'microphone' });
-        status.onchange = () => setMicStatusUI(status.state);
-        if (status.state === 'granted' || status.state === 'denied') {
-          setMicStatusUI(status.state);
-          return;
-        }
-        // status.state === 'prompt' — ещё не решали, спрашиваем по-настоящему ниже
-      } catch (e) { /* Permissions API не знает про 'microphone' — просто пробуем getUserMedia */ }
-    }
-    await requestMicPermission();
-  }
-
-  requestMicOnLoad();
-
-  document.getElementById('btn-request-mic').addEventListener('click', requestMicPermission);
+  });
 
   // toggles
   document.querySelectorAll('[data-toggle]').forEach(sw => {
@@ -1777,35 +1589,10 @@
   // theme switching — actually repaints the whole app via CSS custom properties
   const themes = {
     classic: { bg:'#0B0B0D', panel:'#17171B', panel2:'#1F1F24', line:'#2A2A30', text:'#F2F1EE', muted:'#8A8A92', live:'#FF3D2E', gold:'#F2B705' },
-    darkgray:{ bg:'#26262B', panel:'#302F35', panel2:'#3A393F', line:'#48474D', text:'#F2F1EE', muted:'#A3A2A8', live:'#FF3D2E', gold:'#F2B705' },
+    neon:    { bg:'#050810', panel:'#0E1524', panel2:'#141D33', line:'#20304F', text:'#EAF4FF', muted:'#7E92B3', live:'#00E5A8', gold:'#6C7CFF' },
     oled:    { bg:'#000000', panel:'#0D0D0D', panel2:'#161616', line:'#292929', text:'#EDEDED', muted:'#7A7A7A', live:'#E63946', gold:'#C9C9C9' },
     light:   { bg:'#F4F1EA', panel:'#FFFFFF', panel2:'#ECE8E0', line:'#DEDACF', text:'#221F1B', muted:'#8A8478', live:'#D97757', gold:'#B8860B' }
   };
-
-  // Затемняет hex-цвет на заданный процент — используется для градиентов у
-  // кнопок/бейджей ("live" → "live-dark"), чтобы при смене акцентного цвета
-  // градиент оставался согласованным, а не жёстко зашитым #E22319
-  function darkenHex(hex, amount = 0.22) {
-    const h = hex.replace('#', '');
-    const num = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
-    let r = (num >> 16) & 0xFF, g = (num >> 8) & 0xFF, b = num & 0xFF;
-    r = Math.round(r * (1 - amount));
-    g = Math.round(g * (1 - amount));
-    b = Math.round(b * (1 - amount));
-    return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
-  }
-
-  function hexToRgbStr(hex) {
-    const h = hex.replace('#', '');
-    const num = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
-    return `${(num >> 16) & 0xFF},${(num >> 8) & 0xFF},${num & 0xFF}`;
-  }
-
-  function setLiveColor(hex) {
-    document.documentElement.style.setProperty('--live', hex);
-    document.documentElement.style.setProperty('--live-dark', darkenHex(hex));
-    document.documentElement.style.setProperty('--live-rgb', hexToRgbStr(hex));
-  }
 
   function applyTheme(name){
     const t = themes[name];
@@ -1816,181 +1603,16 @@
     root.setProperty('--line', t.line);
     root.setProperty('--text', t.text);
     root.setProperty('--muted', t.muted);
+    root.setProperty('--live', t.live);
     root.setProperty('--gold', t.gold);
-    // акцентный цвет (--live) — если пользователь выбрал свой, тема его не
-    // перекрывает; если выбран пункт "цвет темы по умолчанию" — берём из темы
-    setLiveColor(customAccentHex || t.live);
   }
-
-  let customAccentHex = null; // null = используем цвет из текущей темы
-
-  function applyAccent(hex) {
-    customAccentHex = hex;
-    setLiveColor(hex || themes[currentThemeName].live);
-    document.querySelectorAll('.accent-swatch').forEach(s => {
-      const isSelected = hex ? (s.dataset.hex === hex) : (s.dataset.accent === 'theme');
-      s.style.borderColor = isSelected ? 'var(--gold)' : 'transparent';
-    });
-    saveThemeState();
-  }
-
-  let currentThemeName = 'classic';
 
   document.querySelectorAll('.theme-card').forEach(card => {
     card.addEventListener('click', () => {
       document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('selected'));
       card.classList.add('selected');
-      currentThemeName = card.dataset.theme;
-      applyTheme(currentThemeName);
+      applyTheme(card.dataset.theme);
     });
-  });
-
-  document.querySelectorAll('.accent-swatch').forEach(swatch => {
-    swatch.addEventListener('click', () => {
-      applyAccent(swatch.dataset.accent === 'theme' ? null : swatch.dataset.hex);
-    });
-  });
-
-  const accentPicker = document.getElementById('accent-custom-picker');
-  accentPicker.addEventListener('input', () => {
-    applyAccent(accentPicker.value);
-  });
-
-  applyAccent(null); // по умолчанию выделяем "цвет темы"
-
-  // ===== Тонкая настройка (как в Telegram) — красим каждую CSS-переменную
-  // темы отдельно, поверх выбранного пресета =====
-  const DEEP_VARS = [
-    { key: 'bg',     label: 'Фон' },
-    { key: 'panel',  label: 'Панели' },
-    { key: 'panel2', label: 'Панели (второй слой)' },
-    { key: 'line',   label: 'Линии/границы' },
-    { key: 'text',   label: 'Текст' },
-    { key: 'muted',  label: 'Приглушённый текст' },
-    { key: 'gold',   label: 'Золотой (вторичный акцент)' }
-  ];
-  const deepRows = document.getElementById('deep-theme-rows');
-  const customDeepColors = {}; // { key: hex } — только то, что пользователь явно поменял
-
-  function currentValueFor(key) {
-    return customDeepColors[key] || themes[currentThemeName][key];
-  }
-
-  function renderDeepRows() {
-    deepRows.innerHTML = DEEP_VARS.map(v => `
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
-        <span style="font-size:13.5px;">${v.label}</span>
-        <label style="width:34px;height:34px;border-radius:8px;border:1px solid var(--line);position:relative;cursor:pointer;background:${currentValueFor(v.key)};flex-shrink:0;">
-          <input type="color" data-deep-key="${v.key}" value="${currentValueFor(v.key)}" style="position:absolute;inset:0;opacity:0;cursor:pointer;">
-        </label>
-      </div>
-    `).join('');
-
-    deepRows.querySelectorAll('input[data-deep-key]').forEach(input => {
-      input.addEventListener('input', () => {
-        const key = input.dataset.deepKey;
-        customDeepColors[key] = input.value;
-        document.documentElement.style.setProperty('--' + (key === 'panel2' ? 'panel-2' : key), input.value);
-        input.parentElement.style.background = input.value;
-        saveThemeState();
-      });
-    });
-  }
-  renderDeepRows();
-
-  document.getElementById('deep-theme-toggle').addEventListener('click', () => {
-    const panel = document.getElementById('deep-theme-panel');
-    const arrow = document.getElementById('deep-theme-arrow');
-    const isOpen = panel.style.display === 'block';
-    panel.style.display = isOpen ? 'none' : 'block';
-    arrow.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(90deg)';
-  });
-
-  document.getElementById('btn-reset-deep-theme').addEventListener('click', () => {
-    Object.keys(customDeepColors).forEach(key => delete customDeepColors[key]);
-    applyTheme(currentThemeName);
-    renderDeepRows();
-    saveThemeState();
-  });
-
-  // при смене темы через карточки — тонкие правки сбрасываются, чтобы не
-  // путать пользователя смесью цветов от разных тем
-  document.querySelectorAll('.theme-card').forEach(card => {
-    card.addEventListener('click', () => {
-      Object.keys(customDeepColors).forEach(key => delete customDeepColors[key]);
-      renderDeepRows();
-      saveThemeState();
-    });
-  });
-
-  // ===== Сохранение темы между открытиями + обмен кодом с другом =====
-  const THEME_STORAGE_KEY = 'micbattle_theme_v1';
-
-  function getThemeState() {
-    return { theme: currentThemeName, accent: customAccentHex, deep: customDeepColors };
-  }
-
-  function saveThemeState() {
-    try { localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(getThemeState())); } catch (e) { /* приватный режим и т.п. — не критично */ }
-  }
-
-  // Применяет полностью готовое состояние темы (используется и при загрузке
-  // сохранённого состояния, и при вставке кода от друга)
-  function applyThemeState(state) {
-    if (!state || typeof state !== 'object' || !state.theme || !themes[state.theme]) return false;
-
-    currentThemeName = state.theme;
-    document.querySelectorAll('.theme-card').forEach(c => c.classList.toggle('selected', c.dataset.theme === state.theme));
-    applyTheme(state.theme);
-
-    Object.keys(customDeepColors).forEach(k => delete customDeepColors[k]);
-    if (state.deep && typeof state.deep === 'object') {
-      Object.entries(state.deep).forEach(([k, v]) => {
-        if (DEEP_VARS.some(dv => dv.key === k) && /^#[0-9a-fA-F]{6}$/i.test(v)) {
-          customDeepColors[k] = v;
-          document.documentElement.style.setProperty('--' + (k === 'panel2' ? 'panel-2' : k), v);
-        }
-      });
-    }
-    renderDeepRows();
-
-    const accent = (state.accent && /^#[0-9a-fA-F]{6}$/i.test(state.accent)) ? state.accent : null;
-    applyAccent(accent); // applyAccent сам вызовет saveThemeState()
-    return true;
-  }
-
-  (function loadSavedTheme() {
-    try {
-      const raw = localStorage.getItem(THEME_STORAGE_KEY);
-      if (raw) applyThemeState(JSON.parse(raw));
-    } catch (e) { /* битые данные в localStorage — просто остаёмся на теме по умолчанию */ }
-  })();
-
-  document.getElementById('btn-copy-theme-code').addEventListener('click', () => {
-    const code = btoa(unescape(encodeURIComponent(JSON.stringify(getThemeState()))));
-    const note = document.getElementById('theme-code-copied-note');
-    const showCopied = () => { note.style.display = 'block'; setTimeout(() => note.style.display = 'none', 2000); };
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(code).then(showCopied).catch(() => window.prompt('Скопируй код вручную:', code));
-    } else {
-      window.prompt('Скопируй код вручную:', code);
-    }
-  });
-
-  document.getElementById('btn-apply-theme-code').addEventListener('click', () => {
-    const input = document.getElementById('theme-code-input');
-    const errorEl = document.getElementById('theme-code-error');
-    errorEl.style.display = 'none';
-    const code = input.value.trim();
-    if (!code) return;
-    try {
-      const state = JSON.parse(decodeURIComponent(escape(atob(code))));
-      if (!applyThemeState(state)) throw new Error('Некорректный формат кода темы');
-      input.value = '';
-    } catch (e) {
-      errorEl.style.display = 'block';
-      window.showDebugError?.('Тема: применение кода', e);
-    }
   });
 </script>
 
@@ -1998,6 +1620,7 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
 <script>
   const tg = window.Telegram?.WebApp;
   tg?.ready();
@@ -2073,15 +1696,6 @@
       const avatar = document.getElementById('profile-avatar');
       if (userData.avatarData) { avatar.style.backgroundImage = `url(${userData.avatarData})`; avatar.classList.add('has-image'); avatar.textContent=''; }
       else { avatar.style.backgroundImage=''; avatar.classList.remove('has-image'); avatar.textContent=name.slice(0,2).toUpperCase(); }
-
-      // тот же аватар/имя дублируем в приветственный блок на главном экране
-      const homeAvatar = document.getElementById('home-avatar');
-      const homeName = document.getElementById('home-name');
-      if (homeAvatar && homeName) {
-        homeName.textContent = name;
-        if (userData.avatarData) { homeAvatar.style.backgroundImage = `url(${userData.avatarData})`; homeAvatar.textContent = ''; }
-        else { homeAvatar.style.backgroundImage = ''; homeAvatar.textContent = name.slice(0, 2).toUpperCase(); }
-      }
       document.getElementById('profile-stars').innerHTML = `${Number(userData.starsBalance || 0).toLocaleString('ru-RU')} <span class="unit">⭐</span>`;
       document.getElementById('profile-points').innerHTML = `${Number(userData.points || 0).toLocaleString('ru-RU')} <span class="unit">pts</span>`;
 
@@ -2181,7 +1795,7 @@
     if (isBanned || isRestricted) {
       document.body.innerHTML = `
         <div style="min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:32px; background:#0B0B0D; color:#F2F1EE; font-family:'Inter',sans-serif;">
-          <div style="font-family:'Bebas Neue',sans-serif; font-size:32px; color:var(--live); letter-spacing:1px; margin-bottom:12px;">
+          <div style="font-family:'Bebas Neue',sans-serif; font-size:32px; color:#FF3D2E; letter-spacing:1px; margin-bottom:12px;">
             ${isBanned ? 'ДОСТУП ЗАБЛОКИРОВАН' : 'ВРЕМЕННОЕ ОГРАНИЧЕНИЕ'}
           </div>
           <div style="color:#8A8A92; font-size:14px; max-width:280px; line-height:1.5;">
@@ -2202,12 +1816,9 @@
 
   // Слушаем список всех "онлайн" записей и обновляем счётчик вживую
   const onlineCountEl = document.getElementById('online-count');
-  const onlineCountBadgeEl = document.getElementById('online-count-badge');
   db.ref('presence').on('value', (snapshot) => {
     const count = snapshot.numChildren();
-    const text = `онлайн ${count.toLocaleString('ru-RU')}`;
-    if (onlineCountEl) onlineCountEl.textContent = text;
-    if (onlineCountBadgeEl) onlineCountBadgeEl.textContent = text;
+    onlineCountEl.textContent = `онлайн ${count.toLocaleString('ru-RU')}`;
   });
 </script>
 
@@ -2250,10 +1861,8 @@
       <div class="admin-empty" id="admin-empty">Введи ID игрока, чтобы посмотреть или изменить его доступ</div>
 
       <div class="admin-result" id="admin-result">
-        <div id="r-avatar" style="width:56px; height:56px; border-radius:50%; background:var(--panel-2); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-family:'Bebas Neue',sans-serif; font-size:18px; margin-bottom:12px; background-size:cover; background-position:center;"></div>
         <div class="r-name" id="r-name">—</div>
         <div class="r-id" id="r-id">—</div>
-        <div class="r-id" style="margin-bottom:12px;">Очков: <span id="r-points-val">0</span></div>
         <div id="r-status-badge" style="margin-bottom:12px;"></div>
 
         <div class="r-toggle-row" style="flex-direction:column; align-items:stretch; gap:10px;">
@@ -2287,7 +1896,7 @@
               <button class="ban-duration-btn" data-hours="24" style="flex:1; background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:10px 4px; font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; cursor:pointer;">24 часа</button>
               <button class="ban-duration-btn" data-hours="168" style="flex:1; background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:10px 4px; font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; cursor:pointer;">7 дней</button>
             </div>
-            <button id="btn-ban-forever" style="background:linear-gradient(135deg,var(--live),var(--live-dark)); border:none; color:#fff; border-radius:10px; padding:12px; font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:1px; cursor:pointer;">Забанить навсегда</button>
+            <button id="btn-ban-forever" style="background:linear-gradient(135deg,#FF3D2E,#E22319); border:none; color:#fff; border-radius:10px; padding:12px; font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:1px; cursor:pointer;">Забанить навсегда</button>
             <button id="btn-unban" style="background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:11px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer;">Снять бан / ограничение</button>
           </div>
         </div>
@@ -2383,16 +1992,6 @@
 
     document.getElementById('r-name').textContent = user.firstName || 'Без имени';
     document.getElementById('r-id').textContent = user.playerId;
-    document.getElementById('r-points-val').textContent = user.points ?? 0;
-
-    const rAvatar = document.getElementById('r-avatar');
-    if (user.avatarData) {
-      rAvatar.style.backgroundImage = `url('${user.avatarData}')`;
-      rAvatar.textContent = '';
-    } else {
-      rAvatar.style.backgroundImage = '';
-      rAvatar.textContent = (user.firstName || '??').slice(0, 2).toUpperCase();
-    }
     renderRoleButtons(foundUserRole);
     renderStatusBadge(user);
 
@@ -2453,7 +2052,7 @@
         const row = document.createElement('div');
         row.className = 'user-row' + (isOnline ? ' online' : '');
         row.innerHTML = `
-          <div class="u-avatar"${user.avatarData ? ` style="background-image:url('${user.avatarData}');background-size:cover;background-position:center;"` : ''}>${user.avatarData ? '' : (user.firstName || '??').slice(0, 2).toUpperCase()}<div class="u-online-dot"></div></div>
+          <div class="u-avatar">${(user.firstName || '??').slice(0, 2).toUpperCase()}<div class="u-online-dot"></div></div>
           <div class="u-info">
             <div class="u-name">${user.firstName || 'Без имени'}</div>
             <div class="u-id">${user.playerId || key}</div>
@@ -2798,9 +2397,6 @@
       let details = '';
       if (err instanceof Error) {
         details = (err.code ? '[' + err.code + '] ' : '') + err.message;
-        // stack первой строкой обычно даёт файл:строку:колонку — это и есть
-        // точное место сбоя, без него на 2500+ строк искать вслепую
-        if (err.stack) details += '\n' + err.stack.split('\n').slice(0, 3).join('\n');
       } else if (err && typeof err === 'object') {
         try { details = JSON.stringify(err); } catch(e) { details = String(err); }
       } else {
@@ -2808,10 +2404,10 @@
       }
       const text = `[${time}] ${label}: ${details}`;
       const line = document.createElement('div');
-      line.style.cssText = 'padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.08); word-break:break-word; white-space:pre-wrap;';
+      line.style.cssText = 'padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.08); word-break:break-word;';
       line.textContent = text;
       body.prepend(line);
-      lastLine.textContent = text.split('\n')[0];
+      lastLine.textContent = text;
       panel.style.display = 'block';
     };
 
@@ -2827,15 +2423,7 @@
     });
 
     window.addEventListener('error', (e) => {
-      // e.error обычно содержит .stack с точным местом; на случай, если его
-      // нет — добавляем filename:lineno:colno из самого события
-      const err = e.error instanceof Error ? e.error : new Error(e.message);
-      if (!err.stack || !err.stack.includes(':')) {
-        err.stack = `${e.filename || '?'}:${e.lineno || '?'}:${e.colno || '?'}`;
-      } else if (e.filename) {
-        err.stack += `\n(источник события: ${e.filename}:${e.lineno}:${e.colno})`;
-      }
-      window.showDebugError('JS-ошибка', err);
+      window.showDebugError('JS-ошибка', e.error || e.message);
     });
     window.addEventListener('unhandledrejection', (e) => {
       window.showDebugError('Промис отклонён', e.reason);
