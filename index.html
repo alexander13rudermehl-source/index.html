@@ -1215,8 +1215,10 @@
 
   // ===== Голос через LiveKit — вместо самодельного WebRTC =====
   // LiveKit сам разруливает ICE/TURN/переподключения — то, с чем мы мучились
-  // руками раньше. Development token server выдаёт токены без своего бэкенда
-  // (подходит для теста/пре-альфы, для продакшена нужен будет свой сервер токенов).
+  // руками раньше. Sandbox token server выдаёт токены без своего бэкенда
+  // (подходит для теста/пре-альфы — это официально небезопасный, дырявый по
+  // правам механизм для разработки; для продакшена LiveKit рекомендует свой
+  // сервер токенов — endpoint-type TokenSource).
   const LIVEKIT_TOKEN_SERVER_ID = 'zolotayakletka-27g1yr';
 
   let lkRoom = null;
@@ -1237,7 +1239,7 @@
     setVoiceStatus('Соединяем через LiveKit…');
 
     try {
-      const tokenSource = LivekitClient.TokenSource.developmentTokenServer(LIVEKIT_TOKEN_SERVER_ID);
+      const tokenSource = LivekitClient.TokenSource.sandboxTokenServer(LIVEKIT_TOKEN_SERVER_ID);
       const { serverUrl, participantToken } = await tokenSource.fetch({ roomName: code });
       window.showDebugError?.('Голос (LiveKit)', `токен получен, serverUrl=${serverUrl}`);
 
@@ -1493,9 +1495,9 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.2.0 · pre-alpha</div>
+        <div class="v-num">MICBATTLE v0.2.1 · pre-alpha (LiveKit-ветка)</div>
         Внутренний тест · обновлено 16.08.2026<br>
-        <span style="font-size:11px;">v0.2.0: голос переведён с самодельного WebRTC на LiveKit (Development token server) — избавились от ручной сборки ICE/TURN/сигналинга через Firebase</span>
+        <span style="font-size:11px;">v0.2.0: голос переведён на LiveKit. v0.2.1: fix — TokenSource.developmentTokenServer не существует в SDK, правильный метод sandboxTokenServer (отсюда была ошибка "is not a function"); также вернул r-avatar/r-points-val в карточку админ-панели, которые отсутствовали в этой версии файла. ⚠️ Эта ветка собрана от более раннего снапшота — в ней пока нет кастомных тем/акцентного цвета и аватарки на главном экране из более поздних версий</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
@@ -1861,8 +1863,10 @@
       <div class="admin-empty" id="admin-empty">Введи ID игрока, чтобы посмотреть или изменить его доступ</div>
 
       <div class="admin-result" id="admin-result">
+        <div id="r-avatar" style="width:56px; height:56px; border-radius:50%; background:var(--panel-2); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-family:'Bebas Neue',sans-serif; font-size:18px; margin-bottom:12px; background-size:cover; background-position:center;"></div>
         <div class="r-name" id="r-name">—</div>
         <div class="r-id" id="r-id">—</div>
+        <div class="r-id" style="margin-bottom:12px;">Очков: <span id="r-points-val">0</span></div>
         <div id="r-status-badge" style="margin-bottom:12px;"></div>
 
         <div class="r-toggle-row" style="flex-direction:column; align-items:stretch; gap:10px;">
@@ -1896,7 +1900,7 @@
               <button class="ban-duration-btn" data-hours="24" style="flex:1; background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:10px 4px; font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; cursor:pointer;">24 часа</button>
               <button class="ban-duration-btn" data-hours="168" style="flex:1; background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:10px 4px; font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; cursor:pointer;">7 дней</button>
             </div>
-            <button id="btn-ban-forever" style="background:linear-gradient(135deg,#FF3D2E,#E22319); border:none; color:#fff; border-radius:10px; padding:12px; font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:1px; cursor:pointer;">Забанить навсегда</button>
+            <button id="btn-ban-forever" style="background:linear-gradient(135deg,var(--live),var(--live-dark)); border:none; color:#fff; border-radius:10px; padding:12px; font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:1px; cursor:pointer;">Забанить навсегда</button>
             <button id="btn-unban" style="background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:11px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer;">Снять бан / ограничение</button>
           </div>
         </div>
@@ -1992,6 +1996,17 @@
 
     document.getElementById('r-name').textContent = user.firstName || 'Без имени';
     document.getElementById('r-id').textContent = user.playerId;
+    document.getElementById('r-points-val').textContent = user.points ?? 0;
+
+    const rAvatar = document.getElementById('r-avatar');
+    if (user.avatarData) {
+      rAvatar.style.backgroundImage = `url('${user.avatarData}')`;
+      rAvatar.textContent = '';
+    } else {
+      rAvatar.style.backgroundImage = '';
+      rAvatar.textContent = (user.firstName || '??').slice(0, 2).toUpperCase();
+    }
+
     renderRoleButtons(foundUserRole);
     renderStatusBadge(user);
 
