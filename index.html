@@ -1789,19 +1789,13 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
 <script>
   const tg = window.Telegram?.WebApp;
   tg?.ready();
   tg?.expand();
-
-  // initDataUnsafe.user.id — numeric ID Telegram-аккаунта.
-  // В отличие от username, он есть всегда и никогда не меняется —
-  // именно на него привязываем внутренний профиль.
-  const tgUser = tg?.initDataUnsafe?.user;
-  const telegramId = tgUser ? String(tgUser.id) : 'guest_' + Math.random().toString(36).slice(2, 9);
-  window.currentTelegramId = telegramId;
-  const displayFirstName = tgUser?.first_name || 'Гость';
 
   const firebaseConfig = {
     apiKey: "AIzaSyBe2eSG48yzv_9r6Q5yUF7fe2b6YLQGuQg",
@@ -1814,6 +1808,60 @@
   };
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
+  const auth = firebase.auth();
+  const functions = firebase.functions();
+
+  // ===== вход =====
+  // Раньше telegramId брался прямо из tg.initDataUnsafe.user.id — Telegram
+  // сам называет эти данные "unsafe": их не проверяет никто, и любой мог
+  // подменить их прямо в консоли браузера. Теперь вместо этого мы посылаем
+  // ПОДПИСАННУЮ строку tg.initData на сервер (Cloud Function
+  // verifyTelegramLogin), сервер проверяет подпись секретным токеном бота
+  // (которого нет и не может быть в этом файле) и только при успехе выдаёт
+  // Firebase custom token — вот после входа по нему uid уже можно доверять.
+  //
+  // Если приложение открыто НЕ из Telegram (например, тестируем в обычном
+  // браузере) — initData пуст, тогда просто логинимся анонимно через
+  // Firebase Auth (это тоже настоящая авторизация, просто без привязки к
+  // конкретному Telegram-аккаунту) — роль у такого гостя всегда 'user'.
+  async function bootstrapAuth() {
+    const initData = tg?.initData;
+
+    if (initData) {
+      const verifyTelegramLogin = functions.httpsCallable('verifyTelegramLogin');
+      const { data } = await verifyTelegramLogin({ initData });
+      await auth.signInWithCustomToken(data.token);
+    } else {
+      await auth.signInAnonymously();
+      const ensureGuestProfile = functions.httpsCallable('ensureGuestProfile');
+      await ensureGuestProfile();
+    }
+
+    const telegramId = auth.currentUser.uid;
+    window.currentTelegramId = telegramId;
+    startApp(telegramId);
+  }
+
+  bootstrapAuth().catch((err) => {
+    console.error('Ошибка входа', err);
+    window.showDebugError?.('Вход', 'Не удалось авторизоваться: ' + (err?.message || err));
+    // без успешного входа приложение неработоспособно (все правила базы
+    // требуют auth != null) — показываем понятный экран вместо тихого
+    // зависания на пустом месте
+    const root = document.querySelector('.device');
+    if (root) {
+      root.innerHTML = `<div style="padding:60px 24px; text-align:center; color:var(--muted);">
+        <div style="font-size:15px; color:var(--text); margin-bottom:8px; font-weight:600;">Не удалось войти</div>
+        <div style="font-size:13px;">Похоже, приложение открыто не из Telegram, либо истекла сессия.<br>Попробуй открыть его заново из бота.</div>
+      </div>`;
+    }
+  });
+
+  // Всё, что раньше выполнялось сразу верхнеуровнево, теперь выполняется
+  // здесь — то есть уже ПОСЛЕ успешного входа, когда правила базы данных
+  // разрешают auth != null читать/писать нужные пути.
+  function startApp(telegramId) {
+  const displayFirstName = tg?.initDataUnsafe?.user?.first_name || 'Гость';
 
   // ===== каталог значков-шильдиков (выдаются супердоступом вручную за
   // заслуги — альфа-тест, помощь с багами и т.п.), хранится отдельно от
@@ -1861,24 +1909,16 @@
     let userData;
 
     if (snap.exists()) {
-      // такой Telegram-аккаунт уже заходил — просто достаём его данные, ID не трогаем
       userData = snap.val();
     } else {
-      // первый визит с этого Telegram-аккаунта — создаём запись намертво
-      userData = {
-        playerId: generatePlayerId(),
-        firstName: displayFirstName,
-        username: tgUser?.username ? '@' + tgUser.username : null,
-        role: 'user', // 'user' | 'moderator' | 'admin' | 'superadmin'
-        points: 0,
-        starsBalance: 0,
-        stats: { battles: 0, wins: 0, losses: 0, draws: 0, refereeBattles: 0, audienceLikes: 0 },
-        avatarData: null,
-        status: 'active', // 'active' | 'restricted' | 'banned'
-        restrictedUntil: null,
-        createdAt: Date.now()
-      };
-      userRef.set(userData);
+      // не должно происходить в норме: verifyTelegramLogin/ensureGuestProfile
+      // (см. functions/index.js) создают запись на сервере ДО того, как
+      // клиент сюда доходит. Если всё же не создалась (гонка/сбой сети) —
+      // не пытаемся создавать её тут в браузере: role/status/playerId
+      // клиенту всё равно запрещено писать напрямую (см. database.rules.json),
+      // так что попытка только даст молчаливо неполную запись
+      window.showDebugError?.('Профиль', 'Запись пользователя не найдена на сервере — попробуй перезайти в приложение');
+      return;
     }
 
     // подставляем в профиль; статистика будет пересчитываться из матчей
@@ -2080,6 +2120,7 @@
     const count = snapshot.numChildren();
     onlineCountEl.textContent = `онлайн ${count.toLocaleString('ru-RU')}`;
   });
+  } // конец startApp()
 </script>
 
 <!-- ===== admin panel ===== -->
@@ -2248,13 +2289,18 @@
     if ((window.currentPlayer?.role || 'user') !== 'superadmin') return; // защита от прямого вызова из консоли
     const targetName = document.getElementById('r-name').textContent;
     const targetPlayerId = document.getElementById('r-id').textContent;
+    const prevRole = foundUserRole;
     foundUserRole = newRole;
-    db.ref('users/' + foundUserKey).update({ role: newRole });
-    renderRoleButtons(newRole);
-    loadUserList(); // обновляем бейджи в списке сразу
-    if (typeof logAction === 'function') {
-      logAction('role_change', foundUserKey, targetName, targetPlayerId, `Новая роль: ${newRole}`);
-    }
+    renderRoleButtons(newRole); // оптимистично, до ответа сервера
+
+    functions.httpsCallable('adminSetRole')({ targetUid: foundUserKey, newRole, targetName, targetPlayerId })
+      .then(() => loadUserList()) // обновляем бейджи в списке
+      .catch((err) => {
+        console.error(err);
+        window.showDebugError?.('Смена роли', err?.message || 'Не удалось сохранить — попробуй ещё раз');
+        foundUserRole = prevRole;
+        renderRoleButtons(prevRole); // откатываем UI, раз сервер отказал
+      });
   }
 
   function renderBadgeToggleList(user) {
@@ -2294,21 +2340,21 @@
     const targetPlayerId = document.getElementById('r-id').textContent;
     const user = window.currentAdminBadgeUser || { badges: {} };
     const isActive = !!(user.badges || {})[key];
-    const badgeRef = db.ref('users/' + foundUserKey + '/badges/' + key);
-    const label = (window.badgeCatalog[key] || {}).label || key;
+    const grant = !isActive;
 
-    if (isActive) {
-      badgeRef.remove();
-      delete (user.badges || {})[key];
-      if (typeof logAction === 'function') logAction('badge_revoke', foundUserKey, targetName, targetPlayerId, `Забран значок: ${label}`);
-    } else {
-      badgeRef.set(true);
-      user.badges = user.badges || {};
-      user.badges[key] = true;
-      if (typeof logAction === 'function') logAction('badge_grant', foundUserKey, targetName, targetPlayerId, `Выдан значок: ${label}`);
-    }
+    // оптимистично обновляем сразу, откатываем если сервер откажет
+    user.badges = user.badges || {};
+    if (grant) user.badges[key] = true; else delete user.badges[key];
     renderBadgeToggleList(user);
-    loadUserList(); // на будущее — если в списке появится отображение значков
+
+    functions.httpsCallable('adminToggleBadge')({ targetUid: foundUserKey, badgeKey: key, grant, targetName, targetPlayerId })
+      .then(() => loadUserList())
+      .catch((err) => {
+        console.error(err);
+        window.showDebugError?.('Значок', err?.message || 'Не удалось сохранить — попробуй ещё раз');
+        if (grant) delete user.badges[key]; else user.badges[key] = true; // откат
+        renderBadgeToggleList(user);
+      });
   }
 
   document.getElementById('btn-create-badge').addEventListener('click', () => {
@@ -2319,11 +2365,12 @@
     const label = labelInput.value.trim();
     if (!label) { labelInput.focus(); return; }
 
-    const key = 'b_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-    db.ref('badgeCatalog/' + key).set({ label, icon }).then(() => {
+    functions.httpsCallable('adminCreateBadge')({ label, icon }).then(() => {
       iconInput.value = '';
       labelInput.value = '';
-      if (typeof logAction === 'function') logAction('badge_create', key, label, '', `Новый значок в каталоге: ${icon} ${label}`);
+    }).catch((err) => {
+      console.error(err);
+      window.showDebugError?.('Новый значок', err?.message || 'Не удалось создать значок');
     });
   });
 
@@ -2481,23 +2528,26 @@
   document.getElementById('btn-save-stats').addEventListener('click', () => {
     if (!foundUserKey || !canEditStats()) return;
     const val = id => Math.max(0, parseInt(document.getElementById(id).value, 10) || 0);
-    const updates = {
-      points: val('edit-points'), starsBalance: val('edit-stars'),
-      'stats/battles': val('edit-battles'), 'stats/wins': val('edit-wins'),
-      'stats/losses': val('edit-losses'), 'stats/draws': val('edit-draws'),
-      'stats/refereeBattles': val('edit-referee'), 'stats/audienceLikes': val('edit-likes')
+    const points = val('edit-points');
+    const starsBalance = val('edit-stars');
+    const stats = {
+      battles: val('edit-battles'), wins: val('edit-wins'),
+      losses: val('edit-losses'), draws: val('edit-draws'),
+      refereeBattles: val('edit-referee'), audienceLikes: val('edit-likes')
     };
-    const targetName=document.getElementById('r-name').textContent;
-    const targetPlayerId=document.getElementById('r-id').textContent;
-    db.ref('users/'+foundUserKey).update(updates).then(() => {
-      document.getElementById('r-points-val').textContent=updates.points;
-      if(foundUserKey===window.currentTelegramId && window.currentPlayer){
-        window.currentPlayer.points=updates.points; window.currentPlayer.starsBalance=updates.starsBalance;
-        window.currentPlayer.stats={...(window.currentPlayer.stats||{}),battles:updates['stats/battles'],wins:updates['stats/wins'],losses:updates['stats/losses'],draws:updates['stats/draws'],refereeBattles:updates['stats/refereeBattles'],audienceLikes:updates['stats/audienceLikes']};
-        renderProfileStats(window.currentPlayer.stats); renderProfileFromMatches();
-      }
-      if(typeof logAction==='function') logAction('stats_change',foundUserKey,targetName,targetPlayerId,'Статистика изменена администратором');
-    }).catch(err => { console.error(err); alert('Не удалось сохранить статистику'); });
+    const targetName = document.getElementById('r-name').textContent;
+    const targetPlayerId = document.getElementById('r-id').textContent;
+
+    functions.httpsCallable('adminAdjustStats')({ targetUid: foundUserKey, points, starsBalance, stats, targetName, targetPlayerId })
+      .then(() => {
+        document.getElementById('r-points-val').textContent = points;
+        if (foundUserKey === window.currentTelegramId && window.currentPlayer) {
+          window.currentPlayer.points = points; window.currentPlayer.starsBalance = starsBalance;
+          window.currentPlayer.stats = { ...(window.currentPlayer.stats || {}), ...stats };
+          renderProfileStats(window.currentPlayer.stats); renderProfileFromMatches();
+        }
+      })
+      .catch(err => { console.error(err); alert('Не удалось сохранить статистику: ' + (err?.message || err)); });
   });
 
   // ===== бан / ограничения =====
@@ -2505,15 +2555,11 @@
     btn.addEventListener('click', () => {
       if (!foundUserKey) return;
       const hours = parseInt(btn.dataset.hours, 10);
-      const until = Date.now() + hours * 3600000;
       const targetName = document.getElementById('r-name').textContent;
       const targetPlayerId = document.getElementById('r-id').textContent;
-      db.ref('users/' + foundUserKey).update({ status: 'restricted', restrictedUntil: until }).then(() => {
-        db.ref('users/' + foundUserKey).once('value').then((snap) => renderStatusBadge(snap.val()));
-        if (typeof logAction === 'function') {
-          logAction('ban_temp', foundUserKey, targetName, targetPlayerId, `Ограничение на ${hours} ч.`);
-        }
-      });
+      functions.httpsCallable('adminSetBanStatus')({ targetUid: foundUserKey, mode: 'restrict', hours, targetName, targetPlayerId })
+        .then(() => db.ref('users/' + foundUserKey).once('value').then((snap) => renderStatusBadge(snap.val())))
+        .catch(err => { console.error(err); window.showDebugError?.('Бан', err?.message || 'Не удалось применить ограничение'); });
     });
   });
 
@@ -2521,24 +2567,18 @@
     if (!foundUserKey) return;
     const targetName = document.getElementById('r-name').textContent;
     const targetPlayerId = document.getElementById('r-id').textContent;
-    db.ref('users/' + foundUserKey).update({ status: 'banned', restrictedUntil: null }).then(() => {
-      db.ref('users/' + foundUserKey).once('value').then((snap) => renderStatusBadge(snap.val()));
-      if (typeof logAction === 'function') {
-        logAction('ban_forever', foundUserKey, targetName, targetPlayerId, 'Забанен навсегда');
-      }
-    });
+    functions.httpsCallable('adminSetBanStatus')({ targetUid: foundUserKey, mode: 'ban', targetName, targetPlayerId })
+      .then(() => db.ref('users/' + foundUserKey).once('value').then((snap) => renderStatusBadge(snap.val())))
+      .catch(err => { console.error(err); window.showDebugError?.('Бан', err?.message || 'Не удалось забанить'); });
   });
 
   document.getElementById('btn-unban').addEventListener('click', () => {
     if (!foundUserKey) return;
     const targetName = document.getElementById('r-name').textContent;
     const targetPlayerId = document.getElementById('r-id').textContent;
-    db.ref('users/' + foundUserKey).update({ status: 'active', restrictedUntil: null }).then(() => {
-      db.ref('users/' + foundUserKey).once('value').then((snap) => renderStatusBadge(snap.val()));
-      if (typeof logAction === 'function') {
-        logAction('unban', foundUserKey, targetName, targetPlayerId, 'Бан/ограничение снято');
-      }
-    });
+    functions.httpsCallable('adminSetBanStatus')({ targetUid: foundUserKey, mode: 'unban', targetName, targetPlayerId })
+      .then(() => db.ref('users/' + foundUserKey).once('value').then((snap) => renderStatusBadge(snap.val())))
+      .catch(err => { console.error(err); window.showDebugError?.('Бан', err?.message || 'Не удалось снять бан'); });
   });
 </script>
 
