@@ -119,6 +119,40 @@
     100% { transform: scale(1.25); opacity: 0; }
   }
 
+  /* значки крутятся по орбите вокруг аватара, на той же дуге, что и
+     пульсирующие красные кольца — радиус подобран под .ring-wrap (168px) */
+  .badge-orbit-wrap{
+    position:absolute;
+    inset:0;
+    z-index:1; /* выше колец (без z-index = 0), ниже самой аватарки (z-index:2) */
+    pointer-events:none;
+  }
+  .orbit-pivot{
+    position:absolute;
+    top:50%; left:50%;
+    width:0; height:0;
+    animation: orbit-spin 14s linear infinite;
+  }
+  .orbit-radius{
+    position:absolute;
+    top:0; left:0;
+    transform: translateX(88px);
+  }
+  .orbit-badge-icon{
+    width:26px; height:26px;
+    margin-left:-13px; margin-top:-13px;
+    border-radius:50%;
+    background: var(--panel-2);
+    border: 1.5px solid var(--gold);
+    display:flex; align-items:center; justify-content:center;
+    font-size:13px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+    animation: orbit-spin-reverse 14s linear infinite;
+    pointer-events:auto;
+  }
+  @keyframes orbit-spin{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
+  @keyframes orbit-spin-reverse{ from{ transform:rotate(0deg); } to{ transform:rotate(-360deg); } }
+
   .avatar{
     width: 116px;
     height: 116px;
@@ -933,6 +967,7 @@
     <div class="ring-wrap">
       <div class="ring-pulse"></div>
       <div class="ring-pulse delay"></div>
+      <div class="badge-orbit-wrap" id="home-badge-orbit"></div>
       <div class="stage-avatar" id="home-avatar">??</div>
     </div>
     <div class="stage-name" id="home-name">Игрок</div>
@@ -1786,11 +1821,19 @@
   // на ключ отсюда, чтобы не дублировать иконку/название в каждой записи
   // пользователя =====
   window.badgeCatalog = {};
+  window.currentUserBadges = {}; // независимо от window.currentPlayer — чтобы не зависеть от порядка загрузки
   const badgeCatalogRef = db.ref('badgeCatalog');
   badgeCatalogRef.on('value', (snap) => {
     window.badgeCatalog = snap.val() || {};
-    if (typeof window.renderProfileBadges === 'function' && window.currentPlayer) {
-      window.renderProfileBadges(window.currentPlayer.badges || {});
+    // перерисовываем по currentUserBadges, а не по currentPlayer.badges — на
+    // момент первой загрузки currentPlayer может быть ещё не готов (race
+    // condition), а currentUserBadges обновляется независимо, как только
+    // придут данные о значках пользователя
+    if (typeof window.renderProfileBadges === 'function') {
+      window.renderProfileBadges(window.currentUserBadges);
+    }
+    if (typeof window.renderHomeOrbitBadges === 'function') {
+      window.renderHomeOrbitBadges(window.currentUserBadges);
     }
     if (typeof window.renderBadgeToggleList === 'function' && window.currentAdminBadgeUser) {
       window.renderBadgeToggleList(window.currentAdminBadgeUser);
@@ -1891,12 +1934,39 @@
     }
     window.renderProfileBadges = renderProfileBadges;
 
+    // Те же значки, но по орбите вокруг аватарки на главном экране —
+    // каждый значок равномерно распределён по кругу (offset через
+    // отрицательный animation-delay) и крутится по дуге пульсирующих
+    // красных колец; сам значок при этом не переворачивается — крутится
+    // только его позиция, иконка внутри остаётся "прямой" за счёт
+    // встречной анимации на вложенном элементе.
+    function renderHomeOrbitBadges(badgesObj) {
+      const wrap = document.getElementById('home-badge-orbit');
+      if (!wrap) return;
+      const keys = Object.keys(badgesObj || {}).filter(k => badgesObj[k]);
+      if (!keys.length) { wrap.innerHTML = ''; return; }
+      const duration = 14; // должно совпадать с длительностью в CSS (orbit-spin / orbit-spin-reverse)
+      wrap.innerHTML = keys.map((k, i) => {
+        const b = window.badgeCatalog[k];
+        if (!b) return '';
+        const delay = -(i / keys.length) * duration; // равномерно распределяем по кругу
+        return `<div class="orbit-pivot" style="animation-delay:${delay}s;">
+          <div class="orbit-radius">
+            <div class="orbit-badge-icon" style="animation-delay:${delay}s;" title="${b.label || k}">${b.icon || '🏅'}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+    window.renderHomeOrbitBadges = renderHomeOrbitBadges;
+
     // живое обновление: если супердоступ выдаст значок прямо сейчас, пока
     // человек уже открыл профиль — шильдик появится без перезагрузки
     userRef.child('badges').on('value', (snap) => {
       const badges = snap.val() || {};
+      window.currentUserBadges = badges; // независимый источник правды, не зависит от готовности currentPlayer
       if (window.currentPlayer) window.currentPlayer.badges = badges;
       renderProfileBadges(badges);
+      renderHomeOrbitBadges(badges);
     });
 
     function renderProfileStats(stats) {
