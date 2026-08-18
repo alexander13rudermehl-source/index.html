@@ -11,11 +11,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-          cache-dependency-path: functions/package-lock.json
-      - run: npm ci
+      - run: npm install
         working-directory: functions
-      - uses: w9jds/setup-firebase@v2
+      - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
-          gcp_sa_key: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ZOLOTAYA_KLETKA_DEFAULT }}
-      - run: firebase deploy --only functions --project zolotaya-kletka-default
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_ZOLOTAYA_KLETKA_DEFAULT }}'
+          channelId: live
+          projectId: zolotaya-kletka-default
