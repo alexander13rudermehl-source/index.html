@@ -3,19 +3,27 @@ name: Deploy Functions on Push
   push:
     branches:
       - main
+    paths:
+      - 'functions/**'
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+
       - run: npm install
         working-directory: functions
-      - uses: FirebaseExtended/action-hosting-deploy@v0
+
+      # Раньше здесь стоял FirebaseExtended/action-hosting-deploy@v0 — это
+      # действие деплоит ТОЛЬКО Hosting, оно не умеет разворачивать Cloud
+      # Functions вообще. Вместо него — настоящая аутентификация сервисным
+      # аккаунтом и прямой вызов firebase-tools с деплоем именно functions.
+      - uses: google-github-actions/auth@v2
         with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
-          channelId: live
-          projectId: zolotaya-kletka-default
+          credentials_json: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+
+      - run: npx firebase-tools deploy --only functions --project zolotaya-kletka
