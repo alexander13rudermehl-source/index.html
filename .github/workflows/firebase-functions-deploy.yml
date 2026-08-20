@@ -6,9 +6,6 @@ name: Deploy Functions on Push
     paths:
       - 'functions/**'
   workflow_dispatch: {}
-    # ^ добавляет кнопку "Run workflow" на вкладке Actions в GitHub —
-    #   позволяет запустить деплой вручную, без необходимости коммитить
-    #   изменения именно в папку functions/
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
