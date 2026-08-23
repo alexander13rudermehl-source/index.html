@@ -1,0 +1,31 @@
+name: Deploy Database Rules on Push
+'on':
+  push:
+    branches:
+      - main
+    paths:
+      - 'database.rules.json'
+      - 'firebase.json'
+  workflow_dispatch: {}
+    # ^ кнопка "Run workflow" на вкладке Actions — запуск вручную,
+    #   без необходимости коммитить именно эти два файла
+
+jobs:
+  deploy_rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Та же самая аутентификация, что уже проверена и работает
+      # (см. firebase-functions-deploy.yml) — просто деплоим другую цель.
+      # Realtime Database Rules — часть бесплатного тарифа Spark,
+      # никакого Blaze/биллинга для этого не требуется.
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+
+      - run: npx firebase-tools deploy --only database --project zolotaya-kletka
