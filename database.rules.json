@@ -1,0 +1,14 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".write": "(!data.exists() && (!newData.child('role').exists() || newData.child('role').val() === 'user')) || (data.exists() && (!newData.child('role').exists() || newData.child('role').val() === data.child('role').val()))"
+      }
+    },
+    "battles": {
+      "$code": {
+        ".validate": "newData.hasChildren(['hostId'])"
+      }
+    }
+  }
+}
