@@ -119,40 +119,6 @@
     100% { transform: scale(1.25); opacity: 0; }
   }
 
-  /* значки крутятся по орбите вокруг аватара, на той же дуге, что и
-     пульсирующие красные кольца — радиус подобран под .ring-wrap (168px) */
-  .badge-orbit-wrap{
-    position:absolute;
-    inset:0;
-    z-index:1; /* выше колец (без z-index = 0), ниже самой аватарки (z-index:2) */
-    pointer-events:none;
-  }
-  .orbit-pivot{
-    position:absolute;
-    top:50%; left:50%;
-    width:0; height:0;
-    animation: orbit-spin 14s linear infinite;
-  }
-  .orbit-radius{
-    position:absolute;
-    top:0; left:0;
-    transform: translateX(88px);
-  }
-  .orbit-badge-icon{
-    width:26px; height:26px;
-    margin-left:-13px; margin-top:-13px;
-    border-radius:50%;
-    background: var(--panel-2);
-    border: 1.5px solid var(--gold);
-    display:flex; align-items:center; justify-content:center;
-    font-size:13px;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.4);
-    animation: orbit-spin-reverse 14s linear infinite;
-    pointer-events:auto;
-  }
-  @keyframes orbit-spin{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
-  @keyframes orbit-spin-reverse{ from{ transform:rotate(0deg); } to{ transform:rotate(-360deg); } }
-
   .avatar{
     width: 116px;
     height: 116px;
@@ -506,43 +472,6 @@
   }
   .badge.stars{ background: rgba(242,183,5,0.15); color: var(--gold); }
   .badge.live{ background: rgba(255,61,46,0.15); color: var(--live); }
-
-  /* ачивка-шильдик: выдаётся супердоступом вручную, отображается в профиле */
-  .achievement-badge{
-    display:inline-flex;
-    align-items:center;
-    gap:5px;
-    font-size: 12px;
-    font-weight:600;
-    padding: 5px 10px 5px 8px;
-    border-radius: 100px;
-    background: var(--panel-2);
-    border: 1px solid var(--line);
-    color: var(--text);
-  }
-  .achievement-badge .ico{ font-size:13px; line-height:1; }
-
-  /* тот же значок, но кликабельный toggle-чип в админ-панели */
-  .achievement-toggle{
-    display:inline-flex;
-    align-items:center;
-    gap:5px;
-    font-size: 12.5px;
-    font-weight:600;
-    padding: 7px 12px 7px 9px;
-    border-radius: 100px;
-    background: var(--panel-2);
-    border: 1.5px solid var(--line);
-    color: var(--muted);
-    cursor:pointer;
-    user-select:none;
-  }
-  .achievement-toggle.active{
-    border-color: var(--gold);
-    background: rgba(242,183,5,0.12);
-    color: var(--gold);
-  }
-  .achievement-toggle.disabled{ opacity:0.5; cursor:not-allowed; }
 
   .section-label{
     font-size: 11px;
@@ -967,7 +896,6 @@
     <div class="ring-wrap">
       <div class="ring-pulse"></div>
       <div class="ring-pulse delay"></div>
-      <div class="badge-orbit-wrap" id="home-badge-orbit"></div>
       <div class="stage-avatar" id="home-avatar">??</div>
     </div>
     <div class="stage-name" id="home-name">Игрок</div>
@@ -1078,6 +1006,17 @@
           <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
         </div>
 
+        <div class="cat-card" data-goto="rating-queue" id="rating-queue-card">
+          <div class="icon points">
+            <svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.3 6.9.9-5 4.8 1.3 6.8L12 17.5 5.9 20.8 7.2 14 2.2 9.2l6.9-.9L12 2z"/></svg>
+          </div>
+          <div class="body">
+            <div class="title">Рейтинговый бой</div>
+            <div class="desc">Случайный соперник онлайн — победа и поражение влияют на рейтинг</div>
+          </div>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+
       </div>
 
       <!-- level 0.5: выбор — создать комнату или ввести код -->
@@ -1138,6 +1077,25 @@
         <div id="join-error" style="display:none; color:var(--live); font-size:13px; margin-top:10px; text-align:center;"></div>
       </div>
 
+      <!-- level 1: рейтинговый бой — поиск случайного соперника из очереди -->
+      <div class="sheet-view" data-view="rating-queue">
+        <div id="rq-idle">
+          <p style="color:var(--muted); font-size:13.5px; line-height:1.5; margin-bottom:16px;">
+            Встанешь в очередь — как только рядом окажется ещё один игрок в поиске, баттл начнётся автоматически. Победа и поражение изменят твой рейтинг.
+          </p>
+          <button class="sheet-cta" id="btn-start-rating-queue">Искать соперника</button>
+        </div>
+
+        <div id="rq-waiting" style="display:none; text-align:center;">
+          <div style="display:flex; align-items:center; justify-content:center; gap:8px; color:var(--muted); font-size:13.5px; margin:10px 0 20px;">
+            <div class="status-dot"></div> Ищем соперника…
+          </div>
+          <button class="sheet-cta secondary" id="btn-cancel-rating-queue">Отменить поиск</button>
+        </div>
+
+        <div id="rq-error" style="display:none; color:var(--live); font-size:13px; margin-top:10px; text-align:center;"></div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -1196,7 +1154,8 @@
     main: 'Участвовать',
     'friend-mode': 'Играть с другом',
     'friend-create': 'Создать баттл',
-    'friend-join': 'Ввести код'
+    'friend-join': 'Ввести код',
+    'rating-queue': 'Рейтинговый бой'
   };
 
   // родитель для кнопки "назад" — теперь есть промежуточный уровень
@@ -1204,7 +1163,8 @@
   const viewParents = {
     'friend-mode': 'main',
     'friend-create': 'friend-mode',
-    'friend-join': 'friend-mode'
+    'friend-join': 'friend-mode',
+    'rating-queue': 'main'
   };
 
   function showView(name){
@@ -1222,6 +1182,7 @@
   }
   function closeSheet(){
     overlay.classList.remove('open');
+    leaveRatingQueue(); // если ждали соперника — снимаем себя из очереди
   }
 
   document.querySelector('.cta-join').addEventListener('click', () => {
@@ -1236,7 +1197,10 @@
   });
   document.getElementById('close-btn').addEventListener('click', closeSheet);
   overlay.addEventListener('click', (e) => { if(e.target === overlay) closeSheet(); });
-  backBtn.addEventListener('click', () => showView(viewParents[sheet.dataset.current] || 'main'));
+  backBtn.addEventListener('click', () => {
+    if (sheet.dataset.current === 'rating-queue') leaveRatingQueue();
+    showView(viewParents[sheet.dataset.current] || 'main');
+  });
 
   document.querySelectorAll('[data-goto]').forEach(el => {
     el.addEventListener('click', () => showView(el.dataset.goto));
@@ -1362,6 +1326,115 @@
     teardownVoiceConnection();
   });
 
+  // ===== Рейтинговый бой — матчинг случайного соперника из очереди =====
+  // Без бэкенда/облачных функций: два клиента сами разруливают очередь через
+  // Firebase. Кто первый нашёл свободную запись в 'queue' — тот становится
+  // хостом комнаты и решает, кто с кем играет; используем тот же паттерн
+  // "прочитать → проверить → записать → перепроверить", что и в комнатах с
+  // другом — обычная transaction() тут ранее давала ложные срабатывания.
+  let myQueueRef = null;
+  let myQueueListener = null;
+
+  function rqShowError(text) {
+    const el = document.getElementById('rq-error');
+    el.textContent = text;
+    el.style.display = 'block';
+  }
+
+  function leaveRatingQueue() {
+    if (myQueueListener) { myQueueRef?.off('value', myQueueListener); myQueueListener = null; }
+    if (myQueueRef) { myQueueRef.remove().catch(() => {}); myQueueRef = null; }
+    document.getElementById('rq-idle').style.display = 'block';
+    document.getElementById('rq-waiting').style.display = 'none';
+  }
+
+  async function startRatingQueue() {
+    document.getElementById('rq-error').style.display = 'none';
+    const me = window.currentPlayer || { firstName: 'Игрок', playerId: 'guest' };
+    const myKey = window.currentTelegramId || me.playerId;
+
+    document.getElementById('rq-idle').style.display = 'none';
+    document.getElementById('rq-waiting').style.display = 'block';
+
+    try {
+      const queueSnap = await db.ref('queue').once('value');
+      const all = queueSnap.val() || {};
+      const opponentKey = Object.keys(all).find(k => k !== myKey && all[k] && !all[k].matchedRoom);
+
+      if (opponentKey) {
+        // нашли свободного соперника — сразу создаём комнату на двоих
+        const opponent = all[opponentKey];
+        const code = generateRoomCode();
+
+        // сначала "застолбим" соперника, указав ему код комнаты — если кто-то
+        // параллельно успел его забрать, matchedRoom у него будет уже другой
+        await db.ref('queue/' + opponentKey + '/matchedRoom').set(code);
+        const recheck = (await db.ref('queue/' + opponentKey + '/matchedRoom').once('value')).val();
+        if (recheck !== code) {
+          window.showDebugError?.('Рейтинговый бой', `не удалось застолбить соперника ${opponentKey} — гонка, ищем снова`);
+          return startRatingQueue(); // кто-то нас опередил — пробуем ещё раз
+        }
+
+        const battleData = {
+          hostId: me.playerId,
+          hostName: me.firstName,
+          guestId: opponent.playerId,
+          guestName: opponent.firstName,
+          status: 'active',
+          rated: true,
+          createdAt: Date.now()
+        };
+        await db.ref('battles/' + code).set(battleData);
+        window.ensureMatchRecord?.(code, battleData);
+
+        document.getElementById('rq-idle').style.display = 'block';
+        document.getElementById('rq-waiting').style.display = 'none';
+        showRoom(code, battleData, true);
+      } else {
+        // свободных нет — встаём в очередь сами и ждём, пока кто-то нас найдёт
+        myQueueRef = db.ref('queue/' + myKey);
+        await myQueueRef.set({
+          playerId: me.playerId,
+          firstName: me.firstName,
+          points: me.points || 0,
+          matchedRoom: null,
+          joinedAt: Date.now()
+        });
+
+        myQueueListener = myQueueRef.on('value', async (snap) => {
+          const data = snap.val();
+          if (data && data.matchedRoom) {
+            const code = data.matchedRoom;
+            myQueueRef.off('value', myQueueListener);
+            myQueueListener = null;
+            await myQueueRef.remove();
+            myQueueRef = null;
+            const battleSnap = await db.ref('battles/' + code).once('value');
+            const battleData = battleSnap.val();
+            if (battleData) {
+              document.getElementById('rq-idle').style.display = 'block';
+              document.getElementById('rq-waiting').style.display = 'none';
+              showRoom(code, battleData, false);
+            } else {
+              window.showDebugError?.('Рейтинговый бой', `matchedRoom=${code}, но battles/${code} не найден`);
+              rqShowError('Не удалось подключиться, попробуй ещё раз');
+              document.getElementById('rq-idle').style.display = 'block';
+              document.getElementById('rq-waiting').style.display = 'none';
+            }
+          }
+        });
+      }
+    } catch (err) {
+      window.showDebugError?.('Рейтинговый бой', err);
+      rqShowError('Не удалось найти соперника, попробуй ещё раз');
+      document.getElementById('rq-idle').style.display = 'block';
+      document.getElementById('rq-waiting').style.display = 'none';
+    }
+  }
+
+  document.getElementById('btn-start-rating-queue').addEventListener('click', startRatingQueue);
+  document.getElementById('btn-cancel-rating-queue').addEventListener('click', leaveRatingQueue);
+
   // ===== Голос через LiveKit — вместо самодельного WebRTC =====
   // LiveKit сам разруливает ICE/TURN/переподключения — то, с чем мы мучились
   // руками раньше. Sandbox token server выдаёт токены без своего бэкенда
@@ -1461,7 +1534,6 @@
           <div class="profile-name" id="profile-name">Олег</div>
           <div class="profile-username" id="profile-username">PLR-XXXXXX</div>
           <div class="profile-league-tag" style="display:none"><span class="dot"></span></div>
-          <div id="profile-badges" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;"></div>
         </div>
       </div>
 
@@ -1645,9 +1717,9 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.2.5 · pre-alpha (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.2.6 · pre-alpha (LiveKit-ветка)</div>
         Внутренний тест · обновлено 16.08.2026<br>
-        <span style="font-size:11px;">v0.2.4: блокировка кнопки "УЧАСТВОВАТЬ" без микрофона. v0.2.5: "Создать баттл с другом" и "Ввести код друга" объединены в один пункт "Играть с другом" — открывает подэкран с этими двумя опциями; освобождено место в списке под второй режим игры</span>
+        <span style="font-size:11px;">v0.2.5: "Играть с другом" объединяет создание/вход по коду. Добавлен "Рейтинговый бой" — очередь случайных соперников через Firebase. v0.2.6: security — роли (admin/superadmin) теперь выдаются только вручную через Firebase Console; кнопки назначения роли убраны из админ-панели, карточка игрока показывает роль только для просмотра. См. database.rules.json/firebase.json</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
@@ -1789,13 +1861,19 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
 <script>
   const tg = window.Telegram?.WebApp;
   tg?.ready();
   tg?.expand();
+
+  // initDataUnsafe.user.id — numeric ID Telegram-аккаунта.
+  // В отличие от username, он есть всегда и никогда не меняется —
+  // именно на него привязываем внутренний профиль.
+  const tgUser = tg?.initDataUnsafe?.user;
+  const telegramId = tgUser ? String(tgUser.id) : 'guest_' + Math.random().toString(36).slice(2, 9);
+  window.currentTelegramId = telegramId;
+  const displayFirstName = tgUser?.first_name || 'Гость';
 
   const firebaseConfig = {
     apiKey: "AIzaSyBe2eSG48yzv_9r6Q5yUF7fe2b6YLQGuQg",
@@ -1808,92 +1886,6 @@
   };
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
-  const auth = firebase.auth();
-  const functions = firebase.functions();
-
-  // ===== вход =====
-  // Раньше telegramId брался прямо из tg.initDataUnsafe.user.id — Telegram
-  // сам называет эти данные "unsafe": их не проверяет никто, и любой мог
-  // подменить их прямо в консоли браузера. Теперь вместо этого мы посылаем
-  // ПОДПИСАННУЮ строку tg.initData на сервер (Cloud Function
-  // verifyTelegramLogin), сервер проверяет подпись секретным токеном бота
-  // (которого нет и не может быть в этом файле) и только при успехе выдаёт
-  // Firebase custom token — вот после входа по нему uid уже можно доверять.
-  //
-  // Если приложение открыто НЕ из Telegram (например, тестируем в обычном
-  // браузере) — initData пуст, тогда просто логинимся анонимно через
-  // Firebase Auth (это тоже настоящая авторизация, просто без привязки к
-  // конкретному Telegram-аккаунту) — роль у такого гостя всегда 'user'.
-  async function bootstrapAuth() {
-    const initData = tg?.initData;
-
-    if (initData) {
-      const verifyTelegramLogin = functions.httpsCallable('verifyTelegramLogin');
-      const { data } = await verifyTelegramLogin({ initData });
-      await auth.signInWithCustomToken(data.token);
-    } else {
-      await auth.signInAnonymously();
-      const ensureGuestProfile = functions.httpsCallable('ensureGuestProfile');
-      await ensureGuestProfile();
-    }
-
-    const telegramId = auth.currentUser.uid;
-    window.currentTelegramId = telegramId;
-    startApp(telegramId);
-  }
-
-  bootstrapAuth().catch((err) => {
-    console.error('Ошибка входа', err);
-    window.showDebugError?.('Вход', 'Не удалось авторизоваться: ' + (err?.message || err));
-    // без успешного входа приложение неработоспособно (все правила базы
-    // требуют auth != null) — показываем понятный экран вместо тихого
-    // зависания на пустом месте
-    const root = document.querySelector('.device');
-    if (root) {
-      root.innerHTML = `<div style="padding:60px 24px; text-align:center; color:var(--muted);">
-        <div style="font-size:15px; color:var(--text); margin-bottom:8px; font-weight:600;">Не удалось войти</div>
-        <div style="font-size:13px;">Похоже, приложение открыто не из Telegram, либо истекла сессия.<br>Попробуй открыть его заново из бота.</div>
-      </div>`;
-    }
-  });
-
-  // Всё, что раньше выполнялось сразу верхнеуровнево, теперь выполняется
-  // здесь — то есть уже ПОСЛЕ успешного входа, когда правила базы данных
-  // разрешают auth != null читать/писать нужные пути.
-  function startApp(telegramId) {
-  const displayFirstName = tg?.initDataUnsafe?.user?.first_name || 'Гость';
-
-  // ===== каталог значков-шильдиков (выдаются супердоступом вручную за
-  // заслуги — альфа-тест, помощь с багами и т.п.), хранится отдельно от
-  // самих пользователей: users/{id}/badges/{key} = true просто ссылается
-  // на ключ отсюда, чтобы не дублировать иконку/название в каждой записи
-  // пользователя =====
-  window.badgeCatalog = {};
-  window.currentUserBadges = {}; // независимо от window.currentPlayer — чтобы не зависеть от порядка загрузки
-  const badgeCatalogRef = db.ref('badgeCatalog');
-  badgeCatalogRef.on('value', (snap) => {
-    window.badgeCatalog = snap.val() || {};
-    // перерисовываем по currentUserBadges, а не по currentPlayer.badges — на
-    // момент первой загрузки currentPlayer может быть ещё не готов (race
-    // condition), а currentUserBadges обновляется независимо, как только
-    // придут данные о значках пользователя
-    if (typeof window.renderProfileBadges === 'function') {
-      window.renderProfileBadges(window.currentUserBadges);
-    }
-    if (typeof window.renderHomeOrbitBadges === 'function') {
-      window.renderHomeOrbitBadges(window.currentUserBadges);
-    }
-    if (typeof window.renderBadgeToggleList === 'function' && window.currentAdminBadgeUser) {
-      window.renderBadgeToggleList(window.currentAdminBadgeUser);
-    }
-  });
-  // если каталог пуст (первый запуск) — заводим стартовый значок «Альфа-тестер»,
-  // дальше супердоступ сможет добавлять свои прямо из админ-панели
-  badgeCatalogRef.once('value').then((snap) => {
-    if (!snap.exists()) {
-      badgeCatalogRef.child('alpha_tester').set({ label: 'Альфа-тестер', icon: '🧪' });
-    }
-  });
 
   // Генерирует случайный внутренний ID игрока, например "PLR-8X3F9K"
   function generatePlayerId() {
@@ -1909,16 +1901,24 @@
     let userData;
 
     if (snap.exists()) {
+      // такой Telegram-аккаунт уже заходил — просто достаём его данные, ID не трогаем
       userData = snap.val();
     } else {
-      // не должно происходить в норме: verifyTelegramLogin/ensureGuestProfile
-      // (см. functions/index.js) создают запись на сервере ДО того, как
-      // клиент сюда доходит. Если всё же не создалась (гонка/сбой сети) —
-      // не пытаемся создавать её тут в браузере: role/status/playerId
-      // клиенту всё равно запрещено писать напрямую (см. database.rules.json),
-      // так что попытка только даст молчаливо неполную запись
-      window.showDebugError?.('Профиль', 'Запись пользователя не найдена на сервере — попробуй перезайти в приложение');
-      return;
+      // первый визит с этого Telegram-аккаунта — создаём запись намертво
+      userData = {
+        playerId: generatePlayerId(),
+        firstName: displayFirstName,
+        username: tgUser?.username ? '@' + tgUser.username : null,
+        role: 'user', // 'user' | 'moderator' | 'admin' | 'superadmin'
+        points: 0,
+        starsBalance: 0,
+        stats: { battles: 0, wins: 0, losses: 0, draws: 0, refereeBattles: 0, audienceLikes: 0 },
+        avatarData: null,
+        status: 'active', // 'active' | 'restricted' | 'banned'
+        restrictedUntil: null,
+        createdAt: Date.now()
+      };
+      userRef.set(userData);
     }
 
     // подставляем в профиль; статистика будет пересчитываться из матчей
@@ -1958,56 +1958,6 @@
       }
     }
     window.applyProfileUser = applyProfileUser; // доступна из любого другого JS-блока на странице (глобальная область видимости)
-
-    // Отрисовывает шильдики в профиле по объекту {badgeKey: true, ...},
-    // подставляя иконку/название из общего каталога window.badgeCatalog
-    function renderProfileBadges(badgesObj) {
-      const wrap = document.getElementById('profile-badges');
-      if (!wrap) return;
-      const keys = Object.keys(badgesObj || {}).filter(k => badgesObj[k]);
-      if (!keys.length) { wrap.innerHTML = ''; return; }
-      wrap.innerHTML = keys.map(k => {
-        const b = window.badgeCatalog[k];
-        if (!b) return '';
-        return `<div class="achievement-badge"><span class="ico">${b.icon || '🏅'}</span>${b.label || k}</div>`;
-      }).join('');
-    }
-    window.renderProfileBadges = renderProfileBadges;
-
-    // Те же значки, но по орбите вокруг аватарки на главном экране —
-    // каждый значок равномерно распределён по кругу (offset через
-    // отрицательный animation-delay) и крутится по дуге пульсирующих
-    // красных колец; сам значок при этом не переворачивается — крутится
-    // только его позиция, иконка внутри остаётся "прямой" за счёт
-    // встречной анимации на вложенном элементе.
-    function renderHomeOrbitBadges(badgesObj) {
-      const wrap = document.getElementById('home-badge-orbit');
-      if (!wrap) return;
-      const keys = Object.keys(badgesObj || {}).filter(k => badgesObj[k]);
-      if (!keys.length) { wrap.innerHTML = ''; return; }
-      const duration = 14; // должно совпадать с длительностью в CSS (orbit-spin / orbit-spin-reverse)
-      wrap.innerHTML = keys.map((k, i) => {
-        const b = window.badgeCatalog[k];
-        if (!b) return '';
-        const delay = -(i / keys.length) * duration; // равномерно распределяем по кругу
-        return `<div class="orbit-pivot" style="animation-delay:${delay}s;">
-          <div class="orbit-radius">
-            <div class="orbit-badge-icon" style="animation-delay:${delay}s;" title="${b.label || k}">${b.icon || '🏅'}</div>
-          </div>
-        </div>`;
-      }).join('');
-    }
-    window.renderHomeOrbitBadges = renderHomeOrbitBadges;
-
-    // живое обновление: если супердоступ выдаст значок прямо сейчас, пока
-    // человек уже открыл профиль — шильдик появится без перезагрузки
-    userRef.child('badges').on('value', (snap) => {
-      const badges = snap.val() || {};
-      window.currentUserBadges = badges; // независимый источник правды, не зависит от готовности currentPlayer
-      if (window.currentPlayer) window.currentPlayer.badges = badges;
-      renderProfileBadges(badges);
-      renderHomeOrbitBadges(badges);
-    });
 
     function renderProfileStats(stats) {
       const s = stats || {};
@@ -2120,7 +2070,6 @@
     const count = snapshot.numChildren();
     onlineCountEl.textContent = `онлайн ${count.toLocaleString('ru-RU')}`;
   });
-  } // конец startApp()
 </script>
 
 <!-- ===== admin panel ===== -->
@@ -2171,16 +2120,6 @@
         <div class="r-toggle-row" style="flex-direction:column; align-items:stretch; gap:10px;">
           <div class="r-toggle-label">Уровень доступа</div>
           <div id="role-buttons" style="display:flex; flex-direction:column; gap:8px;"></div>
-        </div>
-
-        <div class="r-toggle-row" style="flex-direction:column; align-items:stretch; gap:10px;">
-          <div class="r-toggle-label">Значки</div>
-          <div id="badge-toggle-list" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
-          <div id="badge-create-block" style="display:none; gap:8px; align-items:center; margin-top:2px;">
-            <input type="text" id="new-badge-icon" placeholder="🏅" maxlength="4" style="width:52px; text-align:center; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:9px 4px; color:var(--text); font-size:16px;">
-            <input type="text" id="new-badge-label" placeholder="Название значка" style="flex:1; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:9px 10px; color:var(--text); font-size:13px;">
-            <button id="btn-create-badge" style="background:var(--panel-2); border:1px solid var(--line); color:var(--gold); border-radius:10px; padding:9px 12px; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap;">+ Создать</button>
-          </div>
         </div>
 
         <div class="r-toggle-row" style="flex-direction:column; align-items:stretch; gap:10px;">
@@ -2253,126 +2192,16 @@
   });
 
   function renderRoleButtons(currentRole) {
-    const myRole = window.currentPlayer?.role || 'user';
-    const iAmSuperadmin = myRole === 'superadmin';
-
-    roleButtonsEl.innerHTML = '';
-
-    if (!iAmSuperadmin) {
-      // менять роли может только супердоступ — остальные видят карточку
-      // игрока только для просмотра, без права что-либо выдавать
-      const note = document.createElement('div');
-      note.className = 'admin-empty';
-      note.style.padding = '4px 0 0';
-      note.textContent = 'Менять уровень доступа может только Супердоступ';
-      roleButtonsEl.appendChild(note);
-    }
-
-    ROLES.forEach(r => {
-      const locked = !iAmSuperadmin;
-
-      const el = document.createElement('div');
-      el.className = 'role-option' + (r.key === currentRole ? ' active' : '') + (locked ? ' disabled' : '');
-      el.innerHTML = `
-        <span>${r.label}</span>
-        <svg class="r-check" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>
-      `;
-      if (!locked) {
-        el.addEventListener('click', () => setRole(r.key));
-      }
-      roleButtonsEl.appendChild(el);
-    });
+    // Роли теперь выдаются только вручную через Firebase Console (см.
+    // database.rules.json — сайту физически запрещено менять чужую роль).
+    // Кнопки назначения убраны, чтобы не создавать иллюзию, что это работает.
+    const label = ROLES.find(r => r.key === currentRole)?.label || currentRole;
+    roleButtonsEl.innerHTML = `
+      <div class="admin-empty" style="padding:4px 0 0;">
+        Текущий уровень: <strong>${label}</strong>. Роли выдаются только вручную через Firebase Console — из соображений безопасности сайт больше не может их менять.
+      </div>
+    `;
   }
-
-  function setRole(newRole) {
-    if (!foundUserKey) return;
-    if ((window.currentPlayer?.role || 'user') !== 'superadmin') return; // защита от прямого вызова из консоли
-    const targetName = document.getElementById('r-name').textContent;
-    const targetPlayerId = document.getElementById('r-id').textContent;
-    const prevRole = foundUserRole;
-    foundUserRole = newRole;
-    renderRoleButtons(newRole); // оптимистично, до ответа сервера
-
-    functions.httpsCallable('adminSetRole')({ targetUid: foundUserKey, newRole, targetName, targetPlayerId })
-      .then(() => loadUserList()) // обновляем бейджи в списке
-      .catch((err) => {
-        console.error(err);
-        window.showDebugError?.('Смена роли', err?.message || 'Не удалось сохранить — попробуй ещё раз');
-        foundUserRole = prevRole;
-        renderRoleButtons(prevRole); // откатываем UI, раз сервер отказал
-      });
-  }
-
-  function renderBadgeToggleList(user) {
-    window.currentAdminBadgeUser = user; // чтобы обновиться, если каталог поменяется в фоне
-    const myRole = window.currentPlayer?.role || 'user';
-    const iAmSuperadmin = myRole === 'superadmin';
-    const listEl = document.getElementById('badge-toggle-list');
-    const catalog = window.badgeCatalog || {};
-    const userBadges = user.badges || {};
-
-    const keys = Object.keys(catalog);
-    if (!keys.length) {
-      listEl.innerHTML = '<div class="admin-empty" style="padding:0;">Каталог значков пуст</div>';
-    } else {
-      listEl.innerHTML = keys.map(k => {
-        const b = catalog[k];
-        const active = !!userBadges[k];
-        return `<div class="achievement-toggle${active ? ' active' : ''}${iAmSuperadmin ? '' : ' disabled'}" data-badge-key="${k}">
-          <span class="ico">${b.icon || '🏅'}</span>${b.label || k}
-        </div>`;
-      }).join('');
-      if (iAmSuperadmin) {
-        listEl.querySelectorAll('[data-badge-key]').forEach(el => {
-          el.addEventListener('click', () => toggleBadge(el.dataset.badgeKey));
-        });
-      }
-    }
-
-    document.getElementById('badge-create-block').style.display = iAmSuperadmin ? 'flex' : 'none';
-  }
-  window.renderBadgeToggleList = renderBadgeToggleList;
-
-  function toggleBadge(key) {
-    if (!foundUserKey) return;
-    if ((window.currentPlayer?.role || 'user') !== 'superadmin') return; // защита от прямого вызова из консоли
-    const targetName = document.getElementById('r-name').textContent;
-    const targetPlayerId = document.getElementById('r-id').textContent;
-    const user = window.currentAdminBadgeUser || { badges: {} };
-    const isActive = !!(user.badges || {})[key];
-    const grant = !isActive;
-
-    // оптимистично обновляем сразу, откатываем если сервер откажет
-    user.badges = user.badges || {};
-    if (grant) user.badges[key] = true; else delete user.badges[key];
-    renderBadgeToggleList(user);
-
-    functions.httpsCallable('adminToggleBadge')({ targetUid: foundUserKey, badgeKey: key, grant, targetName, targetPlayerId })
-      .then(() => loadUserList())
-      .catch((err) => {
-        console.error(err);
-        window.showDebugError?.('Значок', err?.message || 'Не удалось сохранить — попробуй ещё раз');
-        if (grant) delete user.badges[key]; else user.badges[key] = true; // откат
-        renderBadgeToggleList(user);
-      });
-  }
-
-  document.getElementById('btn-create-badge').addEventListener('click', () => {
-    if ((window.currentPlayer?.role || 'user') !== 'superadmin') return;
-    const iconInput = document.getElementById('new-badge-icon');
-    const labelInput = document.getElementById('new-badge-label');
-    const icon = iconInput.value.trim() || '🏅';
-    const label = labelInput.value.trim();
-    if (!label) { labelInput.focus(); return; }
-
-    functions.httpsCallable('adminCreateBadge')({ label, icon }).then(() => {
-      iconInput.value = '';
-      labelInput.value = '';
-    }).catch((err) => {
-      console.error(err);
-      window.showDebugError?.('Новый значок', err?.message || 'Не удалось создать значок');
-    });
-  });
 
   // Открывает карточку конкретного игрока (общая для списка и поиска)
   function openUserDetail(userKey, user) {
@@ -2394,7 +2223,6 @@
 
     renderRoleButtons(foundUserRole);
     renderStatusBadge(user);
-    renderBadgeToggleList(user);
 
     const myRole = window.currentPlayer?.role || 'user';
     const canEditStats = myRole === 'admin' || myRole === 'superadmin';
@@ -2528,26 +2356,23 @@
   document.getElementById('btn-save-stats').addEventListener('click', () => {
     if (!foundUserKey || !canEditStats()) return;
     const val = id => Math.max(0, parseInt(document.getElementById(id).value, 10) || 0);
-    const points = val('edit-points');
-    const starsBalance = val('edit-stars');
-    const stats = {
-      battles: val('edit-battles'), wins: val('edit-wins'),
-      losses: val('edit-losses'), draws: val('edit-draws'),
-      refereeBattles: val('edit-referee'), audienceLikes: val('edit-likes')
+    const updates = {
+      points: val('edit-points'), starsBalance: val('edit-stars'),
+      'stats/battles': val('edit-battles'), 'stats/wins': val('edit-wins'),
+      'stats/losses': val('edit-losses'), 'stats/draws': val('edit-draws'),
+      'stats/refereeBattles': val('edit-referee'), 'stats/audienceLikes': val('edit-likes')
     };
-    const targetName = document.getElementById('r-name').textContent;
-    const targetPlayerId = document.getElementById('r-id').textContent;
-
-    functions.httpsCallable('adminAdjustStats')({ targetUid: foundUserKey, points, starsBalance, stats, targetName, targetPlayerId })
-      .then(() => {
-        document.getElementById('r-points-val').textContent = points;
-        if (foundUserKey === window.currentTelegramId && window.currentPlayer) {
-          window.currentPlayer.points = points; window.currentPlayer.starsBalance = starsBalance;
-          window.currentPlayer.stats = { ...(window.currentPlayer.stats || {}), ...stats };
-          renderProfileStats(window.currentPlayer.stats); renderProfileFromMatches();
-        }
-      })
-      .catch(err => { console.error(err); alert('Не удалось сохранить статистику: ' + (err?.message || err)); });
+    const targetName=document.getElementById('r-name').textContent;
+    const targetPlayerId=document.getElementById('r-id').textContent;
+    db.ref('users/'+foundUserKey).update(updates).then(() => {
+      document.getElementById('r-points-val').textContent=updates.points;
+      if(foundUserKey===window.currentTelegramId && window.currentPlayer){
+        window.currentPlayer.points=updates.points; window.currentPlayer.starsBalance=updates.starsBalance;
+        window.currentPlayer.stats={...(window.currentPlayer.stats||{}),battles:updates['stats/battles'],wins:updates['stats/wins'],losses:updates['stats/losses'],draws:updates['stats/draws'],refereeBattles:updates['stats/refereeBattles'],audienceLikes:updates['stats/audienceLikes']};
+        renderProfileStats(window.currentPlayer.stats); renderProfileFromMatches();
+      }
+      if(typeof logAction==='function') logAction('stats_change',foundUserKey,targetName,targetPlayerId,'Статистика изменена администратором');
+    }).catch(err => { console.error(err); alert('Не удалось сохранить статистику'); });
   });
 
   // ===== бан / ограничения =====
@@ -2555,11 +2380,15 @@
     btn.addEventListener('click', () => {
       if (!foundUserKey) return;
       const hours = parseInt(btn.dataset.hours, 10);
+      const until = Date.now() + hours * 3600000;
       const targetName = document.getElementById('r-name').textContent;
       const targetPlayerId = document.getElementById('r-id').textContent;
-      functions.httpsCallable('adminSetBanStatus')({ targetUid: foundUserKey, mode: 'restrict', hours, targetName, targetPlayerId })
-        .then(() => db.ref('users/' + foundUserKey).once('value').then((snap) => renderStatusBadge(snap.val())))
-        .catch(err => { console.error(err); window.showDebugError?.('Бан', err?.message || 'Не удалось применить ограничение'); });
+      db.ref('users/' + foundUserKey).update({ status: 'restricted', restrictedUntil: until }).then(() => {
+        db.ref('users/' + foundUserKey).once('value').then((snap) => renderStatusBadge(snap.val()));
+        if (typeof logAction === 'function') {
+          logAction('ban_temp', foundUserKey, targetName, targetPlayerId, `Ограничение на ${hours} ч.`);
+        }
+      });
     });
   });
 
@@ -2567,18 +2396,24 @@
     if (!foundUserKey) return;
     const targetName = document.getElementById('r-name').textContent;
     const targetPlayerId = document.getElementById('r-id').textContent;
-    functions.httpsCallable('adminSetBanStatus')({ targetUid: foundUserKey, mode: 'ban', targetName, targetPlayerId })
-      .then(() => db.ref('users/' + foundUserKey).once('value').then((snap) => renderStatusBadge(snap.val())))
-      .catch(err => { console.error(err); window.showDebugError?.('Бан', err?.message || 'Не удалось забанить'); });
+    db.ref('users/' + foundUserKey).update({ status: 'banned', restrictedUntil: null }).then(() => {
+      db.ref('users/' + foundUserKey).once('value').then((snap) => renderStatusBadge(snap.val()));
+      if (typeof logAction === 'function') {
+        logAction('ban_forever', foundUserKey, targetName, targetPlayerId, 'Забанен навсегда');
+      }
+    });
   });
 
   document.getElementById('btn-unban').addEventListener('click', () => {
     if (!foundUserKey) return;
     const targetName = document.getElementById('r-name').textContent;
     const targetPlayerId = document.getElementById('r-id').textContent;
-    functions.httpsCallable('adminSetBanStatus')({ targetUid: foundUserKey, mode: 'unban', targetName, targetPlayerId })
-      .then(() => db.ref('users/' + foundUserKey).once('value').then((snap) => renderStatusBadge(snap.val())))
-      .catch(err => { console.error(err); window.showDebugError?.('Бан', err?.message || 'Не удалось снять бан'); });
+    db.ref('users/' + foundUserKey).update({ status: 'active', restrictedUntil: null }).then(() => {
+      db.ref('users/' + foundUserKey).once('value').then((snap) => renderStatusBadge(snap.val()));
+      if (typeof logAction === 'function') {
+        logAction('unban', foundUserKey, targetName, targetPlayerId, 'Бан/ограничение снято');
+      }
+    });
   });
 </script>
 
@@ -2629,10 +2464,7 @@
     points_given: 'Начисление очков',
     ban_temp: 'Временный бан',
     ban_forever: 'Бан навсегда',
-    unban: 'Снятие бана',
-    badge_grant: 'Выдача значка',
-    badge_revoke: 'Отзыв значка',
-    badge_create: 'Новый значок в каталоге'
+    unban: 'Снятие бана'
   };
 
   // Пишет запись в общий журнал — вызывается из каждого админ-действия
