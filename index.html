@@ -1869,7 +1869,7 @@
 
       <div style="display:flex; gap:8px;">
         <button class="sheet-cta" id="btn-theme-save" style="flex:1; font-size:13px; padding:14px 6px;">Сохранить</button>
-        <button class="sheet-cta secondary" id="btn-theme-export" style="flex:1; font-size:13px; padding:14px 6px;">📤 Поделиться</button>
+        <a class="sheet-cta secondary" id="btn-theme-export" href="#" style="flex:1; font-size:13px; padding:14px 6px; display:flex; align-items:center; justify-content:center; text-decoration:none; box-sizing:border-box;">📤 Поделиться</a>
       </div>
 
     </div>
@@ -2200,47 +2200,31 @@
     previewLabTheme();
   });
 
-  async function exportThemeFile(theme){
-    const payload = { format: 'tbbc', version: 1, name: theme.name, mode: theme.mode, live: theme.live, gold: theme.gold, bg: theme.bg, wallpaper: theme.wallpaper || null };
-    const filename = (theme.name || 'theme').replace(/[^a-zA-Zа-яА-Яё0-9_-]+/g, '_') + '.tbbc';
-    const blob = new Blob([JSON.stringify(payload)], { type: 'application/octet-stream' });
-
-    // Скачивание через скрытую <a download> в некоторых мобильных браузерах
-    // и WebView (в т.ч. внутри Telegram) срабатывает молча ничем — файл
-    // нигде не появляется. Нативный диалог "Поделиться" гораздо надёжнее
-    // на телефоне и по смыслу — это и есть то самое действие "поделиться".
-    const file = new File([blob], filename, { type: 'application/octet-stream' });
-    const canShareFiles = !!navigator.canShare?.({ files: [file] });
-    window.showDebugError?.('Поделиться темой: диагностика',
-      `canShare(files)=${canShareFiles}, hasShare=${!!navigator.share}, filename=${filename}, size=${blob.size}б`);
-
-    if (canShareFiles) {
-      try {
-        window.showDebugError?.('Поделиться темой', 'вызываю navigator.share()...');
-        await navigator.share({ files: [file], title: theme.name || 'Тема БАТТЛ' });
-        window.showDebugError?.('Поделиться темой', 'navigator.share() завершился без ошибок');
-        return;
-      } catch (err) {
-        if (err?.name === 'AbortError') {
-          window.showDebugError?.('Поделиться темой', 'пользователь отменил диалог "Поделиться"');
-          return;
-        }
-        window.showDebugError?.('Поделиться темой: ошибка', `${err?.name || ''} ${err?.message || String(err)}`);
-      }
-    } else {
-      window.showDebugError?.('Поделиться темой', 'Web Share для файлов не поддерживается — пробую скачивание через <a download>');
+  // ===== экспорт темы в файл .tbbc =====
+  // На части мобильных браузеров скачивание через createElement('a') +
+  // programmatic .click() по blob:-ссылке тихо ничего не делает — ни файла,
+  // ни ошибки (диагностика debug-панелью это подтвердила: navigator.share
+  // тут вообще недоступен, hasShare=false, так что и тот путь не вариант).
+  // Более надёжный across-browser способ — сделать саму кнопку РЕАЛЬНОЙ
+  // ссылкой <a href="data:...;base64,..." download>, у которой href
+  // выставлен ЗАРАНЕЕ (не в момент клика), чтобы сработал настоящий тап
+  // пользователя по настоящей ссылке, а не синтетический клик по элементу,
+  // созданному и тут же удалённому через JS.
+  function utf8ToBase64(str){
+    const bytes = new TextEncoder().encode(str);
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
     }
-
-    // Фолбэк для браузеров без Web Share API (десктоп и т.п.)
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.showDebugError?.('Поделиться темой', 'вызван a.click() на скачивание — если файла нет в Загрузках, браузер это скачивание тихо блокирует');
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    return btoa(binary);
+  }
+  function buildThemeDataUrl(theme){
+    const payload = { format: 'tbbc', version: 1, name: theme.name, mode: theme.mode, live: theme.live, gold: theme.gold, bg: theme.bg, wallpaper: theme.wallpaper || null };
+    return 'data:application/octet-stream;base64,' + utf8ToBase64(JSON.stringify(payload));
+  }
+  function filenameForTheme(theme){
+    return (theme.name || 'theme').replace(/[^a-zA-Zа-яА-Яё0-9_-]+/g, '_') + '.tbbc';
   }
 
   function loadThemeIntoLabForm(theme){
@@ -2266,11 +2250,15 @@
       const thumb = t.wallpaper
         ? `<div class="thumb" style="background-image:url(${t.wallpaper})"></div>`
         : `<div class="swatches"><span style="background:${t.bg}"></span><span style="background:${t.live}"></span><span style="background:${t.gold}"></span></div>`;
+      // экспорт — настоящая ссылка <a href="data:..." download> с адресом,
+      // посчитанным заранее, а не построенная и "нажатая" через JS в момент
+      // клика: часть мобильных браузеров скачивание через синтетический
+      // клик по такой ссылке тихо игнорирует, а по реальному тапу — нет.
       return `<div class="saved-theme-row${isActive ? ' active' : ''}" data-theme-id="${t.id}">
         ${thumb}
         <div class="name">${t.name}</div>
         <div class="icon-btn" data-action="edit" title="Изменить">✎</div>
-        <div class="icon-btn" data-action="export" title="Поделиться">📤</div>
+        <a class="icon-btn" href="${buildThemeDataUrl(t)}" download="${filenameForTheme(t)}" title="Поделиться" style="text-decoration:none;">📤</a>
         <div class="icon-btn" data-action="delete" title="Удалить">🗑</div>
       </div>`;
     }).join('');
@@ -2279,13 +2267,12 @@
       const id = row.dataset.themeId;
       row.addEventListener('click', (e) => {
         const action = e.target.closest('[data-action]')?.dataset.action;
+        if (e.target.closest('a')) return; // ссылка "Поделиться" сама скачивает — тему сверху не применяем
         const theme = loadSavedThemes().find(t => t.id === id);
         if (!theme) return;
         if (action === 'edit') {
           loadThemeIntoLabForm(theme);
           previewLabTheme();
-        } else if (action === 'export') {
-          exportThemeFile(theme);
         } else if (action === 'delete') {
           if (!confirm(`Удалить тему «${theme.name}»?`)) return;
           saveSavedThemesList(loadSavedThemes().filter(t => t.id !== id));
@@ -2330,9 +2317,14 @@
     alert('Тема «' + name + '» сохранена');
   });
 
-  document.getElementById('btn-theme-export').addEventListener('click', () => {
+  document.getElementById('btn-theme-export').addEventListener('click', (e) => {
+    // href/download выставляются прямо перед тем, как браузер обработает
+    // клик по этой самой ссылке — preventDefault() не вызываем, так что
+    // дальше срабатывает обычное скачивание настоящей <a download>
     const name = labNameInput.value.trim() || 'Моя тема';
-    exportThemeFile({ name, mode: labMode, live: labLiveInput.value, gold: labGoldInput.value, bg: labBgInput.value, wallpaper: labWallpaper });
+    const theme = { name, mode: labMode, live: labLiveInput.value, gold: labGoldInput.value, bg: labBgInput.value, wallpaper: labWallpaper };
+    e.currentTarget.href = buildThemeDataUrl(theme);
+    e.currentTarget.download = filenameForTheme(theme);
   });
 
   document.getElementById('btn-theme-import').addEventListener('click', () => document.getElementById('theme-file-input').click());
