@@ -1814,9 +1814,10 @@
       <div id="saved-themes-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:10px;"></div>
       <div class="admin-empty" id="saved-themes-empty">Пока нет сохранённых тем</div>
 
-      <div style="display:flex; gap:8px; margin: 14px 0 22px;">
-        <button class="sheet-cta secondary" id="btn-theme-import" style="margin-top:0;">📥 Загрузить .tbbc</button>
-        <input type="file" id="theme-file-input" accept=".tbbc" style="display:none">
+      <div class="section-label">Ввести код темы друга</div>
+      <div class="admin-search" style="margin-bottom:22px;">
+        <input type="text" id="theme-import-code" placeholder="XXXXX-TBBC" style="text-transform:uppercase; letter-spacing:1px;">
+        <button id="btn-theme-import-code">Импорт</button>
       </div>
 
       <div class="section-label">Создать / изменить</div>
@@ -1869,7 +1870,13 @@
 
       <div style="display:flex; gap:8px;">
         <button class="sheet-cta" id="btn-theme-save" style="flex:1; font-size:13px; padding:14px 6px;">Сохранить</button>
-        <a class="sheet-cta secondary" id="btn-theme-export" href="#" style="flex:1; font-size:13px; padding:14px 6px; display:flex; align-items:center; justify-content:center; text-decoration:none; box-sizing:border-box;">📤 Поделиться</a>
+        <button class="sheet-cta secondary" id="btn-theme-export" style="flex:1; font-size:13px; padding:14px 6px;">📤 Поделиться</button>
+      </div>
+
+      <div id="theme-share-result" style="display:none; text-align:center; margin-top:14px; background:var(--panel); border:1px solid var(--gold); border-radius:14px; padding:16px;">
+        <div style="font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">Код темы — продиктуй другу</div>
+        <div id="theme-share-code" style="font-family:'Bebas Neue',sans-serif; font-size:24px; letter-spacing:2px; color:var(--gold); margin-bottom:12px; word-break:break-all;">—————</div>
+        <button class="sheet-cta secondary" id="btn-copy-theme-code" style="margin-top:0;">Скопировать код</button>
       </div>
 
     </div>
@@ -2200,32 +2207,41 @@
     previewLabTheme();
   });
 
-  // ===== экспорт темы в файл .tbbc =====
-  // На части мобильных браузеров скачивание через createElement('a') +
-  // programmatic .click() по blob:-ссылке тихо ничего не делает — ни файла,
-  // ни ошибки (диагностика debug-панелью это подтвердила: navigator.share
-  // тут вообще недоступен, hasShare=false, так что и тот путь не вариант).
-  // Более надёжный across-browser способ — сделать саму кнопку РЕАЛЬНОЙ
-  // ссылкой <a href="data:...;base64,..." download>, у которой href
-  // выставлен ЗАРАНЕЕ (не в момент клика), чтобы сработал настоящий тап
-  // пользователя по настоящей ссылке, а не синтетический клик по элементу,
-  // созданному и тут же удалённому через JS.
-  function utf8ToBase64(str){
-    const bytes = new TextEncoder().encode(str);
-    let binary = '';
-    const chunkSize = 0x8000;
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+  // ===== "поделиться темой" — код через Firebase, без файлов =====
+  // Скачивание файла (сначала через blob+programmatic click, потом через
+  // Web Share, потом через настоящую <a download>) не заработало надёжно
+  // ни на одном заходе — на конкретном браузере пользователя не было ни
+  // navigator.share, ни рабочего скачивания по ссылке. Вместо файла — та
+  // же схема, что уже работает в приложении для комнат с другом: код,
+  // который можно продиктовать/переслать текстом, тема лежит в базе.
+  // "-TBBC" в конце кода — единственное, что осталось от изначальной идеи
+  // с отдельным файловым форматом.
+  function generateShareCode(){
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    return code + '-TBBC';
+  }
+
+  async function shareThemeViaCode(theme){
+    const code = generateShareCode();
+    const payload = { name: theme.name, mode: theme.mode, live: theme.live, gold: theme.gold, bg: theme.bg, wallpaper: theme.wallpaper || null, createdAt: Date.now() };
+    try {
+      await db.ref('sharedThemes/' + code).set(payload);
+      const resultBox = document.getElementById('theme-share-result');
+      document.getElementById('theme-share-code').textContent = code;
+      resultBox.style.display = 'block';
+      resultBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } catch (err) {
+      alert('Не удалось создать код темы, попробуй ещё раз');
+      window.showDebugError?.('Поделиться темой', err.message || String(err));
     }
-    return btoa(binary);
   }
-  function buildThemeDataUrl(theme){
-    const payload = { format: 'tbbc', version: 1, name: theme.name, mode: theme.mode, live: theme.live, gold: theme.gold, bg: theme.bg, wallpaper: theme.wallpaper || null };
-    return 'data:application/octet-stream;base64,' + utf8ToBase64(JSON.stringify(payload));
-  }
-  function filenameForTheme(theme){
-    return (theme.name || 'theme').replace(/[^a-zA-Zа-яА-Яё0-9_-]+/g, '_') + '.tbbc';
-  }
+
+  document.getElementById('btn-copy-theme-code').addEventListener('click', () => {
+    const code = document.getElementById('theme-share-code').textContent;
+    navigator.clipboard?.writeText(code);
+  });
 
   function loadThemeIntoLabForm(theme){
     editingThemeId = theme.id;
@@ -2250,15 +2266,11 @@
       const thumb = t.wallpaper
         ? `<div class="thumb" style="background-image:url(${t.wallpaper})"></div>`
         : `<div class="swatches"><span style="background:${t.bg}"></span><span style="background:${t.live}"></span><span style="background:${t.gold}"></span></div>`;
-      // экспорт — настоящая ссылка <a href="data:..." download> с адресом,
-      // посчитанным заранее, а не построенная и "нажатая" через JS в момент
-      // клика: часть мобильных браузеров скачивание через синтетический
-      // клик по такой ссылке тихо игнорирует, а по реальному тапу — нет.
       return `<div class="saved-theme-row${isActive ? ' active' : ''}" data-theme-id="${t.id}">
         ${thumb}
         <div class="name">${t.name}</div>
         <div class="icon-btn" data-action="edit" title="Изменить">✎</div>
-        <a class="icon-btn" href="${buildThemeDataUrl(t)}" download="${filenameForTheme(t)}" title="Поделиться" style="text-decoration:none;">📤</a>
+        <div class="icon-btn" data-action="share" title="Поделиться">📤</div>
         <div class="icon-btn" data-action="delete" title="Удалить">🗑</div>
       </div>`;
     }).join('');
@@ -2267,12 +2279,13 @@
       const id = row.dataset.themeId;
       row.addEventListener('click', (e) => {
         const action = e.target.closest('[data-action]')?.dataset.action;
-        if (e.target.closest('a')) return; // ссылка "Поделиться" сама скачивает — тему сверху не применяем
         const theme = loadSavedThemes().find(t => t.id === id);
         if (!theme) return;
         if (action === 'edit') {
           loadThemeIntoLabForm(theme);
           previewLabTheme();
+        } else if (action === 'share') {
+          shareThemeViaCode(theme);
         } else if (action === 'delete') {
           if (!confirm(`Удалить тему «${theme.name}»?`)) return;
           saveSavedThemesList(loadSavedThemes().filter(t => t.id !== id));
@@ -2317,29 +2330,20 @@
     alert('Тема «' + name + '» сохранена');
   });
 
-  document.getElementById('btn-theme-export').addEventListener('click', (e) => {
-    // href/download выставляются прямо перед тем, как браузер обработает
-    // клик по этой самой ссылке — preventDefault() не вызываем, так что
-    // дальше срабатывает обычное скачивание настоящей <a download>
+  document.getElementById('btn-theme-export').addEventListener('click', () => {
     const name = labNameInput.value.trim() || 'Моя тема';
-    const theme = { name, mode: labMode, live: labLiveInput.value, gold: labGoldInput.value, bg: labBgInput.value, wallpaper: labWallpaper };
-    e.currentTarget.href = buildThemeDataUrl(theme);
-    e.currentTarget.download = filenameForTheme(theme);
+    shareThemeViaCode({ name, mode: labMode, live: labLiveInput.value, gold: labGoldInput.value, bg: labBgInput.value, wallpaper: labWallpaper });
   });
 
-  document.getElementById('btn-theme-import').addEventListener('click', () => document.getElementById('theme-file-input').click());
-  document.getElementById('theme-file-input').addEventListener('change', (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      let data;
-      try { data = JSON.parse(reader.result); } catch (err) { alert('Не удалось прочитать файл .tbbc'); return; }
-      if (!data || typeof data.live !== 'string' || typeof data.gold !== 'string' || typeof data.bg !== 'string') {
-        alert('Файл не похож на тему БАТТЛ (.tbbc)');
-        return;
-      }
+  document.getElementById('btn-theme-import-code').addEventListener('click', async () => {
+    const input = document.getElementById('theme-import-code');
+    let code = input.value.trim().toUpperCase();
+    if (!code) return;
+    if (!code.endsWith('-TBBC')) code = code.replace(/-?TBBC$/, '') + '-TBBC'; // прощаем ввод без дефиса/суффикса
+    try {
+      const snap = await db.ref('sharedThemes/' + code).once('value');
+      if (!snap.exists()) { alert('Код не найден'); return; }
+      const data = snap.val();
       const list = loadSavedThemes();
       const id = 'th_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
       const theme = { id, name: data.name || 'Импортированная тема', mode: data.mode === 'light' ? 'light' : 'dark', live: data.live, gold: data.gold, bg: data.bg, wallpaper: data.wallpaper || null };
@@ -2347,9 +2351,12 @@
       saveSavedThemesList(list);
       renderSavedThemesList();
       loadThemeIntoLabForm(theme);
+      input.value = '';
       alert('Тема «' + theme.name + '» добавлена в список — нажми на неё, чтобы применить');
-    };
-    reader.readAsText(file);
+    } catch (err) {
+      alert('Не удалось загрузить тему по коду');
+      window.showDebugError?.('Импорт темы по коду', err.message || String(err));
+    }
   });
 
   document.getElementById('open-theme-lab-btn').addEventListener('click', () => {
