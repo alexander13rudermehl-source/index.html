@@ -2210,14 +2210,25 @@
     // нигде не появляется. Нативный диалог "Поделиться" гораздо надёжнее
     // на телефоне и по смыслу — это и есть то самое действие "поделиться".
     const file = new File([blob], filename, { type: 'application/octet-stream' });
-    if (navigator.canShare?.({ files: [file] })) {
+    const canShareFiles = !!navigator.canShare?.({ files: [file] });
+    window.showDebugError?.('Поделиться темой: диагностика',
+      `canShare(files)=${canShareFiles}, hasShare=${!!navigator.share}, filename=${filename}, size=${blob.size}б`);
+
+    if (canShareFiles) {
       try {
+        window.showDebugError?.('Поделиться темой', 'вызываю navigator.share()...');
         await navigator.share({ files: [file], title: theme.name || 'Тема БАТТЛ' });
+        window.showDebugError?.('Поделиться темой', 'navigator.share() завершился без ошибок');
         return;
       } catch (err) {
-        if (err?.name === 'AbortError') return; // пользователь сам отменил — не ошибка
-        window.showDebugError?.('Поделиться темой', err.message || String(err));
+        if (err?.name === 'AbortError') {
+          window.showDebugError?.('Поделиться темой', 'пользователь отменил диалог "Поделиться"');
+          return;
+        }
+        window.showDebugError?.('Поделиться темой: ошибка', `${err?.name || ''} ${err?.message || String(err)}`);
       }
+    } else {
+      window.showDebugError?.('Поделиться темой', 'Web Share для файлов не поддерживается — пробую скачивание через <a download>');
     }
 
     // Фолбэк для браузеров без Web Share API (десктоп и т.п.)
@@ -2228,6 +2239,7 @@
     document.body.appendChild(a);
     a.click();
     a.remove();
+    window.showDebugError?.('Поделиться темой', 'вызван a.click() на скачивание — если файла нет в Загрузках, браузер это скачивание тихо блокирует');
     setTimeout(() => URL.revokeObjectURL(url), 2000);
   }
 
