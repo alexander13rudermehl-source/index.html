@@ -2122,17 +2122,33 @@
     }
   }
 
-  // ===== "Мои темы" — список сохранённых своих палитр (+обои). Хранится
-  // только в этом браузере/устройстве; поделиться темой с кем-то ещё —
-  // через файл .tbbc (обычный JSON с собственным расширением, см. ниже).
-  function loadSavedThemes(){
-    try { return JSON.parse(localStorage.getItem('battleSavedThemes') || '[]'); } catch(e) { return []; }
+  // ===== "Мои темы" — список сохранённых своих палитр (+обои) =====
+  // Тема — часть ЛИЧНОГО аккаунта, не устройства: хранится в Firebase у
+  // конкретного Telegram-аккаунта (users/<id>/savedThemes,
+  // users/<id>/activeTheme), поэтому её не видно другому человеку,
+  // который откроет приложение в том же браузере под своим аккаунтом.
+  // Единственное исключение — гость без Telegram (playerId начинается на
+  // "guest_"): для него привязать тему буквально не к чему, там
+  // по-прежнему используется localStorage этого устройства.
+  let savedThemesCache = [];
+  let activeThemeRefCache = null;
+
+  function loadSavedThemes(){ return savedThemesCache; }
+  function getActiveThemeRef(){ return activeThemeRefCache; }
+
+  function persistThemeState(){
+    const telegramId = window.currentTelegramId;
+    if (telegramId && !telegramId.startsWith('guest_')) {
+      db.ref('users/' + telegramId).update({ savedThemes: savedThemesCache, activeTheme: activeThemeRefCache });
+    } else {
+      try {
+        localStorage.setItem('battleSavedThemes', JSON.stringify(savedThemesCache));
+        localStorage.setItem('battleActiveTheme', JSON.stringify(activeThemeRefCache));
+      } catch (e) { /* приватный режим браузера и т.п. — просто не сохранится */ }
+    }
   }
-  function saveSavedThemesList(list){ localStorage.setItem('battleSavedThemes', JSON.stringify(list)); }
-  function getActiveThemeRef(){
-    try { return JSON.parse(localStorage.getItem('battleActiveTheme') || 'null'); } catch(e) { return null; }
-  }
-  function setActiveThemeRef(ref){ localStorage.setItem('battleActiveTheme', JSON.stringify(ref)); }
+  function saveSavedThemesList(list){ savedThemesCache = list; persistThemeState(); }
+  function setActiveThemeRef(ref){ activeThemeRefCache = ref; persistThemeState(); }
 
   function applyFullTheme(t){
     applyThemeVars(computeCustomTheme(t.mode, t.live, t.gold, t.bg));
@@ -2377,26 +2393,7 @@
     });
   });
 
-  // восстанавливаем выбор темы с прошлого визита (хранится только в этом
-  // браузере/устройстве — на других сохранённая тема не подтягивается)
-  (function restoreTheme(){
-    // одноразовая миграция со старой схемы единственной "Своей темы"
-    // (до появления списка сохранённых тем)
-    try {
-      const oldTheme = localStorage.getItem('battleTheme');
-      const oldCustomRaw = localStorage.getItem('battleCustomTheme');
-      if (oldTheme === 'custom' && oldCustomRaw && !localStorage.getItem('battleActiveTheme')) {
-        const c = JSON.parse(oldCustomRaw);
-        const list = loadSavedThemes();
-        const id = 'th_' + Date.now().toString(36);
-        list.push({ id, name: 'Моя тема', mode: c.mode === 'light' ? 'light' : 'dark', live: c.live, gold: c.gold, bg: c.bg, wallpaper: null });
-        saveSavedThemesList(list);
-        setActiveThemeRef({ type: 'custom', themeId: id });
-      }
-      localStorage.removeItem('battleTheme');
-      localStorage.removeItem('battleCustomTheme');
-    } catch (e) { /* не мигрировалось — не страшно, останется дефолтная тема */ }
-
+  function applyRestoredTheme(){
     const active = getActiveThemeRef();
     if (active?.type === 'custom') {
       const theme = loadSavedThemes().find(t => t.id === active.themeId);
@@ -2407,13 +2404,42 @@
         return;
       }
     }
+    document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('selected'));
     if (active?.type === 'preset' && themes[active.name]) {
-      document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('selected'));
       document.querySelector(`.theme-card[data-theme="${active.name}"]`)?.classList.add('selected');
       applyTheme(active.name);
+      applyWallpaper(null);
+    } else {
+      // нет ни своей темы, ни выбранного пресета (например, свежий
+      // аккаунт) — явно сбрасываем на "Классику", а не оставляем то, что
+      // визуально натекло от предыдущего аккаунта/гостя на этом же
+      // устройстве (иначе именно это и было бы утечкой чужой темы)
+      applyTheme('classic');
+      applyWallpaper(null);
+      document.querySelector('.theme-card[data-theme="classic"]')?.classList.add('selected');
     }
     updateLabModeButtons();
+  }
+
+  // До того как узнаем, под каким Telegram-аккаунтом открыто приложение (это
+  // выясняется чуть позже, асинхронно), сразу подтягиваем только то, что
+  // лежит в этом браузере — актуально исключительно для гостей без
+  // Telegram, у которых аккаунта, к которому можно привязать тему, попросту
+  // нет. Как только аккаунт определится, restoreAccountTheme() полностью
+  // заменит это на приватные данные именно этого аккаунта.
+  (function initialGuestThemeLoad(){
+    try {
+      savedThemesCache = JSON.parse(localStorage.getItem('battleSavedThemes') || '[]');
+      activeThemeRefCache = JSON.parse(localStorage.getItem('battleActiveTheme') || 'null');
+    } catch (e) { /* повреждённые данные в localStorage — остаёмся с пустым списком */ }
+    applyRestoredTheme();
   })();
+
+  window.restoreAccountTheme = function(userData){
+    savedThemesCache = Array.isArray(userData.savedThemes) ? userData.savedThemes : [];
+    activeThemeRefCache = userData.activeTheme || null;
+    applyRestoredTheme();
+  };
 </script>
 
 <!-- ===== Telegram — идентификация пользователя ===== -->
@@ -2638,6 +2664,11 @@
     }
 
     window.currentPlayer = userData; // доступно из остальных скриптов при необходимости
+    // тема — приватная часть аккаунта, а не устройства; подтягиваем именно
+    // ту, что сохранена у ЭТОГО Telegram-аккаунта, а не то, что случайно
+    // осталось в localStorage браузера от другого аккаунта на этом же
+    // устройстве (см. restoreAccountTheme в блоке настроек)
+    window.restoreAccountTheme?.(userData);
     renderProfileStats(userData.stats || {});
     renderProfileFromMatches();
 
