@@ -2200,17 +2200,35 @@
     previewLabTheme();
   });
 
-  function exportThemeFile(theme){
+  async function exportThemeFile(theme){
     const payload = { format: 'tbbc', version: 1, name: theme.name, mode: theme.mode, live: theme.live, gold: theme.gold, bg: theme.bg, wallpaper: theme.wallpaper || null };
+    const filename = (theme.name || 'theme').replace(/[^a-zA-Zа-яА-Яё0-9_-]+/g, '_') + '.tbbc';
     const blob = new Blob([JSON.stringify(payload)], { type: 'application/octet-stream' });
+
+    // Скачивание через скрытую <a download> в некоторых мобильных браузерах
+    // и WebView (в т.ч. внутри Telegram) срабатывает молча ничем — файл
+    // нигде не появляется. Нативный диалог "Поделиться" гораздо надёжнее
+    // на телефоне и по смыслу — это и есть то самое действие "поделиться".
+    const file = new File([blob], filename, { type: 'application/octet-stream' });
+    if (navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: theme.name || 'Тема БАТТЛ' });
+        return;
+      } catch (err) {
+        if (err?.name === 'AbortError') return; // пользователь сам отменил — не ошибка
+        window.showDebugError?.('Поделиться темой', err.message || String(err));
+      }
+    }
+
+    // Фолбэк для браузеров без Web Share API (десктоп и т.п.)
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = (theme.name || 'theme').replace(/[^a-zA-Zа-яА-Яё0-9_-]+/g, '_') + '.tbbc';
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     a.remove();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
   }
 
   function loadThemeIntoLabForm(theme){
