@@ -476,15 +476,16 @@
   .badge-pill{
     display:inline-flex;
     align-items:center;
-    gap:6px;
-    font-size: 12.5px;
+    gap:4px;
+    font-size: 10.5px;
     font-weight:600;
-    padding: 6px 12px;
+    padding: 3px 8px;
     border-radius: 100px;
-    background: var(--panel);
-    border: 1px solid var(--line);
+    background: rgba(242,183,5,0.08);
+    border: 1px solid rgba(242,183,5,0.3);
+    color: var(--gold);
   }
-  .badge-pill .emoji{ font-size:15px; line-height:1; }
+  .badge-pill .emoji{ font-size:12px; line-height:1; }
 
   .section-label{
     font-size: 11px;
@@ -1442,6 +1443,7 @@
           <div class="profile-name" id="profile-name">Олег</div>
           <div class="profile-username" id="profile-username">PLR-XXXXXX</div>
           <div class="profile-league-tag" style="display:none"><span class="dot"></span></div>
+          <div id="profile-badges" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;"></div>
         </div>
       </div>
 
@@ -1464,11 +1466,6 @@
         <div class="stat-card"><div class="num" id="stat-battles">0</div><div class="cap">Баттлов</div></div>
         <div class="stat-card"><div class="num" id="stat-referee">0</div><div class="cap">Как рефери</div></div>
         <div class="stat-card"><div class="num" id="stat-likes">0</div><div class="cap">Симпатий</div></div>
-      </div>
-
-      <div class="section-label">Значки</div>
-      <div id="profile-badges" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
-        <div class="admin-empty">Пока нет значков</div>
       </div>
 
       <div class="section-label">Матчи</div>
@@ -1912,7 +1909,7 @@
         if (!def) return '';
         return `<div class="badge-pill"><span class="emoji">${def.emoji || '🏅'}</span>${def.label || ''}</div>`;
       }).filter(Boolean).join('');
-      el.innerHTML = chips || '<div class="admin-empty">Пока нет значков</div>';
+      el.innerHTML = chips; // рядом с именем пусто — значит значков просто нет, без надписи
     }
     window.renderProfileBadges = renderProfileBadges;
 
