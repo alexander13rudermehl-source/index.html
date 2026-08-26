@@ -1070,6 +1070,12 @@
         <div class="status-dot"></div> Подключаем голос…
       </div>
 
+      <!-- Браузер иногда блокирует автовоспроизведение звука, если оно не
+           запущено прямо по клику пользователя (типичный случай — хост,
+           у которого голос соперника подключается сам, пока он ждёт в
+           комнате). Тап по этой кнопке — уже клик, так что play() пройдёт. -->
+      <button id="btn-unmute-audio" style="display:none; width:100%; margin-bottom:16px; background:var(--gold); border:none; color:#0B0B0D; border-radius:12px; padding:12px; font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:1px; cursor:pointer;">🔊 Включить звук</button>
+
       <div style="display:flex; justify-content:center;">
         <button id="btn-toggle-mute" style="width:64px; height:64px; border-radius:50%; border:none; background:var(--panel-2); border:1px solid var(--line); cursor:pointer; display:flex; align-items:center; justify-content:center;">
           <svg id="mute-icon" viewBox="0 0 24 24" style="width:26px;height:26px;stroke:var(--text);stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;">
@@ -1412,8 +1418,20 @@
         if (track.kind === 'audio') {
           const remoteAudio = document.getElementById('room-remote-audio');
           track.attach(remoteAudio);
-          setVoiceStatus('Связь установлена');
           window.showDebugError?.('Голос (LiveKit)', 'получили аудио-трек соперника');
+
+          // .attach() сам вызывает play() — но если это не было напрямую
+          // вызвано кликом пользователя (типично для хоста, которому звук
+          // подключается пока он просто ждёт в комнате), браузер может
+          // молча заблокировать автовоспроизведение. Это и есть причина
+          // "один слышит другого, а другой нет" — не баг LiveKit.
+          remoteAudio.play().then(() => {
+            setVoiceStatus('Связь установлена');
+          }).catch((err) => {
+            setVoiceStatus('Нажми «Включить звук» ниже');
+            document.getElementById('btn-unmute-audio').style.display = 'block';
+            window.showDebugError?.('Голос (LiveKit): автовоспроизведение заблокировано', err.message || String(err));
+          });
         }
       });
 
@@ -1441,6 +1459,7 @@
       lkRoom = null;
     }
     isMuted = false;
+    document.getElementById('btn-unmute-audio').style.display = 'none';
   }
 
   document.getElementById('btn-toggle-mute').addEventListener('click', () => {
@@ -1448,6 +1467,16 @@
     isMuted = !isMuted;
     lkRoom.localParticipant.setMicrophoneEnabled(!isMuted);
     document.getElementById('btn-toggle-mute').style.background = isMuted ? 'var(--live)' : 'var(--panel-2)';
+  });
+
+  document.getElementById('btn-unmute-audio').addEventListener('click', () => {
+    const remoteAudio = document.getElementById('room-remote-audio');
+    remoteAudio.play().then(() => {
+      document.getElementById('btn-unmute-audio').style.display = 'none';
+      setVoiceStatus('Связь установлена');
+    }).catch((err) => {
+      window.showDebugError?.('Голос (LiveKit): повторный play() не сработал', err.message || String(err));
+    });
   });
 </script>
 
