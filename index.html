@@ -1086,6 +1086,16 @@
         </button>
       </div>
 
+      <!-- Громкость соперника — с реальным усилением выше 100% (через Web
+           Audio GainNode), а не только штатным .volume у <audio>, который
+           не может звучать громче исходного уровня трека. -->
+      <div style="display:flex; align-items:center; gap:10px; margin-top:20px; padding:0 8px;">
+        <span style="font-size:14px;">🔉</span>
+        <input type="range" id="remote-volume-slider" min="50" max="300" step="10" value="150" style="flex:1; accent-color:var(--gold);">
+        <span style="font-size:14px;">🔊</span>
+        <span id="remote-volume-val" style="font-size:11px; color:var(--muted); width:36px; text-align:right;">150%</span>
+      </div>
+
       <audio id="room-remote-audio" autoplay playsinline></audio>
     </div>
   </div>
@@ -1393,6 +1403,40 @@
   let lkRoom = null;
   let isMuted = false;
 
+  // ===== усиление громкости соперника выше 100% =====
+  // Обычный <audio>.volume ограничен диапазоном 0..1 — громче исходного
+  // уровня трека штатно не сделать. Пропускаем звук через Web Audio
+  // GainNode, чтобы можно было реально усиливать (до 300%), а не просто
+  // регулировать в пределах и без того тихого сигнала.
+  let audioCtx = null;
+  let gainNode = null;
+  const remoteVolumeSlider = document.getElementById('remote-volume-slider');
+  const remoteVolumeVal = document.getElementById('remote-volume-val');
+
+  const savedVolumePct = localStorage.getItem('battleRemoteVolumePct');
+  if (savedVolumePct) { remoteVolumeSlider.value = savedVolumePct; remoteVolumeVal.textContent = savedVolumePct + '%'; }
+
+  function ensureAudioGraph(audioEl) {
+    if (gainNode) return gainNode;
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioCtx.createMediaElementSource(audioEl);
+      gainNode = audioCtx.createGain();
+      gainNode.gain.value = Number(remoteVolumeSlider.value) / 100;
+      source.connect(gainNode).connect(audioCtx.destination);
+    } catch (err) {
+      window.showDebugError?.('Голос: усиление громкости', err.message || String(err));
+    }
+    return gainNode;
+  }
+
+  remoteVolumeSlider.addEventListener('input', () => {
+    const pct = Number(remoteVolumeSlider.value);
+    remoteVolumeVal.textContent = pct + '%';
+    localStorage.setItem('battleRemoteVolumePct', pct);
+    if (gainNode) gainNode.gain.value = pct / 100;
+  });
+
   function setVoiceStatus(text) {
     const el = document.getElementById('voice-status');
     if (el) el.innerHTML = `<div class="status-dot"></div> ${text}`;
@@ -1425,6 +1469,7 @@
         if (track.kind === 'audio') {
           const remoteAudio = document.getElementById('room-remote-audio');
           track.attach(remoteAudio);
+          ensureAudioGraph(remoteAudio);
           window.showDebugError?.('Голос (LiveKit)', 'получили аудио-трек соперника');
 
           // .attach() сам вызывает play() — но если это не было напрямую
@@ -1432,6 +1477,7 @@
           // подключается пока он просто ждёт в комнате), браузер может
           // молча заблокировать автовоспроизведение. Это и есть причина
           // "один слышит другого, а другой нет" — не баг LiveKit.
+          audioCtx?.resume();
           remoteAudio.play().then(() => {
             setVoiceStatus('Связь установлена');
           }).catch((err) => {
@@ -1478,6 +1524,7 @@
 
   document.getElementById('btn-unmute-audio').addEventListener('click', () => {
     const remoteAudio = document.getElementById('room-remote-audio');
+    audioCtx?.resume();
     remoteAudio.play().then(() => {
       document.getElementById('btn-unmute-audio').style.display = 'none';
       setVoiceStatus('Связь установлена');
