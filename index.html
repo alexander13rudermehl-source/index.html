@@ -2438,6 +2438,9 @@
   window.restoreAccountTheme = function(userData){
     savedThemesCache = Array.isArray(userData.savedThemes) ? userData.savedThemes : [];
     activeThemeRefCache = userData.activeTheme || null;
+    window.showDebugError?.('Тема аккаунта',
+      `telegramId=${window.currentTelegramId}, playerId=${userData.playerId}, ` +
+      `activeTheme=${JSON.stringify(activeThemeRefCache)}, savedThemes=${savedThemesCache.length}`);
     applyRestoredTheme();
   };
 </script>
