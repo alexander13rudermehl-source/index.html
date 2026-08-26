@@ -24,6 +24,7 @@
     --gold: #F2B705;
     --live-rgb: 255,61,46;
     --gold-rgb: 242,183,5;
+    --live-dark: #E22319;
   }
 
   *{ box-sizing: border-box; margin:0; padding:0; }
@@ -335,7 +336,7 @@
 
   /* primary CTA — join battle */
   .cta-join{
-    background: linear-gradient(135deg, #FF3D2E, #E22319);
+    background: linear-gradient(135deg, var(--live), var(--live-dark));
     border: none;
     box-shadow: 0 10px 28px rgba(var(--live-rgb),0.28);
   }
@@ -571,7 +572,7 @@
     font-size: 16px;
     letter-spacing: 1px;
     color:#fff;
-    background: linear-gradient(135deg, #FF3D2E, #E22319);
+    background: linear-gradient(135deg, var(--live), var(--live-dark));
     cursor:pointer;
     margin-top: 6px;
   }
@@ -786,7 +787,7 @@
     background: var(--text);
     transition: transform .15s ease;
   }
-  .switch.on{ background: linear-gradient(135deg, #FF3D2E, #E22319); border-color: transparent; }
+  .switch.on{ background: linear-gradient(135deg, var(--live), var(--live-dark)); border-color: transparent; }
   .switch.on::after{ transform: translateX(18px); background: #fff; }
 
   .plain-row{
@@ -1836,6 +1837,8 @@
     // эффекты оставались бы жёстко-красными при любой теме
     root.setProperty('--live-rgb', hexToRgb(t.live).join(','));
     root.setProperty('--gold-rgb', hexToRgb(t.gold).join(','));
+    // затемнённая версия акцента — второй цвет в градиентах кнопок/тумблеров
+    root.setProperty('--live-dark', mix(t.live, '#000000', 0.15));
   }
 
   function applyTheme(name){ applyThemeVars(themes[name]); }
