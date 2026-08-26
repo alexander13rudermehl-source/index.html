@@ -1857,6 +1857,10 @@
     const a = hexToRgb(hexA), b = hexToRgb(hexB);
     return rgbToHex(a.map((v,i) => v + (b[i]-v)*ratio));
   }
+  function relativeLuminance(hex){
+    const [r,g,b] = hexToRgb(hex).map(v => v/255);
+    return 0.2126*r + 0.7152*g + 0.0722*b;
+  }
 
   function computeCustomTheme(mode, liveHex, goldHex, bgHex){
     const isDark = mode !== 'light';
@@ -1900,7 +1904,15 @@
 
   customModeDarkBtn.addEventListener('click', () => { customMode = 'dark'; updateCustomModeButtons(); applyCustomTheme(true); });
   customModeLightBtn.addEventListener('click', () => { customMode = 'light'; updateCustomModeButtons(); applyCustomTheme(true); });
-  [customLiveInput, customGoldInput, customBgInput].forEach(inp => inp.addEventListener('input', () => applyCustomTheme(true)));
+  [customLiveInput, customGoldInput].forEach(inp => inp.addEventListener('input', () => applyCustomTheme(true)));
+  // фон красят отдельно — если он получился светлым, а база всё ещё "тёмная"
+  // (или наоборот), текст перестаёт читаться; подстраиваем базу под реальную
+  // яркость выбранного фона, а не полагаемся на то, что переключатель не забудут щёлкнуть
+  customBgInput.addEventListener('input', () => {
+    customMode = relativeLuminance(customBgInput.value) > 0.5 ? 'light' : 'dark';
+    updateCustomModeButtons();
+    applyCustomTheme(true);
+  });
 
   document.querySelectorAll('.theme-card').forEach(card => {
     card.addEventListener('click', () => {
