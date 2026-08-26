@@ -1409,8 +1409,15 @@
 
     try {
       const tokenSource = LivekitClient.TokenSource.sandboxTokenServer(LIVEKIT_TOKEN_SERVER_ID);
-      const { serverUrl, participantToken } = await tokenSource.fetch({ roomName: code });
-      window.showDebugError?.('Голос (LiveKit)', `токен получен, serverUrl=${serverUrl}`);
+      // Без явного participantName оба участника запрашивали токен с
+      // одинаковыми параметрами (только roomName) — если сервер токенов в
+      // таком случае выдаёт совпадающую identity по умолчанию, LiveKit
+      // считает второе подключение переподключением первого и вытесняет
+      // его из комнаты. Из-за этого один слышал другого, а другой — нет
+      // (кто кого "вытеснил", зависело от того, кто успел подключиться позже).
+      const participantName = (isHost ? 'host-' : 'guest-') + code + '-' + Math.random().toString(36).slice(2, 8);
+      const { serverUrl, participantToken } = await tokenSource.fetch({ roomName: code, participantName });
+      window.showDebugError?.('Голос (LiveKit)', `токен получен, identity=${participantName}, serverUrl=${serverUrl}`);
 
       const room = new LivekitClient.Room();
 
