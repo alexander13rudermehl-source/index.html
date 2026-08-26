@@ -754,6 +754,22 @@
   .theme-check svg{ width:11px; height:11px; stroke:#0B0B0D; stroke-width:3; fill:none; }
   .theme-card.selected .theme-check{ display:flex; }
 
+  .saved-theme-row{
+    display:flex;
+    align-items:center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: var(--panel);
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+  }
+  .saved-theme-row.active{ border-color: var(--gold); }
+  .saved-theme-row .swatches{ display:flex; gap:4px; flex-shrink:0; }
+  .saved-theme-row .swatches span{ width:14px; height:14px; border-radius:50%; border:1px solid rgba(255,255,255,0.15); }
+  .saved-theme-row .thumb{ width:36px; height:36px; border-radius:8px; background-size:cover; background-position:center; flex-shrink:0; border:1px solid var(--line); }
+  .saved-theme-row .name{ flex:1; min-width:0; font-size:13.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .saved-theme-row .icon-btn{ width:30px; height:30px; border-radius:8px; background:var(--panel-2); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; font-size:13px; }
+
   .toggle-row{
     display:flex;
     align-items:center;
@@ -1686,48 +1702,15 @@
           <div class="theme-name">Светлая</div>
         </div>
 
-        <div class="theme-card" data-theme="custom" id="custom-theme-card">
-          <div class="theme-check"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></div>
-          <div class="theme-preview" id="custom-theme-preview" style="background:#0B0B0D">
-            <span class="swatch-dot" id="custom-swatch-1" style="background:#FF3D2E"></span>
-            <span class="swatch-dot" id="custom-swatch-2" style="background:#F2B705"></span>
-          </div>
-          <div class="theme-name">🎨 Своя</div>
-        </div>
-
       </div>
 
-      <div id="custom-theme-panel" style="display:none; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:6px;">
-        <div class="t-label" style="margin-bottom:10px;">Глубокая настройка</div>
-
-        <div style="display:flex; gap:8px; margin-bottom:14px;">
-          <button type="button" class="sheet-cta secondary" id="custom-mode-dark" style="flex:1; padding:10px; font-size:12.5px; margin-top:0;">🌙 Тёмная база</button>
-          <button type="button" class="sheet-cta secondary" id="custom-mode-light" style="flex:1; padding:10px; font-size:12.5px; margin-top:0;">☀️ Светлая база</button>
+      <div class="cat-card" id="open-theme-lab-btn" style="margin-bottom:16px;">
+        <div class="icon points" style="font-size:19px;">🎨</div>
+        <div class="body">
+          <div class="title">Мои темы</div>
+          <div class="desc">Свои палитры, обои, обмен темами файлом .tbbc</div>
         </div>
-
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
-          <div>
-            <div class="t-label">Основной акцент</div>
-            <div class="t-desc">Кнопки, live-индикатор</div>
-          </div>
-          <input type="color" id="custom-color-live" value="#FF3D2E" style="width:44px; height:34px; border:1px solid var(--line); border-radius:8px; background:none; padding:0; cursor:pointer;">
-        </div>
-
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
-          <div>
-            <div class="t-label">Второй акцент</div>
-            <div class="t-desc">Золото, звёзды, значки</div>
-          </div>
-          <input type="color" id="custom-color-gold" value="#F2B705" style="width:44px; height:34px; border:1px solid var(--line); border-radius:8px; background:none; padding:0; cursor:pointer;">
-        </div>
-
-        <div style="display:flex; align-items:center; justify-content:space-between;">
-          <div>
-            <div class="t-label">Фон</div>
-            <div class="t-desc">Общий тон приложения</div>
-          </div>
-          <input type="color" id="custom-color-bg" value="#0B0B0D" style="width:44px; height:34px; border:1px solid var(--line); border-radius:8px; background:none; padding:0; cursor:pointer;">
-        </div>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
       </div>
 
       <div class="section-label">Микрофон</div>
@@ -1807,6 +1790,82 @@
           v0.1.7 — TURN-сервер (Open Relay) + очередь ICE-кандидатов + диагностика voice-ошибок<br>
           v0.1.0 — первая версия с ручным номером в Настройках
         </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ===== лаборатория тем — сохранённые палитры, обои, обмен .tbbc ===== -->
+<div class="overlay" id="theme-lab-overlay">
+  <div class="sheet">
+    <div class="sheet-grabber"></div>
+    <div class="sheet-head">
+      <div class="back hidden"></div>
+      <div class="sheet-title">Мои темы</div>
+      <div class="sheet-close" id="theme-lab-close-btn">
+        <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+
+    <div class="sheet-body">
+
+      <div class="section-label">Сохранённые</div>
+      <div id="saved-themes-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:10px;"></div>
+      <div class="admin-empty" id="saved-themes-empty">Пока нет сохранённых тем</div>
+
+      <div style="display:flex; gap:8px; margin: 14px 0 22px;">
+        <button class="sheet-cta secondary" id="btn-theme-import" style="margin-top:0;">📥 Загрузить .tbbc</button>
+        <input type="file" id="theme-file-input" accept=".tbbc" style="display:none">
+      </div>
+
+      <div class="section-label">Создать / изменить</div>
+
+      <input type="text" id="theme-lab-name" placeholder="Название темы" style="width:100%; box-sizing:border-box; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px; color:var(--text); font-family:'Inter',sans-serif; font-size:14px; margin-bottom:14px;">
+
+      <div style="display:flex; gap:8px; margin-bottom:14px;">
+        <button type="button" class="sheet-cta secondary" id="lab-mode-dark" style="flex:1; padding:10px; font-size:12.5px; margin-top:0;">🌙 Тёмная база</button>
+        <button type="button" class="sheet-cta secondary" id="lab-mode-light" style="flex:1; padding:10px; font-size:12.5px; margin-top:0;">☀️ Светлая база</button>
+      </div>
+
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+        <div>
+          <div class="t-label">Основной акцент</div>
+          <div class="t-desc">Кнопки, live-индикатор</div>
+        </div>
+        <input type="color" id="lab-color-live" value="#FF3D2E" style="width:44px; height:34px; border:1px solid var(--line); border-radius:8px; background:none; padding:0; cursor:pointer;">
+      </div>
+
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+        <div>
+          <div class="t-label">Второй акцент</div>
+          <div class="t-desc">Золото, звёзды, значки</div>
+        </div>
+        <input type="color" id="lab-color-gold" value="#F2B705" style="width:44px; height:34px; border:1px solid var(--line); border-radius:8px; background:none; padding:0; cursor:pointer;">
+      </div>
+
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+        <div>
+          <div class="t-label">Фон</div>
+          <div class="t-desc">Общий тон приложения</div>
+        </div>
+        <input type="color" id="lab-color-bg" value="#0B0B0D" style="width:44px; height:34px; border:1px solid var(--line); border-radius:8px; background:none; padding:0; cursor:pointer;">
+      </div>
+
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px;">
+        <div id="lab-wallpaper-preview" style="width:52px; height:52px; border-radius:10px; background:var(--panel-2); border:1px solid var(--line); background-size:cover; background-position:center; flex-shrink:0;"></div>
+        <div style="flex:1; min-width:0;">
+          <div class="t-label">Обои</div>
+          <div class="t-desc">Фоновая картинка приложения</div>
+        </div>
+        <button type="button" class="sheet-cta secondary" id="btn-lab-wallpaper-pick" style="margin-top:0; padding:9px 12px; font-size:11.5px;">Выбрать</button>
+        <input type="file" id="lab-wallpaper-input" accept="image/*" style="display:none">
+      </div>
+      <button type="button" class="sheet-cta secondary" id="btn-lab-wallpaper-remove" style="display:none; margin-bottom:16px;">Убрать обои</button>
+
+      <div style="display:flex; gap:8px;">
+        <button class="sheet-cta" id="btn-theme-save" style="flex:1;">Сохранить тему</button>
+        <button class="sheet-cta secondary" id="btn-theme-export" style="flex:1;">📤 Поделиться (.tbbc)</button>
       </div>
 
     </div>
@@ -2040,86 +2099,287 @@
     };
   }
 
-  let customMode = 'dark';
-  const customLiveInput = document.getElementById('custom-color-live');
-  const customGoldInput = document.getElementById('custom-color-gold');
-  const customBgInput = document.getElementById('custom-color-bg');
-  const customPanel = document.getElementById('custom-theme-panel');
-  const customModeDarkBtn = document.getElementById('custom-mode-dark');
-  const customModeLightBtn = document.getElementById('custom-mode-light');
-
-  function updateCustomModeButtons(){
-    customModeDarkBtn.classList.toggle('secondary', customMode !== 'dark');
-    customModeLightBtn.classList.toggle('secondary', customMode !== 'light');
-  }
-
-  function applyCustomTheme(save){
-    const t = computeCustomTheme(customMode, customLiveInput.value, customGoldInput.value, customBgInput.value);
-    applyThemeVars(t);
-    document.getElementById('custom-theme-preview').style.background = t.bg;
-    document.getElementById('custom-swatch-1').style.background = t.live;
-    document.getElementById('custom-swatch-2').style.background = t.gold;
-    if (save) {
-      localStorage.setItem('battleTheme', 'custom');
-      localStorage.setItem('battleCustomTheme', JSON.stringify({ mode: customMode, live: customLiveInput.value, gold: customGoldInput.value, bg: customBgInput.value }));
+  // ===== обои (фоновая картинка приложения) =====
+  function applyWallpaper(dataUrl){
+    const device = document.querySelector('.device');
+    if (dataUrl) {
+      device.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.45),rgba(0,0,0,0.45)), url(${dataUrl})`;
+      device.style.backgroundSize = 'cover';
+      device.style.backgroundPosition = 'center';
+    } else {
+      device.style.backgroundImage = '';
     }
   }
 
-  customModeDarkBtn.addEventListener('click', () => { customMode = 'dark'; updateCustomModeButtons(); applyCustomTheme(true); });
-  customModeLightBtn.addEventListener('click', () => { customMode = 'light'; updateCustomModeButtons(); applyCustomTheme(true); });
-  [customLiveInput, customGoldInput].forEach(inp => inp.addEventListener('input', () => applyCustomTheme(true)));
-  // фон красят отдельно — если он получился светлым, а база всё ещё "тёмная"
-  // (или наоборот), текст перестаёт читаться; подстраиваем базу под реальную
-  // яркость выбранного фона, а не полагаемся на то, что переключатель не забудут щёлкнуть
-  customBgInput.addEventListener('input', () => {
-    customMode = relativeLuminance(customBgInput.value) > 0.5 ? 'light' : 'dark';
-    updateCustomModeButtons();
-    applyCustomTheme(true);
+  // ===== "Мои темы" — список сохранённых своих палитр (+обои). Хранится
+  // только в этом браузере/устройстве; поделиться темой с кем-то ещё —
+  // через файл .tbbc (обычный JSON с собственным расширением, см. ниже).
+  function loadSavedThemes(){
+    try { return JSON.parse(localStorage.getItem('battleSavedThemes') || '[]'); } catch(e) { return []; }
+  }
+  function saveSavedThemesList(list){ localStorage.setItem('battleSavedThemes', JSON.stringify(list)); }
+  function getActiveThemeRef(){
+    try { return JSON.parse(localStorage.getItem('battleActiveTheme') || 'null'); } catch(e) { return null; }
+  }
+  function setActiveThemeRef(ref){ localStorage.setItem('battleActiveTheme', JSON.stringify(ref)); }
+
+  function applyFullTheme(t){
+    applyThemeVars(computeCustomTheme(t.mode, t.live, t.gold, t.bg));
+    applyWallpaper(t.wallpaper || null);
+  }
+
+  const themeLabOverlay = document.getElementById('theme-lab-overlay');
+  const labNameInput = document.getElementById('theme-lab-name');
+  const labLiveInput = document.getElementById('lab-color-live');
+  const labGoldInput = document.getElementById('lab-color-gold');
+  const labBgInput = document.getElementById('lab-color-bg');
+  const labModeDarkBtn = document.getElementById('lab-mode-dark');
+  const labModeLightBtn = document.getElementById('lab-mode-light');
+  const labWallpaperPreview = document.getElementById('lab-wallpaper-preview');
+  const labWallpaperInput = document.getElementById('lab-wallpaper-input');
+  let labMode = 'dark';
+  let labWallpaper = null;
+  let editingThemeId = null;
+
+  function updateLabModeButtons(){
+    labModeDarkBtn.classList.toggle('secondary', labMode !== 'dark');
+    labModeLightBtn.classList.toggle('secondary', labMode !== 'light');
+  }
+
+  function refreshLabWallpaperPreview(){
+    const removeBtn = document.getElementById('btn-lab-wallpaper-remove');
+    if (labWallpaper) {
+      labWallpaperPreview.style.backgroundImage = `url(${labWallpaper})`;
+      removeBtn.style.display = 'block';
+    } else {
+      labWallpaperPreview.style.backgroundImage = '';
+      removeBtn.style.display = 'none';
+    }
+  }
+
+  function previewLabTheme(){
+    applyFullTheme({ mode: labMode, live: labLiveInput.value, gold: labGoldInput.value, bg: labBgInput.value, wallpaper: labWallpaper });
+  }
+
+  labModeDarkBtn.addEventListener('click', () => { labMode = 'dark'; updateLabModeButtons(); previewLabTheme(); });
+  labModeLightBtn.addEventListener('click', () => { labMode = 'light'; updateLabModeButtons(); previewLabTheme(); });
+  [labLiveInput, labGoldInput].forEach(inp => inp.addEventListener('input', previewLabTheme));
+  labBgInput.addEventListener('input', () => {
+    labMode = relativeLuminance(labBgInput.value) > 0.5 ? 'light' : 'dark';
+    updateLabModeButtons();
+    previewLabTheme();
   });
+
+  document.getElementById('btn-lab-wallpaper-pick').addEventListener('click', () => labWallpaperInput.click());
+  labWallpaperInput.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !file.type.startsWith('image/')) return;
+    try {
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; });
+      const maxW = 900;
+      const scale = Math.min(1, maxW / img.width);
+      const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+      const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(img.src);
+      labWallpaper = canvas.toDataURL('image/jpeg', 0.72);
+      refreshLabWallpaperPreview();
+      previewLabTheme();
+    } catch (err) { console.error('wallpaper upload failed', err); }
+  });
+  document.getElementById('btn-lab-wallpaper-remove').addEventListener('click', () => {
+    labWallpaper = null;
+    refreshLabWallpaperPreview();
+    previewLabTheme();
+  });
+
+  function exportThemeFile(theme){
+    const payload = { format: 'tbbc', version: 1, name: theme.name, mode: theme.mode, live: theme.live, gold: theme.gold, bg: theme.bg, wallpaper: theme.wallpaper || null };
+    const blob = new Blob([JSON.stringify(payload)], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (theme.name || 'theme').replace(/[^a-zA-Zа-яА-Яё0-9_-]+/g, '_') + '.tbbc';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function loadThemeIntoLabForm(theme){
+    editingThemeId = theme.id;
+    labNameInput.value = theme.name;
+    labMode = theme.mode === 'light' ? 'light' : 'dark';
+    labLiveInput.value = theme.live;
+    labGoldInput.value = theme.gold;
+    labBgInput.value = theme.bg;
+    labWallpaper = theme.wallpaper || null;
+    updateLabModeButtons();
+    refreshLabWallpaperPreview();
+  }
+
+  function renderSavedThemesList(){
+    const list = loadSavedThemes();
+    const el = document.getElementById('saved-themes-list');
+    const emptyEl = document.getElementById('saved-themes-empty');
+    const active = getActiveThemeRef();
+    emptyEl.style.display = list.length ? 'none' : 'block';
+    el.innerHTML = list.map(t => {
+      const isActive = active?.type === 'custom' && active.themeId === t.id;
+      const thumb = t.wallpaper
+        ? `<div class="thumb" style="background-image:url(${t.wallpaper})"></div>`
+        : `<div class="swatches"><span style="background:${t.bg}"></span><span style="background:${t.live}"></span><span style="background:${t.gold}"></span></div>`;
+      return `<div class="saved-theme-row${isActive ? ' active' : ''}" data-theme-id="${t.id}">
+        ${thumb}
+        <div class="name">${t.name}</div>
+        <div class="icon-btn" data-action="edit" title="Изменить">✎</div>
+        <div class="icon-btn" data-action="export" title="Поделиться">📤</div>
+        <div class="icon-btn" data-action="delete" title="Удалить">🗑</div>
+      </div>`;
+    }).join('');
+
+    el.querySelectorAll('.saved-theme-row').forEach(row => {
+      const id = row.dataset.themeId;
+      row.addEventListener('click', (e) => {
+        const action = e.target.closest('[data-action]')?.dataset.action;
+        const theme = loadSavedThemes().find(t => t.id === id);
+        if (!theme) return;
+        if (action === 'edit') {
+          loadThemeIntoLabForm(theme);
+          previewLabTheme();
+        } else if (action === 'export') {
+          exportThemeFile(theme);
+        } else if (action === 'delete') {
+          if (!confirm(`Удалить тему «${theme.name}»?`)) return;
+          saveSavedThemesList(loadSavedThemes().filter(t => t.id !== id));
+          const activeRef = getActiveThemeRef();
+          if (activeRef?.type === 'custom' && activeRef.themeId === id) {
+            setActiveThemeRef({ type: 'preset', name: 'classic' });
+            applyTheme('classic');
+            applyWallpaper(null);
+            document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('selected'));
+            document.querySelector('.theme-card[data-theme="classic"]')?.classList.add('selected');
+          }
+          renderSavedThemesList();
+        } else {
+          applyFullTheme(theme);
+          setActiveThemeRef({ type: 'custom', themeId: id });
+          document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('selected'));
+          renderSavedThemesList();
+        }
+      });
+    });
+  }
+
+  document.getElementById('btn-theme-save').addEventListener('click', () => {
+    const name = labNameInput.value.trim();
+    if (!name) { labNameInput.focus(); return; }
+    const list = loadSavedThemes();
+    const themeData = { mode: labMode, live: labLiveInput.value, gold: labGoldInput.value, bg: labBgInput.value, wallpaper: labWallpaper };
+    let id = editingThemeId;
+    const existing = id ? list.find(t => t.id === id) : null;
+    if (existing) {
+      Object.assign(existing, { name }, themeData);
+    } else {
+      id = 'th_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      list.push({ id, name, ...themeData });
+      editingThemeId = id;
+    }
+    saveSavedThemesList(list);
+    setActiveThemeRef({ type: 'custom', themeId: id });
+    applyFullTheme(themeData);
+    document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('selected'));
+    renderSavedThemesList();
+    alert('Тема «' + name + '» сохранена');
+  });
+
+  document.getElementById('btn-theme-export').addEventListener('click', () => {
+    const name = labNameInput.value.trim() || 'Моя тема';
+    exportThemeFile({ name, mode: labMode, live: labLiveInput.value, gold: labGoldInput.value, bg: labBgInput.value, wallpaper: labWallpaper });
+  });
+
+  document.getElementById('btn-theme-import').addEventListener('click', () => document.getElementById('theme-file-input').click());
+  document.getElementById('theme-file-input').addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      let data;
+      try { data = JSON.parse(reader.result); } catch (err) { alert('Не удалось прочитать файл .tbbc'); return; }
+      if (!data || typeof data.live !== 'string' || typeof data.gold !== 'string' || typeof data.bg !== 'string') {
+        alert('Файл не похож на тему БАТТЛ (.tbbc)');
+        return;
+      }
+      const list = loadSavedThemes();
+      const id = 'th_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      const theme = { id, name: data.name || 'Импортированная тема', mode: data.mode === 'light' ? 'light' : 'dark', live: data.live, gold: data.gold, bg: data.bg, wallpaper: data.wallpaper || null };
+      list.push(theme);
+      saveSavedThemesList(list);
+      renderSavedThemesList();
+      loadThemeIntoLabForm(theme);
+      alert('Тема «' + theme.name + '» добавлена в список — нажми на неё, чтобы применить');
+    };
+    reader.readAsText(file);
+  });
+
+  document.getElementById('open-theme-lab-btn').addEventListener('click', () => {
+    themeLabOverlay.classList.add('open');
+    renderSavedThemesList();
+  });
+  document.getElementById('theme-lab-close-btn').addEventListener('click', () => themeLabOverlay.classList.remove('open'));
+  themeLabOverlay.addEventListener('click', (e) => { if (e.target === themeLabOverlay) themeLabOverlay.classList.remove('open'); });
 
   document.querySelectorAll('.theme-card').forEach(card => {
     card.addEventListener('click', () => {
       document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('selected'));
       card.classList.add('selected');
       const name = card.dataset.theme;
-      customPanel.style.display = name === 'custom' ? 'block' : 'none';
-      if (name === 'custom') {
-        applyCustomTheme(true);
-      } else {
-        applyTheme(name);
-        localStorage.setItem('battleTheme', name);
-      }
+      applyTheme(name);
+      applyWallpaper(null);
+      setActiveThemeRef({ type: 'preset', name });
     });
   });
 
   // восстанавливаем выбор темы с прошлого визита (хранится только в этом
   // браузере/устройстве — на других сохранённая тема не подтягивается)
   (function restoreTheme(){
-    let savedTheme, savedCustomRaw;
+    // одноразовая миграция со старой схемы единственной "Своей темы"
+    // (до появления списка сохранённых тем)
     try {
-      savedTheme = localStorage.getItem('battleTheme');
-      savedCustomRaw = localStorage.getItem('battleCustomTheme');
-    } catch(e) { return; }
+      const oldTheme = localStorage.getItem('battleTheme');
+      const oldCustomRaw = localStorage.getItem('battleCustomTheme');
+      if (oldTheme === 'custom' && oldCustomRaw && !localStorage.getItem('battleActiveTheme')) {
+        const c = JSON.parse(oldCustomRaw);
+        const list = loadSavedThemes();
+        const id = 'th_' + Date.now().toString(36);
+        list.push({ id, name: 'Моя тема', mode: c.mode === 'light' ? 'light' : 'dark', live: c.live, gold: c.gold, bg: c.bg, wallpaper: null });
+        saveSavedThemesList(list);
+        setActiveThemeRef({ type: 'custom', themeId: id });
+      }
+      localStorage.removeItem('battleTheme');
+      localStorage.removeItem('battleCustomTheme');
+    } catch (e) { /* не мигрировалось — не страшно, останется дефолтная тема */ }
 
-    if (savedTheme === 'custom' && savedCustomRaw) {
-      let c;
-      try { c = JSON.parse(savedCustomRaw); } catch(e) { return; }
-      customMode = c.mode === 'light' ? 'light' : 'dark';
-      customLiveInput.value = c.live || '#FF3D2E';
-      customGoldInput.value = c.gold || '#F2B705';
-      customBgInput.value = c.bg || '#0B0B0D';
-      updateCustomModeButtons();
-      document.querySelectorAll('.theme-card').forEach(c2 => c2.classList.remove('selected'));
-      document.getElementById('custom-theme-card').classList.add('selected');
-      customPanel.style.display = 'block';
-      applyCustomTheme(false);
-    } else if (savedTheme && themes[savedTheme]) {
-      document.querySelectorAll('.theme-card').forEach(c2 => c2.classList.remove('selected'));
-      const card = document.querySelector(`.theme-card[data-theme="${savedTheme}"]`);
-      if (card) card.classList.add('selected');
-      applyTheme(savedTheme);
+    const active = getActiveThemeRef();
+    if (active?.type === 'custom') {
+      const theme = loadSavedThemes().find(t => t.id === active.themeId);
+      if (theme) {
+        applyFullTheme(theme);
+        document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('selected'));
+        updateLabModeButtons();
+        return;
+      }
     }
-    updateCustomModeButtons();
+    if (active?.type === 'preset' && themes[active.name]) {
+      document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('selected'));
+      document.querySelector(`.theme-card[data-theme="${active.name}"]`)?.classList.add('selected');
+      applyTheme(active.name);
+    }
+    updateLabModeButtons();
   })();
 </script>
 
