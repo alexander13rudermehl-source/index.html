@@ -1,8 +1,12 @@
 {
   "rules": {
+    ".read": true,
+    ".write": true,
     "users": {
       "$uid": {
-        ".write": "(!data.exists() && (!newData.child('role').exists() || newData.child('role').val() === 'user')) || (data.exists() && (!newData.child('role').exists() || newData.child('role').val() === data.child('role').val()))"
+        "role": {
+          ".validate": "(!data.exists() && newData.val() === 'user') || (data.exists() && newData.val() === data.val())"
+        }
       }
     },
     "battles": {
