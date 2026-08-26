@@ -1695,6 +1695,18 @@
         <div class="t-label">Telegram-аккаунт</div>
         <div class="t-val" id="settings-account-val">@oleg_leipzig</div>
       </div>
+
+      <div id="google-account-block" style="background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; margin:10px 0 14px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+          <div>
+            <div class="t-label">Google-аккаунт</div>
+            <div class="t-desc" id="settings-google-val">Не привязан</div>
+          </div>
+        </div>
+        <button id="btn-google-link" style="width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:11px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer;">Привязать Google</button>
+        <div class="t-desc" style="margin-top:8px; line-height:1.4;">Позволяет открыть тот же профиль на компьютере, зайдя на сайт напрямую в браузере и войдя через Google.</div>
+      </div>
+
       <div class="plain-row" onclick="alert('→ Язык интерфейса')">
         <div class="t-label">Язык</div>
         <div class="t-val">Русский</div>
@@ -1730,6 +1742,74 @@
   });
   document.getElementById('settings-close-btn').addEventListener('click', () => settingsOverlay.classList.remove('open'));
   settingsOverlay.addEventListener('click', (e) => { if(e.target === settingsOverlay) settingsOverlay.classList.remove('open'); });
+
+  // ===== привязка Google-аккаунта =====
+  // Даёт возможность открыть тот же профиль в обычном браузере (не из
+  // Telegram) — там signInWithPopup работает нормально, в отличие от
+  // встроенного WebView самого Telegram, где Google его иногда блокирует.
+  function updateGoogleAccountUI(email) {
+    const valEl = document.getElementById('settings-google-val');
+    const btn = document.getElementById('btn-google-link');
+    if (!valEl || !btn) return;
+    valEl.textContent = email || 'Не привязан';
+    btn.textContent = email ? 'Отвязать Google' : 'Привязать Google';
+  }
+  window.updateGoogleAccountUI = updateGoogleAccountUI;
+
+  document.getElementById('btn-google-link').addEventListener('click', async () => {
+    const me = window.currentPlayer;
+    const telegramId = window.currentTelegramId;
+    if (!telegramId || telegramId.startsWith('guest_')) {
+      alert('Привязка доступна только внутри Telegram-профиля. Открой приложение через бота.');
+      return;
+    }
+
+    if (me?.googleUid) {
+      if (!confirm('Отвязать Google-аккаунт от этого профиля?')) return;
+      try {
+        await db.ref('googleLinks/' + me.googleUid).remove();
+        await db.ref('users/' + telegramId).update({ googleUid: null, googleEmail: null });
+        me.googleUid = null; me.googleEmail = null;
+        updateGoogleAccountUI(null);
+      } catch (err) {
+        console.error(err);
+        alert('Не удалось отвязать аккаунт');
+      }
+      return;
+    }
+
+    const provider = new firebase.auth.GoogleAuthProvider();
+    try {
+      const result = await auth.signInWithPopup(provider);
+      const uid = result.user.uid;
+      const email = result.user.email;
+
+      // если этот Google-аккаунт уже привязан к ДРУГОМУ Telegram-профилю —
+      // не перезаписываем чужую привязку молча
+      const existingLinkSnap = await db.ref('googleLinks/' + uid).once('value');
+      const existingTelegramId = existingLinkSnap.val();
+      if (existingTelegramId && existingTelegramId !== telegramId) {
+        alert('Этот Google-аккаунт уже привязан к другому профилю БАТТЛ');
+        await auth.signOut();
+        return;
+      }
+
+      await db.ref('users/' + telegramId).update({ googleUid: uid, googleEmail: email });
+      await db.ref('googleLinks/' + uid).set(telegramId);
+      if (me) { me.googleUid = uid; me.googleEmail = email; }
+      updateGoogleAccountUI(email);
+      alert('Google-аккаунт привязан: ' + email);
+    } catch (err) {
+      console.error(err);
+      window.showDebugError?.('Google-вход', err.message || String(err));
+      if (confirm('Не получилось войти через Google внутри Telegram. Открыть сайт в обычном браузере, чтобы попробовать там?')) {
+        const tgApp = window.Telegram?.WebApp;
+        const plainUrl = location.href.split('?')[0];
+        if (tgApp?.openLink) tgApp.openLink(plainUrl, { try_instant_view: false });
+        else window.open(plainUrl, '_blank');
+      }
+    }
+  });
 
   // ===== разрешение на микрофон — запрашивается ТОЛЬКО здесь, по явному нажатию,
   // а не автоматически при каждом запуске приложения (чтобы не ловить
@@ -1964,6 +2044,7 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
 <script>
   const tg = window.Telegram?.WebApp;
@@ -1974,8 +2055,6 @@
   // В отличие от username, он есть всегда и никогда не меняется —
   // именно на него привязываем внутренний профиль.
   const tgUser = tg?.initDataUnsafe?.user;
-  const telegramId = tgUser ? String(tgUser.id) : 'guest_' + Math.random().toString(36).slice(2, 9);
-  window.currentTelegramId = telegramId;
   const displayFirstName = tgUser?.first_name || 'Гость';
 
   const firebaseConfig = {
@@ -1989,6 +2068,8 @@
   };
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
+  const auth = firebase.auth();
+  window.battleAuth = auth;
 
   // Генерирует случайный внутренний ID игрока, например "PLR-8X3F9K"
   function generatePlayerId() {
@@ -1998,6 +2079,26 @@
     return 'PLR-' + code;
   }
 
+  // ===== чей это профиль =====
+  // Из Telegram — берём initDataUnsafe.user.id, он есть всегда и не меняется.
+  // Если сайт открыт как обычная страница (не из Telegram) и человек раньше
+  // привязал сюда Google-аккаунт (см. Настройки → Аккаунт) — подгружаем тот
+  // же профиль по обратной ссылке googleLinks/<uid>, а не создаём гостя.
+  function resolveIdentity() {
+    if (tgUser) return Promise.resolve(String(tgUser.id));
+    return new Promise((resolve) => {
+      const unsubscribe = auth.onAuthStateChanged((user) => {
+        unsubscribe();
+        if (!user) { resolve('guest_' + Math.random().toString(36).slice(2, 9)); return; }
+        db.ref('googleLinks/' + user.uid).once('value').then((snap) => {
+          resolve(snap.val() || ('guest_' + Math.random().toString(36).slice(2, 9)));
+        });
+      });
+    });
+  }
+
+  resolveIdentity().then((telegramId) => {
+  window.currentTelegramId = telegramId;
   const userRef = db.ref('users/' + telegramId);
 
   userRef.get().then((snap) => {
@@ -2059,6 +2160,7 @@
       if (accountValEl) {
         accountValEl.textContent = userData.username || userData.playerId || 'PLR-XXXXXX';
       }
+      window.updateGoogleAccountUI?.(userData.googleEmail || null);
     }
     window.applyProfileUser = applyProfileUser; // доступна из любого другого JS-блока на странице (глобальная область видимости)
 
@@ -2189,6 +2291,7 @@
     myPresenceRef.set(true);
     myPresenceRef.onDisconnect().remove();
   });
+  }); // конец resolveIdentity().then(...)
 
   // Слушаем список всех "онлайн" записей и обновляем счётчик вживую
   const onlineCountEl = document.getElementById('online-count');
