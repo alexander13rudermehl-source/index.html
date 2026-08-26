@@ -113,6 +113,31 @@
   }
   .ring-pulse.delay{ animation-delay: 1.2s; }
 
+  /* значки-награды — крутятся по кольцу вокруг аватара на главном экране */
+  .badge-orbit{
+    position:absolute;
+    inset:0;
+    z-index:2;
+    pointer-events:none;
+    animation: orbit-spin 16s linear infinite;
+  }
+  .orbit-slot{ position:absolute; inset:0; }
+  .orbit-icon{
+    position:absolute;
+    top: 1px;
+    left:50%;
+    width:24px; height:24px;
+    margin-left:-12px;
+    border-radius:50%;
+    background: var(--panel);
+    border: 1.5px solid #3ED598;
+    box-shadow: 0 0 8px rgba(62,213,152,0.5);
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px;
+    pointer-events:auto;
+  }
+  @keyframes orbit-spin{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
+
   @keyframes pulse{
     0%   { transform: scale(0.78); opacity: 0.9; }
     75%  { transform: scale(1.25); opacity: 0; }
@@ -827,6 +852,7 @@
     <div class="ring-wrap">
       <div class="ring-pulse"></div>
       <div class="ring-pulse delay"></div>
+      <div class="badge-orbit" id="home-badge-orbit"></div>
       <div class="stage-avatar" id="home-avatar">??</div>
     </div>
     <div class="stage-name" id="home-name">Игрок</div>
@@ -1913,13 +1939,36 @@
     }
     window.renderProfileBadges = renderProfileBadges;
 
+    // Те же значки — маленькими кружками, вращающимися по кольцу вокруг
+    // аватара на главном экране (см. .badge-orbit в <style>).
+    function renderHomeBadgeOrbit(userBadges, badgeDefs) {
+      const wrap = document.getElementById('home-badge-orbit');
+      if (!wrap) return;
+      const keys = Object.keys(userBadges || {}).filter(id => (badgeDefs || {})[id]);
+      if (!keys.length) { wrap.innerHTML = ''; return; }
+      const step = 360 / keys.length;
+      wrap.innerHTML = keys.map((id, i) => {
+        const def = badgeDefs[id];
+        return `<div class="orbit-slot" style="transform:rotate(${i * step}deg)"><div class="orbit-icon" title="${def.label || ''}">${def.emoji || '🏅'}</div></div>`;
+      }).join('');
+    }
+    window.renderHomeBadgeOrbit = renderHomeBadgeOrbit;
+
+    function fetchAndRenderBadges(telegramId) {
+      return Promise.all([
+        db.ref('users/' + telegramId + '/badges').once('value'),
+        db.ref('badgeDefs').once('value')
+      ]).then(([bSnap, defSnap]) => {
+        renderProfileBadges(bSnap.val(), defSnap.val());
+        renderHomeBadgeOrbit(bSnap.val(), defSnap.val());
+      });
+    }
+    window.fetchAndRenderBadges = fetchAndRenderBadges;
+
     function renderProfileFromMatches() {
       const me=window.currentPlayer; if(!me) return;
       db.ref('users/'+window.currentTelegramId+'/stats').once('value').then(s=>renderProfileStats(s.val()||{}));
-      Promise.all([
-        db.ref('users/'+window.currentTelegramId+'/badges').once('value'),
-        db.ref('badgeDefs').once('value')
-      ]).then(([bSnap, defSnap]) => renderProfileBadges(bSnap.val(), defSnap.val()));
+      fetchAndRenderBadges(window.currentTelegramId);
       db.ref('matches').once('value').then(snap=>{
         const all=snap.val()||{}; const mine={};
         Object.entries(all).forEach(([id,m])=>{ if(m && [m.hostId,m.guestId,m.refereeId].includes(me.playerId) && m.status==='finished') mine[id]=m; });
