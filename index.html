@@ -1603,6 +1603,48 @@
           <div class="theme-name">Светлая</div>
         </div>
 
+        <div class="theme-card" data-theme="custom" id="custom-theme-card">
+          <div class="theme-check"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></div>
+          <div class="theme-preview" id="custom-theme-preview" style="background:#0B0B0D">
+            <span class="swatch-dot" id="custom-swatch-1" style="background:#FF3D2E"></span>
+            <span class="swatch-dot" id="custom-swatch-2" style="background:#F2B705"></span>
+          </div>
+          <div class="theme-name">🎨 Своя</div>
+        </div>
+
+      </div>
+
+      <div id="custom-theme-panel" style="display:none; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:6px;">
+        <div class="t-label" style="margin-bottom:10px;">Глубокая настройка</div>
+
+        <div style="display:flex; gap:8px; margin-bottom:14px;">
+          <button type="button" class="sheet-cta secondary" id="custom-mode-dark" style="flex:1; padding:10px; font-size:12.5px; margin-top:0;">🌙 Тёмная база</button>
+          <button type="button" class="sheet-cta secondary" id="custom-mode-light" style="flex:1; padding:10px; font-size:12.5px; margin-top:0;">☀️ Светлая база</button>
+        </div>
+
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+          <div>
+            <div class="t-label">Основной акцент</div>
+            <div class="t-desc">Кнопки, live-индикатор</div>
+          </div>
+          <input type="color" id="custom-color-live" value="#FF3D2E" style="width:44px; height:34px; border:1px solid var(--line); border-radius:8px; background:none; padding:0; cursor:pointer;">
+        </div>
+
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+          <div>
+            <div class="t-label">Второй акцент</div>
+            <div class="t-desc">Золото, звёзды, значки</div>
+          </div>
+          <input type="color" id="custom-color-gold" value="#F2B705" style="width:44px; height:34px; border:1px solid var(--line); border-radius:8px; background:none; padding:0; cursor:pointer;">
+        </div>
+
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div>
+            <div class="t-label">Фон</div>
+            <div class="t-desc">Общий тон приложения</div>
+          </div>
+          <input type="color" id="custom-color-bg" value="#0B0B0D" style="width:44px; height:34px; border:1px solid var(--line); border-radius:8px; background:none; padding:0; cursor:pointer;">
+        </div>
       </div>
 
       <div class="section-label">Микрофон</div>
@@ -1777,8 +1819,7 @@
     light:   { bg:'#F4F1EA', panel:'#FFFFFF', panel2:'#ECE8E0', line:'#DEDACF', text:'#221F1B', muted:'#8A8478', live:'#D97757', gold:'#B8860B' }
   };
 
-  function applyTheme(name){
-    const t = themes[name];
+  function applyThemeVars(t){
     const root = document.documentElement.style;
     root.setProperty('--bg', t.bg);
     root.setProperty('--panel', t.panel);
@@ -1790,13 +1831,114 @@
     root.setProperty('--gold', t.gold);
   }
 
+  function applyTheme(name){ applyThemeVars(themes[name]); }
+
+  // ===== "Своя тема" — глубокая настройка, как акцентный цвет в Telegram =====
+  // Пользователь красит только 3 точки (фон + два акцента), остальные
+  // нейтральные тона (панели/линии/текст) вычисляются подмешиванием
+  // чёрного/белого к фону — так палитра остаётся согласованной.
+  function hexToRgb(hex){
+    hex = hex.replace('#','');
+    if (hex.length===3) hex = hex.split('').map(c=>c+c).join('');
+    const num = parseInt(hex,16);
+    return [(num>>16)&255, (num>>8)&255, num&255];
+  }
+  function rgbToHex(rgb){
+    return '#' + rgb.map(v => Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('');
+  }
+  function mix(hexA, hexB, ratio){
+    const a = hexToRgb(hexA), b = hexToRgb(hexB);
+    return rgbToHex(a.map((v,i) => v + (b[i]-v)*ratio));
+  }
+
+  function computeCustomTheme(mode, liveHex, goldHex, bgHex){
+    const isDark = mode !== 'light';
+    const toward = isDark ? '#FFFFFF' : '#000000';
+    return {
+      bg: bgHex,
+      panel:  mix(bgHex, toward, isDark ? 0.07 : 0.045),
+      panel2: mix(bgHex, toward, isDark ? 0.12 : 0.075),
+      line:   mix(bgHex, toward, isDark ? 0.18 : 0.14),
+      text:   isDark ? '#F2F1EE' : '#221F1B',
+      muted:  isDark ? '#8A8A92' : '#8A8478',
+      live: liveHex,
+      gold: goldHex
+    };
+  }
+
+  let customMode = 'dark';
+  const customLiveInput = document.getElementById('custom-color-live');
+  const customGoldInput = document.getElementById('custom-color-gold');
+  const customBgInput = document.getElementById('custom-color-bg');
+  const customPanel = document.getElementById('custom-theme-panel');
+  const customModeDarkBtn = document.getElementById('custom-mode-dark');
+  const customModeLightBtn = document.getElementById('custom-mode-light');
+
+  function updateCustomModeButtons(){
+    customModeDarkBtn.classList.toggle('secondary', customMode !== 'dark');
+    customModeLightBtn.classList.toggle('secondary', customMode !== 'light');
+  }
+
+  function applyCustomTheme(save){
+    const t = computeCustomTheme(customMode, customLiveInput.value, customGoldInput.value, customBgInput.value);
+    applyThemeVars(t);
+    document.getElementById('custom-theme-preview').style.background = t.bg;
+    document.getElementById('custom-swatch-1').style.background = t.live;
+    document.getElementById('custom-swatch-2').style.background = t.gold;
+    if (save) {
+      localStorage.setItem('battleTheme', 'custom');
+      localStorage.setItem('battleCustomTheme', JSON.stringify({ mode: customMode, live: customLiveInput.value, gold: customGoldInput.value, bg: customBgInput.value }));
+    }
+  }
+
+  customModeDarkBtn.addEventListener('click', () => { customMode = 'dark'; updateCustomModeButtons(); applyCustomTheme(true); });
+  customModeLightBtn.addEventListener('click', () => { customMode = 'light'; updateCustomModeButtons(); applyCustomTheme(true); });
+  [customLiveInput, customGoldInput, customBgInput].forEach(inp => inp.addEventListener('input', () => applyCustomTheme(true)));
+
   document.querySelectorAll('.theme-card').forEach(card => {
     card.addEventListener('click', () => {
       document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('selected'));
       card.classList.add('selected');
-      applyTheme(card.dataset.theme);
+      const name = card.dataset.theme;
+      customPanel.style.display = name === 'custom' ? 'block' : 'none';
+      if (name === 'custom') {
+        applyCustomTheme(true);
+      } else {
+        applyTheme(name);
+        localStorage.setItem('battleTheme', name);
+      }
     });
   });
+
+  // восстанавливаем выбор темы с прошлого визита (хранится только в этом
+  // браузере/устройстве — на других сохранённая тема не подтягивается)
+  (function restoreTheme(){
+    let savedTheme, savedCustomRaw;
+    try {
+      savedTheme = localStorage.getItem('battleTheme');
+      savedCustomRaw = localStorage.getItem('battleCustomTheme');
+    } catch(e) { return; }
+
+    if (savedTheme === 'custom' && savedCustomRaw) {
+      let c;
+      try { c = JSON.parse(savedCustomRaw); } catch(e) { return; }
+      customMode = c.mode === 'light' ? 'light' : 'dark';
+      customLiveInput.value = c.live || '#FF3D2E';
+      customGoldInput.value = c.gold || '#F2B705';
+      customBgInput.value = c.bg || '#0B0B0D';
+      updateCustomModeButtons();
+      document.querySelectorAll('.theme-card').forEach(c2 => c2.classList.remove('selected'));
+      document.getElementById('custom-theme-card').classList.add('selected');
+      customPanel.style.display = 'block';
+      applyCustomTheme(false);
+    } else if (savedTheme && themes[savedTheme]) {
+      document.querySelectorAll('.theme-card').forEach(c2 => c2.classList.remove('selected'));
+      const card = document.querySelector(`.theme-card[data-theme="${savedTheme}"]`);
+      if (card) card.classList.add('selected');
+      applyTheme(savedTheme);
+    }
+    updateCustomModeButtons();
+  })();
 </script>
 
 <!-- ===== Telegram — идентификация пользователя ===== -->
