@@ -473,6 +473,19 @@
   .badge.stars{ background: rgba(242,183,5,0.15); color: var(--gold); }
   .badge.live{ background: rgba(255,61,46,0.15); color: var(--live); }
 
+  .badge-pill{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-size: 12.5px;
+    font-weight:600;
+    padding: 6px 12px;
+    border-radius: 100px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+  }
+  .badge-pill .emoji{ font-size:15px; line-height:1; }
+
   .section-label{
     font-size: 11px;
     letter-spacing: 1px;
@@ -1453,6 +1466,11 @@
         <div class="stat-card"><div class="num" id="stat-likes">0</div><div class="cap">Симпатий</div></div>
       </div>
 
+      <div class="section-label">Значки</div>
+      <div id="profile-badges" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
+        <div class="admin-empty">Пока нет значков</div>
+      </div>
+
       <div class="section-label">Матчи</div>
       <div id="profile-match-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;">
         <div class="admin-empty">Матчей пока нет</div>
@@ -1883,9 +1901,28 @@
     }
     window.renderMatchList = renderMatchList;
 
+    // Значки-награды — выдаются админом/модератором из отдельной панели
+    // (репозиторий battle-admin-bot). Каталог значков лежит в badgeDefs/,
+    // выданные конкретному игроку — в users/<id>/badges/<badgeId>.
+    function renderProfileBadges(userBadges, badgeDefs) {
+      const el = document.getElementById('profile-badges');
+      const keys = Object.keys(userBadges || {});
+      const chips = keys.map(id => {
+        const def = (badgeDefs || {})[id];
+        if (!def) return '';
+        return `<div class="badge-pill"><span class="emoji">${def.emoji || '🏅'}</span>${def.label || ''}</div>`;
+      }).filter(Boolean).join('');
+      el.innerHTML = chips || '<div class="admin-empty">Пока нет значков</div>';
+    }
+    window.renderProfileBadges = renderProfileBadges;
+
     function renderProfileFromMatches() {
       const me=window.currentPlayer; if(!me) return;
       db.ref('users/'+window.currentTelegramId+'/stats').once('value').then(s=>renderProfileStats(s.val()||{}));
+      Promise.all([
+        db.ref('users/'+window.currentTelegramId+'/badges').once('value'),
+        db.ref('badgeDefs').once('value')
+      ]).then(([bSnap, defSnap]) => renderProfileBadges(bSnap.val(), defSnap.val()));
       db.ref('matches').once('value').then(snap=>{
         const all=snap.val()||{}; const mine={};
         Object.entries(all).forEach(([id,m])=>{ if(m && [m.hostId,m.guestId,m.refereeId].includes(me.playerId) && m.status==='finished') mine[id]=m; });
