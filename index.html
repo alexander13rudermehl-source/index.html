@@ -381,19 +381,21 @@
      вразнобой". Настоящий бесшовный переход между двумя разными фото
      чистым CSS не сделать аккуратно. Вместо этого — только размытие
      СВОЕГО ЖЕ края (без чужого слоя поверх), зоны стоят вплотную. */
+  /* mask-image вместе с backdrop-filter на некоторых мобильных WebView
+     (в т.ч., похоже, в Telegram) просто гасит сам blur — поэтому тут
+     обычный, ничем не маскированный размытый блок фиксированной высоты,
+     без градиента прозрачности */
   .battle-zone-fade{
     position: absolute;
     z-index: 0;
     pointer-events: none;
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    -webkit-mask-image: linear-gradient(var(--fade-dir), black, transparent);
-    mask-image: linear-gradient(var(--fade-dir), black, transparent);
   }
-  .battle-zone-fade.at-top{ --fade-dir: to bottom; top: 0; left: 0; right: 0; height: 56px; }
-  .battle-zone-fade.at-bottom{ --fade-dir: to top; bottom: 0; left: 0; right: 0; height: 56px; }
-  .battle-zone-fade.at-left{ --fade-dir: to right; top: 0; bottom: 0; left: 0; width: 40px; }
-  .battle-zone-fade.at-right{ --fade-dir: to left; top: 0; bottom: 0; right: 0; width: 40px; }
+  .battle-zone-fade.at-top{ top: 0; left: 0; right: 0; height: 40px; }
+  .battle-zone-fade.at-bottom{ bottom: 0; left: 0; right: 0; height: 40px; }
+  .battle-zone-fade.at-left{ top: 0; bottom: 0; left: 0; width: 32px; }
+  .battle-zone-fade.at-right{ top: 0; bottom: 0; right: 0; width: 32px; }
   .battle-zone-overlay{
     position: absolute;
     inset: 0;
