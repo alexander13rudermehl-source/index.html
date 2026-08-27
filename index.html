@@ -1316,7 +1316,7 @@
 
   function leaveRatingQueue() {
     if (myQueueListener) { myQueueRef?.off('value', myQueueListener); myQueueListener = null; }
-    if (myQueueRef) { myQueueRef.remove().catch(() => {}); myQueueRef = null; }
+    if (myQueueRef) { myQueueRef.onDisconnect().cancel(); myQueueRef.remove().catch(() => {}); myQueueRef = null; }
     document.getElementById('rq-idle').style.display = 'block';
     document.getElementById('rq-waiting').style.display = 'none';
   }
@@ -1330,9 +1330,11 @@
     document.getElementById('rq-waiting').style.display = 'block';
 
     try {
+      const QUEUE_STALE_MS = 2 * 60 * 1000; // подстраховка на случай, если onDisconnect не сработал
       const queueSnap = await db.ref('queue').once('value');
       const all = queueSnap.val() || {};
-      const opponentKey = Object.keys(all).find(k => k !== myKey && all[k] && !all[k].matchedRoom);
+      const opponentKey = Object.keys(all).find(k =>
+        k !== myKey && all[k] && !all[k].matchedRoom && (Date.now() - (all[k].joinedAt || 0)) < QUEUE_STALE_MS);
 
       if (opponentKey) {
         // нашли свободного соперника — сразу создаём комнату на двоих
@@ -1373,6 +1375,10 @@
           matchedRoom: null,
           joinedAt: Date.now()
         });
+        // если резко закрыть приложение (не нажав "Отменить поиск"), запись
+        // должна исчезнуть сама — иначе следующий искатель матчится с
+        // "призраком", который никогда не зайдёт в комнату
+        myQueueRef.onDisconnect().remove();
 
         myQueueListener = myQueueRef.on('value', async (snap) => {
           const data = snap.val();
@@ -1380,6 +1386,7 @@
             const code = data.matchedRoom;
             myQueueRef.off('value', myQueueListener);
             myQueueListener = null;
+            myQueueRef.onDisconnect().cancel();
             await myQueueRef.remove();
             myQueueRef = null;
             const battleSnap = await db.ref('battles/' + code).once('value');
