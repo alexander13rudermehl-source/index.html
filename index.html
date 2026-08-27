@@ -361,10 +361,6 @@
     cursor:pointer;
   }
   .event-claim-btn.show{ display:flex; }
-  /* рамка вокруг аватара в комнате боя — показывает обои (фон), которые
-     игрок поставил себе в "Моих темах", как декоративную подложку вокруг
-     фото, а не абстрактные цвета; если своих обоев нет — просто заливка
-     цветом темы */
   /* каждая половина экрана боя окрашена обоями/фоном ИМЕННО ТОГО игрока,
      чей это участок — жёстко разделены полосой-разделителем, никакого
      плавного перетекания одних обоев в другие */
@@ -1634,7 +1630,7 @@
     const meId = isHost ? data.hostId : data.guestId;
     const oppId = isHost ? data.guestId : data.hostId;
     document.getElementById('room-headline').textContent = 'СОПЕРНИК НАЙДЕН';
-    document.getElementById('room-combatant-view').style.display = 'flex';
+    document.getElementById('room-combatant-view').style.display = 'block';
     document.getElementById('room-referee-view').style.display = 'none';
     document.getElementById('room-me-name').textContent = meName || '—';
     document.getElementById('room-opponent-name').textContent = oppName || '—';
