@@ -358,16 +358,52 @@
     cursor:pointer;
   }
   .event-claim-btn.show{ display:flex; }
-  .like-btn{
+  /* значок симпатий — прикреплён к аватару, а не отдельной строкой */
+  .heart-badge{
+    position: absolute;
+    bottom: -3px; right: -6px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
     background: var(--panel-2);
     border: 1px solid var(--line);
-    color: var(--text);
     border-radius: 100px;
-    padding: 6px 14px;
-    font-size: 13px;
-    cursor: pointer;
+    padding: 2px 7px;
+    font-size: 11px;
+    color: var(--text);
+    white-space: nowrap;
   }
-  .like-btn:active{ transform: scale(0.96); }
+  .heart-badge.tappable{ cursor: pointer; }
+  .heart-badge.tappable:active{ transform: scale(0.94); }
+
+  /* бейдж рефери — кто судит этот бой, в углу экрана боя */
+  .ref-indicator{
+    position: absolute;
+    top: 0; left: 0;
+    display: none;
+    align-items: center;
+    gap: 6px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 100px;
+    padding: 4px 10px 4px 4px;
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+  .ref-indicator.show{ display: flex; }
+  .ref-indicator .ref-avatar{
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--panel-2);
+    background-size: cover;
+    background-position: center;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    color: var(--muted);
+  }
 
   .event-claim-btn.claimed{
     background: var(--panel-2);
@@ -1249,38 +1285,50 @@
 
       <!-- для бойца (host/guest): сверху всегда соперник, снизу всегда я —
            от лица того, кто смотрит на экран, а не по ролям host/guest
-           (иначе на одном устройстве "я" слева, а на другом — справа) -->
-      <div id="room-combatant-view" style="display:flex; flex-direction:column; align-items:center; gap:6px; margin-bottom:20px;">
+           (иначе на одном устройстве "я" слева, а на другом — справа).
+           Симпатии — бейджиком прямо на аватаре, не отдельной строкой.
+           Бейдж рефери в углу — кто судит этот бой, если судья уже есть. -->
+      <div id="room-combatant-view" style="display:flex; flex-direction:column; align-items:center; gap:6px; margin-bottom:20px; position:relative;">
+        <div class="ref-indicator" id="room-ref-indicator">
+          <div class="ref-avatar" id="room-ref-indicator-avatar"></div>
+          <span>⚖️ <span id="room-ref-indicator-name">—</span></span>
+        </div>
+
         <div style="text-align:center;">
-          <div class="profile-avatar" id="room-opponent-avatar" style="margin:0 auto 8px;">—</div>
+          <div style="position:relative; display:inline-block;">
+            <div class="profile-avatar" id="room-opponent-avatar" style="margin:0 auto 8px;">—</div>
+            <div class="heart-badge" id="room-opponent-heart">❤️ <span id="likes-opponent-count">0</span></div>
+          </div>
           <div style="font-size:13px; font-weight:600;" id="room-opponent-name">—</div>
         </div>
         <div style="font-family:'Bebas Neue',sans-serif; font-size:18px; color:var(--muted); margin:2px 0;">VS</div>
         <div style="text-align:center;">
-          <div class="profile-avatar" id="room-me-avatar" style="margin:0 auto 8px;">—</div>
+          <div style="position:relative; display:inline-block;">
+            <div class="profile-avatar" id="room-me-avatar" style="margin:0 auto 8px;">—</div>
+            <div class="heart-badge" id="room-me-heart">❤️ <span id="likes-me-count">0</span></div>
+          </div>
           <div style="font-size:13px; font-weight:600;" id="room-me-name">—</div>
         </div>
       </div>
 
-      <!-- зрительские симпатии видны и бойцам — только просмотр, без кнопок -->
-      <div id="room-likes-readout" style="display:none; align-items:center; justify-content:center; gap:24px; margin-bottom:20px; font-size:13px; color:var(--muted);">
-        <div>❤️ <span id="likes-host-count">0</span> · <span id="likes-host-label"></span></div>
-        <div>❤️ <span id="likes-guest-count">0</span> · <span id="likes-guest-label"></span></div>
-      </div>
-
-      <!-- для рефери: оба бойца рядом, кнопки симпатий + объявление победителя -->
+      <!-- для рефери: оба бойца рядом, симпатии — тем же бейджем на аватаре,
+           но кликабельным, плюс объявление победителя -->
       <div id="room-referee-view" style="display:none;">
         <div style="display:flex; align-items:center; justify-content:center; gap:20px; margin-bottom:18px;">
           <div style="text-align:center;">
-            <div class="profile-avatar" id="ref-host-avatar" style="margin:0 auto 8px;">—</div>
-            <div style="font-size:13px; font-weight:600; margin-bottom:8px;" id="ref-host-name">—</div>
-            <button class="like-btn" id="ref-like-host">❤️ <span id="ref-like-host-count">0</span></button>
+            <div style="position:relative; display:inline-block;">
+              <div class="profile-avatar" id="ref-host-avatar" style="margin:0 auto 8px;">—</div>
+              <div class="heart-badge tappable" id="ref-like-host">❤️ <span id="ref-like-host-count">0</span></div>
+            </div>
+            <div style="font-size:13px; font-weight:600;" id="ref-host-name">—</div>
           </div>
           <div style="font-family:'Bebas Neue',sans-serif; font-size:18px; color:var(--muted);">VS</div>
           <div style="text-align:center;">
-            <div class="profile-avatar" id="ref-guest-avatar" style="margin:0 auto 8px;">—</div>
-            <div style="font-size:13px; font-weight:600; margin-bottom:8px;" id="ref-guest-name">—</div>
-            <button class="like-btn" id="ref-like-guest">❤️ <span id="ref-like-guest-count">0</span></button>
+            <div style="position:relative; display:inline-block;">
+              <div class="profile-avatar" id="ref-guest-avatar" style="margin:0 auto 8px;">—</div>
+              <div class="heart-badge tappable" id="ref-like-guest">❤️ <span id="ref-like-guest-count">0</span></div>
+            </div>
+            <div style="font-size:13px; font-weight:600;" id="ref-guest-name">—</div>
           </div>
         </div>
         <div style="display:flex; gap:10px; margin-bottom:20px;">
@@ -1405,16 +1453,25 @@
   let myRoomCode = null;
   let myRoomRole = null; // 'host' | 'guest' | 'referee'
 
-  // зрительские симпатии (❤️ по каждой стороне) — считает рефери, видят все
+  // зрительские симпатии (❤️ по каждой стороне) — считает рефери, тапая
+  // бейдж прямо на аватаре; бойцы видят те же числа на своих аватарах
+  // (бейдж "я"/"соперник" вместо host/guest, раз сторона зависит от того,
+  // кто смотрит на экран)
   let likesRef = null, likesListener = null;
-  function attachLikesListener(code) {
+  function attachLikesListener(code, mySide, oppSide) {
     detachLikesListener();
     likesRef = db.ref('battles/' + code + '/audienceLikes');
     likesListener = likesRef.on('value', (snap) => {
       const likes = snap.val() || {};
       const h = likes.host || 0, g = likes.guest || 0;
-      ['ref-like-host-count', 'likes-host-count'].forEach((id) => { const el = document.getElementById(id); if (el) el.textContent = h; });
-      ['ref-like-guest-count', 'likes-guest-count'].forEach((id) => { const el = document.getElementById(id); if (el) el.textContent = g; });
+      const refHostEl = document.getElementById('ref-like-host-count'); if (refHostEl) refHostEl.textContent = h;
+      const refGuestEl = document.getElementById('ref-like-guest-count'); if (refGuestEl) refGuestEl.textContent = g;
+      if (mySide) {
+        const meEl = document.getElementById('likes-me-count');
+        if (meEl) meEl.textContent = mySide === 'host' ? h : g;
+        const oppEl = document.getElementById('likes-opponent-count');
+        if (oppEl) oppEl.textContent = oppSide === 'host' ? h : g;
+      }
     });
   }
   function detachLikesListener() {
@@ -1428,14 +1485,29 @@
   document.getElementById('ref-like-host').addEventListener('click', () => bumpLike('host'));
   document.getElementById('ref-like-guest').addEventListener('click', () => bumpLike('guest'));
 
+  // бейдж "судит: имя" в углу экрана боя — только у бойцов (сам рефери и
+  // так знает, что он рефери); показывается, как только судья назначен —
+  // это может случиться и после того, как бойцы уже вошли в комнату
+  function updateRefIndicator(refereeId, refereeName) {
+    const el = document.getElementById('room-ref-indicator');
+    if (!el) return;
+    if (!refereeId) { el.classList.remove('show'); return; }
+    document.getElementById('room-ref-indicator-name').textContent = refereeName || 'Рефери';
+    applyRoomAvatar(document.getElementById('room-ref-indicator-avatar'), refereeId, refereeName);
+    el.classList.add('show');
+  }
+
   // бойцы узнают, что бой завершён (рефери объявил победителя), и сами
   // закрывают у себя комнату — рефери закрывает свою явно, ему слушатель не нужен
   let finishRef = null, finishListener = null;
   function attachFinishListener(code) {
     detachFinishListener();
-    finishRef = db.ref('battles/' + code + '/status');
+    finishRef = db.ref('battles/' + code);
     finishListener = finishRef.on('value', (snap) => {
-      if (snap.val() === 'finished' && roomOverlay.classList.contains('open')) closeRoom();
+      const battle = snap.val();
+      if (!battle) return;
+      if (battle.status === 'finished' && roomOverlay.classList.contains('open')) { closeRoom(); return; }
+      updateRefIndicator(battle.refereeId, battle.refereeName);
     });
   }
   function detachFinishListener() {
@@ -1448,6 +1520,7 @@
     teardownVoiceConnection();
     detachLikesListener();
     detachFinishListener();
+    document.getElementById('room-ref-indicator')?.classList.remove('show');
     myRoomCode = null;
     myRoomRole = null;
   }
@@ -1483,16 +1556,13 @@
     document.getElementById('room-headline').textContent = 'СОПЕРНИК НАЙДЕН';
     document.getElementById('room-combatant-view').style.display = 'flex';
     document.getElementById('room-referee-view').style.display = 'none';
-    document.getElementById('room-likes-readout').style.display = 'flex';
     document.getElementById('room-me-name').textContent = meName || '—';
     document.getElementById('room-opponent-name').textContent = oppName || '—';
     applyRoomAvatar(document.getElementById('room-me-avatar'), meId, meName);
     applyRoomAvatar(document.getElementById('room-opponent-avatar'), oppId, oppName);
-    document.getElementById('likes-host-label').textContent = data.hostName || '—';
-    document.getElementById('likes-guest-label').textContent = data.guestName || '—';
     overlay.classList.remove('open');
     roomOverlay.classList.add('open');
-    attachLikesListener(code);
+    attachLikesListener(code, isHost ? 'host' : 'guest', isHost ? 'guest' : 'host');
     attachFinishListener(code);
     if (typeof setupVoiceConnection === 'function') setupVoiceConnection(code, isHost ? 'host' : 'guest');
   }
@@ -1503,7 +1573,6 @@
     document.getElementById('room-headline').textContent = 'СУДИШЬ БОЙ';
     document.getElementById('room-combatant-view').style.display = 'none';
     document.getElementById('room-referee-view').style.display = 'block';
-    document.getElementById('room-likes-readout').style.display = 'none';
     document.getElementById('ref-host-name').textContent = data.hostName || '—';
     document.getElementById('ref-guest-name').textContent = data.guestName || '—';
     applyRoomAvatar(document.getElementById('ref-host-avatar'), data.hostId, data.hostName);
