@@ -361,6 +361,22 @@
     cursor:pointer;
   }
   .event-claim-btn.show{ display:flex; }
+  /* маленькая палитра из темы игрока — под именем в комнате боя, чтобы
+     видеть оформление друг друга, не переключая своё собственное */
+  .theme-swatch{
+    display:flex;
+    justify-content:center;
+    gap:4px;
+    margin-top:4px;
+    height:9px;
+  }
+  .theme-swatch span{
+    display:inline-block;
+    width:9px; height:9px;
+    border-radius:50%;
+    border: 1px solid rgba(255,255,255,0.25);
+  }
+
   /* значок симпатий — прикреплён к аватару, а не отдельной строкой */
   .heart-badge{
     position: absolute;
@@ -1303,6 +1319,7 @@
             <div class="heart-badge" id="room-opponent-heart">❤️ <span id="likes-opponent-count">0</span></div>
           </div>
           <div style="font-size:13px; font-weight:600;" id="room-opponent-name">—</div>
+          <div class="theme-swatch" id="room-opponent-theme"></div>
         </div>
         <div style="font-family:'Bebas Neue',sans-serif; font-size:18px; color:var(--muted); margin:2px 0;">VS</div>
         <div style="text-align:center;">
@@ -1311,6 +1328,7 @@
             <div class="heart-badge" id="room-me-heart">❤️ <span id="likes-me-count">0</span></div>
           </div>
           <div style="font-size:13px; font-weight:600;" id="room-me-name">—</div>
+          <div class="theme-swatch" id="room-me-theme"></div>
         </div>
       </div>
 
@@ -1324,6 +1342,7 @@
               <div class="heart-badge tappable" id="ref-like-host">❤️ <span id="ref-like-host-count">0</span></div>
             </div>
             <div style="font-size:13px; font-weight:600;" id="ref-host-name">—</div>
+            <div class="theme-swatch" id="ref-host-theme"></div>
           </div>
           <div style="font-family:'Bebas Neue',sans-serif; font-size:18px; color:var(--muted);">VS</div>
           <div style="text-align:center;">
@@ -1332,6 +1351,7 @@
               <div class="heart-badge tappable" id="ref-like-guest">❤️ <span id="ref-like-guest-count">0</span></div>
             </div>
             <div style="font-size:13px; font-weight:600;" id="ref-guest-name">—</div>
+            <div class="theme-swatch" id="ref-guest-theme"></div>
           </div>
         </div>
         <div style="display:flex; gap:10px; margin-bottom:20px;">
@@ -1533,10 +1553,21 @@
   // дублируем её в battleData, а подтягиваем свежую по playerId прямо
   // здесь, при входе в комнату (тот же поиск по playerId, что и в
   // admin-панели/поиске игрока).
-  function applyRoomAvatar(avatarEl, playerId, fallbackName) {
+  //
+  // Заодно подтягиваем и оформление (тему) игрока — свечение вокруг
+  // аватара его акцентным цветом плюс мини-палитра из трёх точек — чтобы
+  // соперники видели оформление друг друга, не переключая своё.
+  // window.resolveOpponentTheme определена в блоке настроек ниже по
+  // странице (там же живут themes/computeCustomTheme) — к моменту первого
+  // реального вызова этой функции, после входа в баттл, та часть страницы
+  // уже точно выполнилась.
+  function applyRoomAvatar(avatarEl, playerId, fallbackName, swatchEl) {
     avatarEl.style.backgroundImage = '';
     avatarEl.classList.remove('has-image');
+    avatarEl.style.borderColor = '';
+    avatarEl.style.boxShadow = '';
     avatarEl.textContent = (fallbackName || '??').slice(0, 2).toUpperCase();
+    if (swatchEl) swatchEl.innerHTML = '';
     if (!playerId) return;
     db.ref('users').orderByChild('playerId').equalTo(playerId).once('value').then((snap) => {
       if (!snap.exists()) return;
@@ -1546,7 +1577,14 @@
         avatarEl.classList.add('has-image');
         avatarEl.textContent = '';
       }
-    }).catch((err) => window.showDebugError?.('Аватар в комнате боя', err));
+      const theme = window.resolveOpponentTheme?.(user) || { bg: '#0B0B0D', live: '#FF3D2E', gold: '#F2B705', liveRgb: '255,61,46' };
+      avatarEl.style.borderColor = theme.live;
+      avatarEl.style.boxShadow = `0 0 10px rgba(${theme.liveRgb},0.6)`;
+      if (swatchEl) {
+        swatchEl.innerHTML = [theme.bg, theme.live, theme.gold]
+          .map((c) => `<span style="background:${c}"></span>`).join('');
+      }
+    }).catch((err) => window.showDebugError?.('Оформление в комнате боя', err));
   }
 
   function showRoom(code, data, isHost) {
@@ -1561,8 +1599,8 @@
     document.getElementById('room-referee-view').style.display = 'none';
     document.getElementById('room-me-name').textContent = meName || '—';
     document.getElementById('room-opponent-name').textContent = oppName || '—';
-    applyRoomAvatar(document.getElementById('room-me-avatar'), meId, meName);
-    applyRoomAvatar(document.getElementById('room-opponent-avatar'), oppId, oppName);
+    applyRoomAvatar(document.getElementById('room-me-avatar'), meId, meName, document.getElementById('room-me-theme'));
+    applyRoomAvatar(document.getElementById('room-opponent-avatar'), oppId, oppName, document.getElementById('room-opponent-theme'));
     overlay.classList.remove('open');
     roomOverlay.classList.add('open');
     attachLikesListener(code, isHost ? 'host' : 'guest', isHost ? 'guest' : 'host');
@@ -1578,8 +1616,8 @@
     document.getElementById('room-referee-view').style.display = 'block';
     document.getElementById('ref-host-name').textContent = data.hostName || '—';
     document.getElementById('ref-guest-name').textContent = data.guestName || '—';
-    applyRoomAvatar(document.getElementById('ref-host-avatar'), data.hostId, data.hostName);
-    applyRoomAvatar(document.getElementById('ref-guest-avatar'), data.guestId, data.guestName);
+    applyRoomAvatar(document.getElementById('ref-host-avatar'), data.hostId, data.hostName, document.getElementById('ref-host-theme'));
+    applyRoomAvatar(document.getElementById('ref-guest-avatar'), data.guestId, data.guestName, document.getElementById('ref-guest-theme'));
     document.getElementById('ref-declare-host-name').textContent = data.hostName || '—';
     document.getElementById('ref-declare-guest-name').textContent = data.guestName || '—';
     overlay.classList.remove('open');
@@ -2791,6 +2829,20 @@
       gold: goldHex
     };
   }
+
+  // Разворачивает activeTheme+savedThemes любого игрока (не обязательно
+  // текущего) в цвета — используется в комнате боя, чтобы показать
+  // оформление соперника, не применяя его к собственному интерфейсу.
+  window.resolveOpponentTheme = function(userData){
+    const active = userData?.activeTheme;
+    let t = null;
+    if (active?.type === 'custom') {
+      t = (userData.savedThemes || []).find((x) => x.id === active.themeId);
+      if (t) t = computeCustomTheme(t.mode, t.live, t.gold, t.bg);
+    }
+    if (!t) t = (active?.type === 'preset' && themes[active.name]) ? themes[active.name] : themes.classic;
+    return { bg: t.bg, live: t.live, gold: t.gold, liveRgb: hexToRgb(t.live).join(',') };
+  };
 
   // ===== обои (фоновая картинка приложения) =====
   function applyWallpaper(dataUrl){
