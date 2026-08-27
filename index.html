@@ -361,11 +361,12 @@
     cursor:pointer;
   }
   .event-claim-btn.show{ display:flex; }
-  /* каждая половина экрана боя окрашена обоями/фоном ИМЕННО ТОГО игрока —
-     у самого стыка в неё подмешивается затухающий "призрак" обоев соседа
-     (кроссфейд), поэтому граница не режущая, а читается как настоящий
-     плавный переход в чужую тему, но дальше от стыка — снова полностью
-     своё оформление, без нейтральной полосы-разделителя между */
+  /* каждая половина экрана боя — либо сплошная заливка цветом темы игрока
+     (нет своих обоев), либо его реальное фото-обои cover'ом на всю зону;
+     зоны стоят вплотную, без размытия и без "призрака" чужой картинки —
+     после нескольких попыток стало ясно, что накладывать одну фотографию
+     поверх другой (кроссфейд/блюр-переход) почти всегда даёт разъехавшиеся
+     фрагменты, а не плавный переход, потому что это две разные картинки */
   .battle-zone{
     position: relative;
     margin: 0 -18px;
@@ -374,28 +375,6 @@
     background-position: center top;
     background-color: var(--panel-2);
   }
-  /* Раньше здесь был слой с "призраком" обоев соседней зоны у самого шва
-     (кроссфейд) — но это ДВЕ разные фотографии, у каждой свой независимый
-     cover/center-обрез, и наложение одной поверх другой почти никогда не
-     совпадает по масштабу/содержимому — отсюда и вылезали "фрагменты
-     вразнобой". Настоящий бесшовный переход между двумя разными фото
-     чистым CSS не сделать аккуратно. Вместо этого — только размытие
-     СВОЕГО ЖЕ края (без чужого слоя поверх), зоны стоят вплотную. */
-  /* mask-image вместе с backdrop-filter на некоторых мобильных WebView
-     (в т.ч., похоже, в Telegram) просто гасит сам blur — поэтому тут
-     обычный, ничем не маскированный размытый блок фиксированной высоты,
-     без градиента прозрачности */
-  .battle-zone-fade{
-    position: absolute;
-    z-index: 0;
-    pointer-events: none;
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-  }
-  .battle-zone-fade.at-top{ top: 0; left: 0; right: 0; height: 40px; }
-  .battle-zone-fade.at-bottom{ bottom: 0; left: 0; right: 0; height: 40px; }
-  .battle-zone-fade.at-left{ top: 0; bottom: 0; left: 0; width: 32px; }
-  .battle-zone-fade.at-right{ top: 0; bottom: 0; right: 0; width: 32px; }
   .battle-zone-overlay{
     position: absolute;
     inset: 0;
@@ -1366,7 +1345,6 @@
         </div>
 
         <div class="battle-zone" id="room-opponent-zone">
-          <div class="battle-zone-fade at-bottom"></div>
           <div class="battle-zone-overlay"></div>
           <div class="battle-zone-content">
             <div class="avatar-wrap">
@@ -1387,7 +1365,6 @@
              бою (см. JS showRoom) — у рефери своей зоны нет, там она
              остаётся в нейтральном месте ниже. -->
         <div class="battle-zone" id="room-me-zone">
-          <div class="battle-zone-fade at-top"></div>
           <div class="battle-zone-overlay"></div>
           <div class="battle-zone-content">
             <div class="avatar-wrap">
@@ -1404,7 +1381,6 @@
       <div id="room-referee-view" style="display:none; margin-bottom:20px;">
         <div style="position:relative; display:flex; margin:0 -18px;">
           <div class="battle-zone" id="ref-host-zone" style="flex:1; margin:0;">
-            <div class="battle-zone-fade at-right"></div>
             <div class="battle-zone-overlay"></div>
             <div class="battle-zone-content">
               <div class="avatar-wrap">
@@ -1415,7 +1391,6 @@
             </div>
           </div>
           <div class="battle-zone" id="ref-guest-zone" style="flex:1; margin:0;">
-            <div class="battle-zone-fade at-left"></div>
             <div class="battle-zone-overlay"></div>
             <div class="battle-zone-content">
               <div class="avatar-wrap">
