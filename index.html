@@ -361,9 +361,11 @@
     cursor:pointer;
   }
   .event-claim-btn.show{ display:flex; }
-  /* каждая половина экрана боя окрашена обоями/фоном ИМЕННО ТОГО игрока,
-     чей это участок — жёстко разделены полосой-разделителем, никакого
-     плавного перетекания одних обоев в другие */
+  /* каждая половина экрана боя окрашена обоями/фоном ИМЕННО ТОГО игрока —
+     разделены полосой-разделителем, но у самого стыка лёгкое размытие и
+     затухание в нейтральный цвет, чтобы граница не была совсем "ножевой";
+     одни обои при этом всё равно не перетекают в чужие, гаснут каждые в
+     свою сторону */
   .battle-zone{
     position: relative;
     margin: 0 -18px;
@@ -375,11 +377,35 @@
   .battle-zone-overlay{
     position: absolute;
     inset: 0;
+    z-index: 0;
     background: rgba(0,0,0,0.55);
+  }
+  .battle-zone-fade{
+    position: absolute;
+    z-index: 1;
+    pointer-events: none;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+  .battle-zone-fade.at-top{
+    top: 0; left: 0; right: 0; height: 46px;
+    background: linear-gradient(to top, rgba(0,0,0,0), var(--bg));
+  }
+  .battle-zone-fade.at-bottom{
+    bottom: 0; left: 0; right: 0; height: 46px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0), var(--bg));
+  }
+  .battle-zone-fade.at-left{
+    top: 0; bottom: 0; left: 0; width: 32px;
+    background: linear-gradient(to left, rgba(0,0,0,0), var(--bg));
+  }
+  .battle-zone-fade.at-right{
+    top: 0; bottom: 0; right: 0; width: 32px;
+    background: linear-gradient(to right, rgba(0,0,0,0), var(--bg));
   }
   .battle-zone-content{
     position: relative;
-    z-index: 1;
+    z-index: 2;
     text-align: center;
   }
   .battle-vs-divider{
@@ -1338,6 +1364,7 @@
 
         <div class="battle-zone" id="room-opponent-zone">
           <div class="battle-zone-overlay"></div>
+          <div class="battle-zone-fade at-bottom"></div>
           <div class="battle-zone-content">
             <div class="avatar-wrap">
               <div class="profile-avatar" id="room-opponent-avatar">—</div>
@@ -1351,6 +1378,7 @@
 
         <div class="battle-zone" id="room-me-zone">
           <div class="battle-zone-overlay"></div>
+          <div class="battle-zone-fade at-top"></div>
           <div class="battle-zone-content">
             <div class="avatar-wrap">
               <div class="profile-avatar" id="room-me-avatar">—</div>
@@ -1367,6 +1395,7 @@
         <div style="position:relative; display:flex; margin:0 -18px;">
           <div class="battle-zone" id="ref-host-zone" style="flex:1; margin:0; border-right:1px solid var(--line);">
             <div class="battle-zone-overlay"></div>
+            <div class="battle-zone-fade at-right"></div>
             <div class="battle-zone-content">
               <div class="avatar-wrap">
                 <div class="profile-avatar" id="ref-host-avatar">—</div>
@@ -1377,6 +1406,7 @@
           </div>
           <div class="battle-zone" id="ref-guest-zone" style="flex:1; margin:0;">
             <div class="battle-zone-overlay"></div>
+            <div class="battle-zone-fade at-left"></div>
             <div class="battle-zone-content">
               <div class="avatar-wrap">
                 <div class="profile-avatar" id="ref-guest-avatar">—</div>
