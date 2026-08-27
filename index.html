@@ -155,7 +155,10 @@
   .orbit-slot{ position:absolute; inset:0; }
   .orbit-icon{
     position:absolute;
-    top: 1px;
+    /* радиус подобран так, чтобы значок шёл прямо по краю аватара
+       (116px), а не по внешнему пульсирующему кольцу (168px) — раньше
+       между значком и фото был заметный пустой зазор */
+    top: 14px;
     left:50%;
     width:24px; height:24px;
     margin-left:-12px;
