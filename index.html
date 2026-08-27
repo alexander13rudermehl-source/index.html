@@ -92,6 +92,28 @@
     box-shadow: 0 0 6px #3ED598;
   }
 
+  /* "варп" — анимация поиска соперника в рейтинговом бою */
+  .warp-wrap{
+    position:relative;
+    border-radius:16px;
+    overflow:hidden;
+    background:#000;
+    border: 1px solid var(--line);
+    margin: 4px 0 20px;
+  }
+  .warp-wrap canvas{ display:block; width:100%; height:170px; }
+  .warp-label{
+    position:absolute;
+    left:0; right:0; bottom:12px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    color:#fff;
+    font-size:13.5px;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.9);
+  }
+
   /* hero / stage */
   .stage{
     flex:1;
@@ -1166,12 +1188,24 @@
           <p style="color:var(--muted); font-size:13.5px; line-height:1.5; margin-bottom:16px;">
             Встанешь в очередь — как только рядом окажется ещё один игрок в поиске, баттл начнётся автоматически. Победа и поражение изменят твой рейтинг.
           </p>
+
+          <!-- видно только admin/moderator/superadmin — фейковый мгновенный
+               соперник для тестов, без реального второго игрока/устройства -->
+          <div class="toggle-row" id="rq-demo-row" style="display:none;">
+            <div>
+              <div class="t-label">🧪 Демо-режим</div>
+              <div class="t-desc">Мгновенный тестовый соперник — не настоящий игрок</div>
+            </div>
+            <div class="switch" id="rq-demo-toggle"></div>
+          </div>
+
           <button class="sheet-cta" id="btn-start-rating-queue">Искать соперника</button>
         </div>
 
         <div id="rq-waiting" style="display:none; text-align:center;">
-          <div style="display:flex; align-items:center; justify-content:center; gap:8px; color:var(--muted); font-size:13.5px; margin:10px 0 20px;">
-            <div class="status-dot"></div> Ищем соперника…
+          <div class="warp-wrap">
+            <canvas id="rq-warp-canvas" width="300" height="170"></canvas>
+            <div class="warp-label"><div class="status-dot"></div> Ищем соперника…</div>
           </div>
           <button class="sheet-cta secondary" id="btn-cancel-rating-queue">Отменить поиск</button>
         </div>
@@ -1442,7 +1476,107 @@
     el.style.display = 'block';
   }
 
+  // ===== "варп" — анимация поиска соперника =====
+  // Звёзды разлетаются из центра, ускоряясь и вытягиваясь в полосы —
+  // классический эффект полёта со скоростью света. Рисуется на canvas
+  // (не CSS), чтобы разлёт по радиусу считался честно, а не имитировался.
+  let warpAnimId = null;
+  function startWarpAnimation(){
+    const canvas = document.getElementById('rq-warp-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    const cx = w / 2, cy = h / 2;
+    const maxR = Math.hypot(cx, cy);
+    const gold = getComputedStyle(document.documentElement).getPropertyValue('--gold').trim() || '#F2B705';
+    const STAR_COUNT = 130;
+    const stars = Array.from({ length: STAR_COUNT }, () => ({
+      angle: Math.random() * Math.PI * 2,
+      radius: Math.random() * maxR,
+      speed: 1.4 + Math.random() * 2.6
+    }));
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, w, h);
+    function frame(){
+      // не стираем кадр полностью — лёгкое затемнение поверх старого
+      // содержимого оставляет короткий светящийся след за каждой звездой
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fillRect(0, 0, w, h);
+      stars.forEach((s) => {
+        const prevR = s.radius;
+        s.radius += s.speed;
+        s.speed += 0.03; // чем дальше от центра — тем быстрее, как в фильмах
+        if (s.radius > maxR + 30) {
+          s.radius = 0;
+          s.speed = 1.4 + Math.random() * 2.6;
+          s.angle = Math.random() * Math.PI * 2;
+        }
+        const x1 = cx + Math.cos(s.angle) * prevR, y1 = cy + Math.sin(s.angle) * prevR;
+        const x2 = cx + Math.cos(s.angle) * s.radius, y2 = cy + Math.sin(s.angle) * s.radius;
+        ctx.strokeStyle = gold;
+        ctx.globalAlpha = Math.min(1, s.radius / 50);
+        ctx.lineWidth = Math.max(0.6, (s.radius / maxR) * 2.4);
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      });
+      ctx.globalAlpha = 1;
+      warpAnimId = requestAnimationFrame(frame);
+    }
+    frame();
+  }
+  function stopWarpAnimation(){
+    if (warpAnimId) cancelAnimationFrame(warpAnimId);
+    warpAnimId = null;
+  }
+
+  // ===== демо-режим (только admin/moderator/superadmin) =====
+  // Мгновенный фейковый соперник для тестов интерфейса баттла без
+  // необходимости заходить с двух устройств/аккаунтов одновременно.
+  const DEMO_MODE_KEY = 'battleDemoRatingMode';
+  const rqDemoRow = document.getElementById('rq-demo-row');
+  const rqDemoToggle = document.getElementById('rq-demo-toggle');
+  rqDemoToggle.classList.toggle('on', localStorage.getItem(DEMO_MODE_KEY) === '1');
+  rqDemoToggle.addEventListener('click', () => {
+    localStorage.setItem(DEMO_MODE_KEY, rqDemoToggle.classList.toggle('on') ? '1' : '0');
+  });
+  function isDemoModeEligible(){
+    const role = window.currentPlayer?.role;
+    return role === 'admin' || role === 'moderator' || role === 'superadmin';
+  }
+  window.refreshDemoModeVisibility = function(){
+    rqDemoRow.style.display = isDemoModeEligible() ? 'flex' : 'none';
+  };
+
+  let demoMatchTimeoutId = null;
+  async function startDemoMatch(me){
+    const code = generateRoomCode();
+    const battleData = {
+      hostId: me.playerId,
+      hostName: me.firstName,
+      guestId: 'DEMO-BOT',
+      guestName: 'Тестовый соперник',
+      status: 'active',
+      rated: false,
+      demo: true,
+      createdAt: Date.now()
+    };
+    await db.ref('battles/' + code).set(battleData);
+    // не мгновенно — короткая пауза сохраняет ощущение "поиска", а не
+    // подмену интерфейса без анимации
+    demoMatchTimeoutId = setTimeout(() => {
+      demoMatchTimeoutId = null;
+      stopWarpAnimation();
+      document.getElementById('rq-idle').style.display = 'block';
+      document.getElementById('rq-waiting').style.display = 'none';
+      showRoom(code, battleData, true);
+    }, 1400);
+  }
+
   function leaveRatingQueue() {
+    stopWarpAnimation();
+    if (demoMatchTimeoutId) { clearTimeout(demoMatchTimeoutId); demoMatchTimeoutId = null; }
     if (myQueueListener) { myQueueRef?.off('value', myQueueListener); myQueueListener = null; }
     if (myQueueRef) { myQueueRef.onDisconnect().cancel(); myQueueRef.remove().catch(() => {}); myQueueRef = null; }
     document.getElementById('rq-idle').style.display = 'block';
@@ -1456,6 +1590,11 @@
 
     document.getElementById('rq-idle').style.display = 'none';
     document.getElementById('rq-waiting').style.display = 'block';
+    startWarpAnimation();
+
+    if (isDemoModeEligible() && rqDemoToggle.classList.contains('on')) {
+      return startDemoMatch(me);
+    }
 
     try {
       const QUEUE_STALE_MS = 2 * 60 * 1000; // подстраховка на случай, если onDisconnect не сработал
@@ -1490,6 +1629,7 @@
         await db.ref('battles/' + code).set(battleData);
         window.ensureMatchRecord?.(code, battleData);
 
+        stopWarpAnimation();
         document.getElementById('rq-idle').style.display = 'block';
         document.getElementById('rq-waiting').style.display = 'none';
         showRoom(code, battleData, true);
@@ -1519,6 +1659,7 @@
             myQueueRef = null;
             const battleSnap = await db.ref('battles/' + code).once('value');
             const battleData = battleSnap.val();
+            stopWarpAnimation();
             if (battleData) {
               document.getElementById('rq-idle').style.display = 'block';
               document.getElementById('rq-waiting').style.display = 'none';
@@ -1535,6 +1676,7 @@
     } catch (err) {
       window.showDebugError?.('Рейтинговый бой', err);
       rqShowError('Не удалось найти соперника, попробуй ещё раз');
+      stopWarpAnimation();
       document.getElementById('rq-idle').style.display = 'block';
       document.getElementById('rq-waiting').style.display = 'none';
     }
@@ -2803,6 +2945,7 @@
     }
 
     window.currentPlayer = userData; // доступно из остальных скриптов при необходимости
+    window.refreshDemoModeVisibility?.();
     // тема — приватная часть аккаунта, а не устройства; подтягиваем именно
     // ту, что сохранена у ЭТОГО Telegram-аккаунта, а не то, что случайно
     // осталось в localStorage браузера от другого аккаунта на этом же
