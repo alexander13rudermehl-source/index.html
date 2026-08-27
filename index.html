@@ -374,33 +374,26 @@
     background-position: center top;
     background-color: var(--panel-2);
   }
-  .battle-zone-crossfade{
+  /* Раньше здесь был слой с "призраком" обоев соседней зоны у самого шва
+     (кроссфейд) — но это ДВЕ разные фотографии, у каждой свой независимый
+     cover/center-обрез, и наложение одной поверх другой почти никогда не
+     совпадает по масштабу/содержимому — отсюда и вылезали "фрагменты
+     вразнобой". Настоящий бесшовный переход между двумя разными фото
+     чистым CSS не сделать аккуратно. Вместо этого — только размытие
+     СВОЕГО ЖЕ края (без чужого слоя поверх), зоны стоят вплотную. */
+  .battle-zone-fade{
     position: absolute;
     z-index: 0;
     pointer-events: none;
-    background-size: cover;
-    background-position: center;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    -webkit-mask-image: linear-gradient(var(--fade-dir), black, transparent);
+    mask-image: linear-gradient(var(--fade-dir), black, transparent);
   }
-  .battle-zone-crossfade.at-top{
-    top: 0; left: 0; right: 0; height: 26%;
-    -webkit-mask-image: linear-gradient(to bottom, black, transparent);
-    mask-image: linear-gradient(to bottom, black, transparent);
-  }
-  .battle-zone-crossfade.at-bottom{
-    bottom: 0; left: 0; right: 0; height: 26%;
-    -webkit-mask-image: linear-gradient(to top, black, transparent);
-    mask-image: linear-gradient(to top, black, transparent);
-  }
-  .battle-zone-crossfade.at-left{
-    top: 0; bottom: 0; left: 0; width: 22%;
-    -webkit-mask-image: linear-gradient(to right, black, transparent);
-    mask-image: linear-gradient(to right, black, transparent);
-  }
-  .battle-zone-crossfade.at-right{
-    top: 0; bottom: 0; right: 0; width: 22%;
-    -webkit-mask-image: linear-gradient(to left, black, transparent);
-    mask-image: linear-gradient(to left, black, transparent);
-  }
+  .battle-zone-fade.at-top{ --fade-dir: to bottom; top: 0; left: 0; right: 0; height: 56px; }
+  .battle-zone-fade.at-bottom{ --fade-dir: to top; bottom: 0; left: 0; right: 0; height: 56px; }
+  .battle-zone-fade.at-left{ --fade-dir: to right; top: 0; bottom: 0; left: 0; width: 40px; }
+  .battle-zone-fade.at-right{ --fade-dir: to left; top: 0; bottom: 0; right: 0; width: 40px; }
   .battle-zone-overlay{
     position: absolute;
     inset: 0;
@@ -1371,7 +1364,7 @@
         </div>
 
         <div class="battle-zone" id="room-opponent-zone">
-          <div class="battle-zone-crossfade at-bottom" id="room-opponent-crossfade"></div>
+          <div class="battle-zone-fade at-bottom"></div>
           <div class="battle-zone-overlay"></div>
           <div class="battle-zone-content">
             <div class="avatar-wrap">
@@ -1392,7 +1385,7 @@
              бою (см. JS showRoom) — у рефери своей зоны нет, там она
              остаётся в нейтральном месте ниже. -->
         <div class="battle-zone" id="room-me-zone">
-          <div class="battle-zone-crossfade at-top" id="room-me-crossfade"></div>
+          <div class="battle-zone-fade at-top"></div>
           <div class="battle-zone-overlay"></div>
           <div class="battle-zone-content">
             <div class="avatar-wrap">
@@ -1409,7 +1402,7 @@
       <div id="room-referee-view" style="display:none; margin-bottom:20px;">
         <div style="position:relative; display:flex; margin:0 -18px;">
           <div class="battle-zone" id="ref-host-zone" style="flex:1; margin:0;">
-            <div class="battle-zone-crossfade at-right" id="ref-host-crossfade"></div>
+            <div class="battle-zone-fade at-right"></div>
             <div class="battle-zone-overlay"></div>
             <div class="battle-zone-content">
               <div class="avatar-wrap">
@@ -1420,7 +1413,7 @@
             </div>
           </div>
           <div class="battle-zone" id="ref-guest-zone" style="flex:1; margin:0;">
-            <div class="battle-zone-crossfade at-left" id="ref-guest-crossfade"></div>
+            <div class="battle-zone-fade at-left"></div>
             <div class="battle-zone-overlay"></div>
             <div class="battle-zone-content">
               <div class="avatar-wrap">
@@ -1649,17 +1642,13 @@
   // определена в блоке настроек ниже по странице (там же живут themes/
   // computeCustomTheme) — к моменту первого реального вызова этой функции,
   // после входа в баттл, та часть страницы уже точно выполнилась.
-  // crossfadeEls — необязательные элементы, которые красятся ТЕМ ЖЕ
-  // оформлением, но физически лежат в СОСЕДНЕЙ зоне (у стыка), создавая
-  // затухающий "призрак" этого игрока на территории другого
-  function applyRoomAvatar(avatarEl, playerId, fallbackName, zoneEls, crossfadeEls) {
+  function applyRoomAvatar(avatarEl, playerId, fallbackName, zoneEls) {
     const zones = zoneEls ? (Array.isArray(zoneEls) ? zoneEls : [zoneEls]) : [];
-    const crossfades = crossfadeEls ? (Array.isArray(crossfadeEls) ? crossfadeEls : [crossfadeEls]) : [];
     avatarEl.style.backgroundImage = '';
     avatarEl.classList.remove('has-image');
     avatarEl.style.borderColor = '';
     avatarEl.textContent = (fallbackName || '??').slice(0, 2).toUpperCase();
-    zones.concat(crossfades).forEach((z) => { z.style.backgroundImage = ''; z.style.backgroundColor = ''; });
+    zones.forEach((z) => { z.style.backgroundImage = ''; z.style.backgroundColor = ''; });
     if (!playerId) return;
     db.ref('users').orderByChild('playerId').equalTo(playerId).once('value').then((snap) => {
       if (!snap.exists()) return;
@@ -1671,7 +1660,7 @@
       }
       const theme = window.resolveOpponentTheme?.(user) || { bg: '#0B0B0D', live: '#FF3D2E' };
       avatarEl.style.borderColor = theme.live;
-      zones.concat(crossfades).forEach((z) => {
+      zones.forEach((z) => {
         if (theme.wallpaper) z.style.backgroundImage = `url(${theme.wallpaper})`;
         else z.style.backgroundColor = theme.bg;
       });
@@ -1694,8 +1683,8 @@
     // продолжаются одним нерасрезанным изображением, а не начинаются
     // заново во втором отдельном блоке
     document.querySelector('#room-me-zone .battle-zone-content').appendChild(document.getElementById('room-voice-controls'));
-    applyRoomAvatar(document.getElementById('room-me-avatar'), meId, meName, document.getElementById('room-me-zone'), document.getElementById('room-opponent-crossfade'));
-    applyRoomAvatar(document.getElementById('room-opponent-avatar'), oppId, oppName, document.getElementById('room-opponent-zone'), document.getElementById('room-me-crossfade'));
+    applyRoomAvatar(document.getElementById('room-me-avatar'), meId, meName, document.getElementById('room-me-zone'));
+    applyRoomAvatar(document.getElementById('room-opponent-avatar'), oppId, oppName, document.getElementById('room-opponent-zone'));
     overlay.classList.remove('open');
     roomOverlay.classList.add('open');
     attachLikesListener(code, isHost ? 'host' : 'guest', isHost ? 'guest' : 'host');
@@ -1714,8 +1703,8 @@
     document.getElementById('room-voice-neutral-slot').appendChild(document.getElementById('room-voice-controls'));
     document.getElementById('ref-host-name').textContent = data.hostName || '—';
     document.getElementById('ref-guest-name').textContent = data.guestName || '—';
-    applyRoomAvatar(document.getElementById('ref-host-avatar'), data.hostId, data.hostName, document.getElementById('ref-host-zone'), document.getElementById('ref-guest-crossfade'));
-    applyRoomAvatar(document.getElementById('ref-guest-avatar'), data.guestId, data.guestName, document.getElementById('ref-guest-zone'), document.getElementById('ref-host-crossfade'));
+    applyRoomAvatar(document.getElementById('ref-host-avatar'), data.hostId, data.hostName, document.getElementById('ref-host-zone'));
+    applyRoomAvatar(document.getElementById('ref-guest-avatar'), data.guestId, data.guestName, document.getElementById('ref-guest-zone'));
     document.getElementById('ref-declare-host-name').textContent = data.hostName || '—';
     document.getElementById('ref-declare-guest-name').textContent = data.guestName || '—';
     overlay.classList.remove('open');
