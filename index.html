@@ -1452,19 +1452,42 @@
     myRoomRole = null;
   }
 
+  // battles/<code> хранит только имена (hostName/guestName) — сама
+  // картинка аватара за это время могла ещё и смениться, поэтому не
+  // дублируем её в battleData, а подтягиваем свежую по playerId прямо
+  // здесь, при входе в комнату (тот же поиск по playerId, что и в
+  // admin-панели/поиске игрока).
+  function applyRoomAvatar(avatarEl, playerId, fallbackName) {
+    avatarEl.style.backgroundImage = '';
+    avatarEl.classList.remove('has-image');
+    avatarEl.textContent = (fallbackName || '??').slice(0, 2).toUpperCase();
+    if (!playerId) return;
+    db.ref('users').orderByChild('playerId').equalTo(playerId).once('value').then((snap) => {
+      if (!snap.exists()) return;
+      const user = Object.values(snap.val())[0];
+      if (user?.avatarData) {
+        avatarEl.style.backgroundImage = `url(${user.avatarData})`;
+        avatarEl.classList.add('has-image');
+        avatarEl.textContent = '';
+      }
+    }).catch((err) => window.showDebugError?.('Аватар в комнате боя', err));
+  }
+
   function showRoom(code, data, isHost) {
     myRoomCode = code;
     myRoomRole = isHost ? 'host' : 'guest';
     const meName = isHost ? data.hostName : data.guestName;
     const oppName = isHost ? data.guestName : data.hostName;
+    const meId = isHost ? data.hostId : data.guestId;
+    const oppId = isHost ? data.guestId : data.hostId;
     document.getElementById('room-headline').textContent = 'СОПЕРНИК НАЙДЕН';
     document.getElementById('room-combatant-view').style.display = 'flex';
     document.getElementById('room-referee-view').style.display = 'none';
     document.getElementById('room-likes-readout').style.display = 'flex';
     document.getElementById('room-me-name').textContent = meName || '—';
-    document.getElementById('room-me-avatar').textContent = (meName || '??').slice(0, 2).toUpperCase();
     document.getElementById('room-opponent-name').textContent = oppName || '—';
-    document.getElementById('room-opponent-avatar').textContent = (oppName || '??').slice(0, 2).toUpperCase();
+    applyRoomAvatar(document.getElementById('room-me-avatar'), meId, meName);
+    applyRoomAvatar(document.getElementById('room-opponent-avatar'), oppId, oppName);
     document.getElementById('likes-host-label').textContent = data.hostName || '—';
     document.getElementById('likes-guest-label').textContent = data.guestName || '—';
     overlay.classList.remove('open');
@@ -1482,9 +1505,9 @@
     document.getElementById('room-referee-view').style.display = 'block';
     document.getElementById('room-likes-readout').style.display = 'none';
     document.getElementById('ref-host-name').textContent = data.hostName || '—';
-    document.getElementById('ref-host-avatar').textContent = (data.hostName || '??').slice(0, 2).toUpperCase();
     document.getElementById('ref-guest-name').textContent = data.guestName || '—';
-    document.getElementById('ref-guest-avatar').textContent = (data.guestName || '??').slice(0, 2).toUpperCase();
+    applyRoomAvatar(document.getElementById('ref-host-avatar'), data.hostId, data.hostName);
+    applyRoomAvatar(document.getElementById('ref-guest-avatar'), data.guestId, data.guestName);
     document.getElementById('ref-declare-host-name').textContent = data.hostName || '—';
     document.getElementById('ref-declare-guest-name').textContent = data.guestName || '—';
     overlay.classList.remove('open');
