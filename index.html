@@ -380,47 +380,43 @@
     z-index: 0;
     background: rgba(0,0,0,0.55);
   }
+  /* только размытие своего же края, без заливки нейтральным цветом —
+     зоны стоят вплотную (без зазора), поэтому размытый край одной сразу
+     соприкасается с размытым краем другой, и переход читается как единое
+     плавное место встречи, а не как отдельная нейтральная полоса между */
   .battle-zone-fade{
     position: absolute;
     z-index: 1;
     pointer-events: none;
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
   }
-  .battle-zone-fade.at-top{
-    top: 0; left: 0; right: 0; height: 46px;
-    background: linear-gradient(to top, rgba(0,0,0,0), var(--bg));
-  }
-  .battle-zone-fade.at-bottom{
-    bottom: 0; left: 0; right: 0; height: 46px;
-    background: linear-gradient(to bottom, rgba(0,0,0,0), var(--bg));
-  }
-  .battle-zone-fade.at-left{
-    top: 0; bottom: 0; left: 0; width: 32px;
-    background: linear-gradient(to left, rgba(0,0,0,0), var(--bg));
-  }
-  .battle-zone-fade.at-right{
-    top: 0; bottom: 0; right: 0; width: 32px;
-    background: linear-gradient(to right, rgba(0,0,0,0), var(--bg));
-  }
+  .battle-zone-fade.at-top{ top: 0; left: 0; right: 0; height: 40px; }
+  .battle-zone-fade.at-bottom{ bottom: 0; left: 0; right: 0; height: 40px; }
+  .battle-zone-fade.at-left{ top: 0; bottom: 0; left: 0; width: 28px; }
+  .battle-zone-fade.at-right{ top: 0; bottom: 0; right: 0; width: 28px; }
   .battle-zone-content{
     position: relative;
     z-index: 2;
     text-align: center;
   }
-  .battle-vs-divider{
-    position: relative;
-    z-index: 2;
-    margin: 0 -18px;
-    padding: 6px 0;
-    text-align: center;
+  /* "VS" — плавающая метка прямо на стыке (нулевой высоты/ширины сама
+     полоса), а не отдельная непрозрачная перегородка между темами */
+  .battle-seam{ position: relative; height: 0; z-index: 3; }
+  .battle-seam.vertical{ width: 0; height: auto; }
+  .battle-vs-badge{
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 100px;
+    padding: 4px 12px;
     font-family: 'Bebas Neue', sans-serif;
-    font-size: 16px;
+    font-size: 13px;
     letter-spacing: 1px;
     color: var(--muted);
-    background: var(--bg);
-    border-top: 1px solid var(--line);
-    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
   }
   .avatar-wrap{ position: relative; display: inline-block; margin-bottom: 8px; }
 
@@ -1374,7 +1370,7 @@
           </div>
         </div>
 
-        <div class="battle-vs-divider">VS</div>
+        <div class="battle-seam"><span class="battle-vs-badge">VS</span></div>
 
         <div class="battle-zone" id="room-me-zone">
           <div class="battle-zone-overlay"></div>
@@ -1393,7 +1389,7 @@
            снизу — тоже каждая закрашена обоями своего бойца -->
       <div id="room-referee-view" style="display:none; margin-bottom:20px;">
         <div style="position:relative; display:flex; margin:0 -18px;">
-          <div class="battle-zone" id="ref-host-zone" style="flex:1; margin:0; border-right:1px solid var(--line);">
+          <div class="battle-zone" id="ref-host-zone" style="flex:1; margin:0;">
             <div class="battle-zone-overlay"></div>
             <div class="battle-zone-fade at-right"></div>
             <div class="battle-zone-content">
@@ -1415,7 +1411,7 @@
               <div style="font-size:13px; font-weight:600;" id="ref-guest-name">—</div>
             </div>
           </div>
-          <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:3; background:var(--bg); border:1px solid var(--line); border-radius:100px; padding:4px 10px; font-family:'Bebas Neue',sans-serif; font-size:13px; color:var(--muted);">VS</div>
+          <div class="battle-vs-badge" style="top:50%; left:50%; transform:translate(-50%,-50%);">VS</div>
         </div>
         <div style="display:flex; gap:10px; margin-top:16px;">
           <button class="sheet-cta" id="ref-declare-host" style="flex:1; padding:12px 6px;">Победил <span id="ref-declare-host-name"></span></button>
@@ -1423,34 +1419,42 @@
         </div>
       </div>
 
-      <div id="voice-status" style="display:flex; align-items:center; justify-content:center; gap:8px; color:var(--muted); font-size:13px; margin-bottom:20px;">
-        <div class="status-dot"></div> Подключаем голос…
-      </div>
+      <!-- панель голоса продолжает оформление "моей" зоны бесшовно (то же
+           фото/фон, без размытия-шва между ними) — в роли рефери своей
+           зоны нет, поэтому фон здесь остаётся нейтральным (см. JS) -->
+      <div class="battle-zone" id="room-voice-panel">
+        <div class="battle-zone-overlay"></div>
+        <div class="battle-zone-content" style="padding-top:2px;">
+          <div id="voice-status" style="display:flex; align-items:center; justify-content:center; gap:8px; color:var(--muted); font-size:13px; margin-bottom:20px;">
+            <div class="status-dot"></div> Подключаем голос…
+          </div>
 
-      <!-- Браузер иногда блокирует автовоспроизведение звука, если оно не
-           запущено прямо по клику пользователя (типичный случай — хост,
-           у которого голос соперника подключается сам, пока он ждёт в
-           комнате). Тап по этой кнопке — уже клик, так что play() пройдёт. -->
-      <button id="btn-unmute-audio" style="display:none; width:100%; margin-bottom:16px; background:var(--gold); border:none; color:#0B0B0D; border-radius:12px; padding:12px; font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:1px; cursor:pointer;">🔊 Включить звук</button>
+          <!-- Браузер иногда блокирует автовоспроизведение звука, если оно не
+               запущено прямо по клику пользователя (типичный случай — хост,
+               у которого голос соперника подключается сам, пока он ждёт в
+               комнате). Тап по этой кнопке — уже клик, так что play() пройдёт. -->
+          <button id="btn-unmute-audio" style="display:none; width:100%; margin-bottom:16px; background:var(--gold); border:none; color:#0B0B0D; border-radius:12px; padding:12px; font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:1px; cursor:pointer;">🔊 Включить звук</button>
 
-      <div style="display:flex; justify-content:center;">
-        <button id="btn-toggle-mute" style="width:64px; height:64px; border-radius:50%; border:none; background:var(--panel-2); border:1px solid var(--line); cursor:pointer; display:flex; align-items:center; justify-content:center;">
-          <svg id="mute-icon" viewBox="0 0 24 24" style="width:26px;height:26px;stroke:var(--text);stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;">
-            <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/>
-            <path d="M6 11v1a6 6 0 0 0 12 0v-1"/>
-            <line x1="12" y1="20" x2="12" y2="23"/>
-          </svg>
-        </button>
-      </div>
+          <div style="display:flex; justify-content:center;">
+            <button id="btn-toggle-mute" style="width:64px; height:64px; border-radius:50%; border:none; background:var(--panel-2); border:1px solid var(--line); cursor:pointer; display:flex; align-items:center; justify-content:center;">
+              <svg id="mute-icon" viewBox="0 0 24 24" style="width:26px;height:26px;stroke:var(--text);stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;">
+                <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/>
+                <path d="M6 11v1a6 6 0 0 0 12 0v-1"/>
+                <line x1="12" y1="20" x2="12" y2="23"/>
+              </svg>
+            </button>
+          </div>
 
-      <!-- Громкость соперника — с реальным усилением выше 100% (через Web
-           Audio GainNode), а не только штатным .volume у <audio>, который
-           не может звучать громче исходного уровня трека. -->
-      <div style="display:flex; align-items:center; gap:10px; margin-top:20px; padding:0 8px;">
-        <span style="font-size:14px;">🔉</span>
-        <input type="range" id="remote-volume-slider" min="50" max="300" step="10" value="150" style="flex:1; accent-color:var(--gold);">
-        <span style="font-size:14px;">🔊</span>
-        <span id="remote-volume-val" style="font-size:11px; color:var(--muted); width:36px; text-align:right;">150%</span>
+          <!-- Громкость соперника — с реальным усилением выше 100% (через Web
+               Audio GainNode), а не только штатным .volume у <audio>, который
+               не может звучать громче исходного уровня трека. -->
+          <div style="display:flex; align-items:center; gap:10px; margin-top:20px; padding:0 8px;">
+            <span style="font-size:14px;">🔉</span>
+            <input type="range" id="remote-volume-slider" min="50" max="300" step="10" value="150" style="flex:1; accent-color:var(--gold);">
+            <span style="font-size:14px;">🔊</span>
+            <span id="remote-volume-val" style="font-size:11px; color:var(--muted); width:36px; text-align:right;">150%</span>
+          </div>
+        </div>
       </div>
 
       <!-- рефери слышит и хоста, и гостя — участников в комнате может быть
@@ -1626,12 +1630,13 @@
   // определена в блоке настроек ниже по странице (там же живут themes/
   // computeCustomTheme) — к моменту первого реального вызова этой функции,
   // после входа в баттл, та часть страницы уже точно выполнилась.
-  function applyRoomAvatar(avatarEl, playerId, fallbackName, zoneEl) {
+  function applyRoomAvatar(avatarEl, playerId, fallbackName, zoneEls) {
+    const zones = zoneEls ? (Array.isArray(zoneEls) ? zoneEls : [zoneEls]) : [];
     avatarEl.style.backgroundImage = '';
     avatarEl.classList.remove('has-image');
     avatarEl.style.borderColor = '';
     avatarEl.textContent = (fallbackName || '??').slice(0, 2).toUpperCase();
-    if (zoneEl) { zoneEl.style.backgroundImage = ''; zoneEl.style.backgroundColor = ''; }
+    zones.forEach((z) => { z.style.backgroundImage = ''; z.style.backgroundColor = ''; });
     if (!playerId) return;
     db.ref('users').orderByChild('playerId').equalTo(playerId).once('value').then((snap) => {
       if (!snap.exists()) return;
@@ -1643,12 +1648,10 @@
       }
       const theme = window.resolveOpponentTheme?.(user) || { bg: '#0B0B0D', live: '#FF3D2E' };
       avatarEl.style.borderColor = theme.live;
-      if (!zoneEl) return;
-      if (theme.wallpaper) {
-        zoneEl.style.backgroundImage = `url(${theme.wallpaper})`;
-      } else {
-        zoneEl.style.backgroundColor = theme.bg;
-      }
+      zones.forEach((z) => {
+        if (theme.wallpaper) z.style.backgroundImage = `url(${theme.wallpaper})`;
+        else z.style.backgroundColor = theme.bg;
+      });
     }).catch((err) => window.showDebugError?.('Оформление в комнате боя', err));
   }
 
@@ -1664,7 +1667,7 @@
     document.getElementById('room-referee-view').style.display = 'none';
     document.getElementById('room-me-name').textContent = meName || '—';
     document.getElementById('room-opponent-name').textContent = oppName || '—';
-    applyRoomAvatar(document.getElementById('room-me-avatar'), meId, meName, document.getElementById('room-me-zone'));
+    applyRoomAvatar(document.getElementById('room-me-avatar'), meId, meName, [document.getElementById('room-me-zone'), document.getElementById('room-voice-panel')]);
     applyRoomAvatar(document.getElementById('room-opponent-avatar'), oppId, oppName, document.getElementById('room-opponent-zone'));
     overlay.classList.remove('open');
     roomOverlay.classList.add('open');
@@ -1679,6 +1682,11 @@
     document.getElementById('room-headline').textContent = 'СУДИШЬ БОЙ';
     document.getElementById('room-combatant-view').style.display = 'none';
     document.getElementById('room-referee-view').style.display = 'block';
+    // у рефери нет "своей" половины экрана — панель голоса остаётся
+    // нейтральной, а не окрашенной чьими-то обоями
+    const voicePanel = document.getElementById('room-voice-panel');
+    voicePanel.style.backgroundImage = '';
+    voicePanel.style.backgroundColor = '';
     document.getElementById('ref-host-name').textContent = data.hostName || '—';
     document.getElementById('ref-guest-name').textContent = data.guestName || '—';
     applyRoomAvatar(document.getElementById('ref-host-avatar'), data.hostId, data.hostName, document.getElementById('ref-host-zone'));
