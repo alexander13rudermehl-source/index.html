@@ -283,6 +283,8 @@
     animation: eventBannerIn .35s ease;
   }
   .event-banner.show{ display:block; }
+  #event-banner-mini{ margin: 0 0 14px; }
+  #event-banner-popup{ margin: 0; }
   .event-banner-img{
     width:100%;
     height: 110px;
@@ -960,16 +962,6 @@
     </div>
   </div>
 
-  <div class="event-banner" id="event-banner">
-    <img class="event-banner-img" id="event-banner-img" alt="">
-    <div class="event-banner-body">
-      <div class="event-banner-tag">ИВЕНТ</div>
-      <div class="event-banner-title" id="event-banner-title"></div>
-      <div class="event-banner-desc" id="event-banner-desc"></div>
-      <button class="event-claim-btn" id="event-claim-btn">🎁 Забрать значок</button>
-    </div>
-  </div>
-
   <div class="actions">
 
     <div class="action-row cta-join" id="cta-join-btn">
@@ -1014,6 +1006,29 @@
 
 </div>
 
+<!-- ===== ивент-попап ===== -->
+<div class="overlay" id="event-overlay">
+  <div class="sheet" id="event-sheet">
+    <div class="sheet-head">
+      <div class="sheet-title">Ивент</div>
+      <div class="sheet-close" id="event-popup-close-btn">
+        <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+    <div class="sheet-body">
+      <div class="event-banner" id="event-banner-popup">
+        <img class="event-banner-img" id="event-banner-popup-img" alt="">
+        <div class="event-banner-body">
+          <div class="event-banner-tag">ИВЕНТ</div>
+          <div class="event-banner-title" id="event-banner-popup-title"></div>
+          <div class="event-banner-desc" id="event-banner-popup-desc"></div>
+          <button class="event-claim-btn" id="event-claim-btn-popup">🎁 Забрать значок</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ===== bottom sheet ===== -->
 <div class="overlay" id="overlay">
   <div class="sheet" id="sheet">
@@ -1034,6 +1049,16 @@
            с созданием/входом по коду. Второй пункт (другой режим игры) можно
            будет добавить сюда же рядом, когда определимся, что он делает. -->
       <div class="sheet-view active" data-view="main">
+
+        <div class="event-banner" id="event-banner-mini">
+          <img class="event-banner-img" id="event-banner-mini-img" alt="">
+          <div class="event-banner-body">
+            <div class="event-banner-tag">ИВЕНТ</div>
+            <div class="event-banner-title" id="event-banner-mini-title"></div>
+            <div class="event-banner-desc" id="event-banner-mini-desc"></div>
+            <button class="event-claim-btn" id="event-claim-btn-mini">🎁 Забрать значок</button>
+          </div>
+        </div>
 
         <div class="cat-card" data-goto="friend-mode">
           <div class="icon training">
@@ -2814,55 +2839,78 @@
     if(ev.endAt && now > ev.endAt) return false;
     return true;
   }
-  const eventBannerEl = document.getElementById('event-banner');
-  const eventBannerImgEl = document.getElementById('event-banner-img');
-  const eventBannerTitleEl = document.getElementById('event-banner-title');
-  const eventBannerDescEl = document.getElementById('event-banner-desc');
-  const eventClaimBtnEl = document.getElementById('event-claim-btn');
+  // Баннер живёт в двух местах: как закрываемый попап (показывается один
+  // раз на новый ивент, дальше не мешает — запоминаем через localStorage) и
+  // как компактная плашка сверху листа "Участвовать" (видна всегда, пока
+  // ивент активен, вне зависимости от того, закрывали попап или нет).
+  const eventOverlayEl = document.getElementById('event-overlay');
+  const eventBannerPopupEl = document.getElementById('event-banner-popup');
+  const eventBannerMiniEl = document.getElementById('event-banner-mini');
   let latestEventData = null;
 
-  function renderEventClaimButton(ev){
+  function renderEventClaimButton(ev, btnEl){
     if(!ev || !ev.badgeId || !window.currentTelegramId){
-      eventClaimBtnEl.classList.remove('show', 'claimed');
+      btnEl.classList.remove('show', 'claimed');
       return;
     }
-    eventClaimBtnEl.classList.add('show');
+    btnEl.classList.add('show');
     db.ref('users/' + window.currentTelegramId + '/badges/' + ev.badgeId).once('value').then((snap) => {
       if(snap.val()){
-        eventClaimBtnEl.classList.add('claimed');
-        eventClaimBtnEl.textContent = '✅ Значок получен';
-        eventClaimBtnEl.onclick = null;
+        btnEl.classList.add('claimed');
+        btnEl.textContent = '✅ Значок получен';
+        btnEl.onclick = null;
       } else {
-        eventClaimBtnEl.classList.remove('claimed');
-        eventClaimBtnEl.textContent = '🎁 Забрать значок';
-        eventClaimBtnEl.onclick = () => {
+        btnEl.classList.remove('claimed');
+        btnEl.textContent = '🎁 Забрать значок';
+        btnEl.onclick = () => {
           db.ref('users/' + window.currentTelegramId + '/badges/' + ev.badgeId).set(true).then(() => {
             window.fetchAndRenderBadges?.(window.currentTelegramId);
-            renderEventClaimButton(ev);
+            renderEventClaimButton(ev, btnEl);
           }).catch((err) => window.showDebugError?.('Забрать значок ивента', err));
         };
       }
     });
   }
 
+  function fillEventBanner(ev, prefix){
+    document.getElementById(prefix + '-title').textContent = ev.title || '';
+    document.getElementById(prefix + '-desc').textContent = ev.description || '';
+    const imgEl = document.getElementById(prefix + '-img');
+    if(ev.imageData){ imgEl.src = ev.imageData; imgEl.style.display = ''; }
+    else { imgEl.style.display = 'none'; }
+  }
+
   function renderEventBanner(){
     const ev = latestEventData;
     if(!isEventLive(ev)){
-      eventBannerEl.classList.remove('show');
+      eventBannerPopupEl.classList.remove('show');
+      eventBannerMiniEl.classList.remove('show');
       return;
     }
-    eventBannerTitleEl.textContent = ev.title || '';
-    eventBannerDescEl.textContent = ev.description || '';
-    if(ev.imageData){
-      eventBannerImgEl.src = ev.imageData;
-      eventBannerImgEl.style.display = '';
-    } else {
-      eventBannerImgEl.style.display = 'none';
+
+    fillEventBanner(ev, 'event-banner-popup');
+    eventBannerPopupEl.classList.add('show');
+    renderEventClaimButton(ev, document.getElementById('event-claim-btn-popup'));
+
+    fillEventBanner(ev, 'event-banner-mini');
+    eventBannerMiniEl.classList.add('show');
+    renderEventClaimButton(ev, document.getElementById('event-claim-btn-mini'));
+
+    // попап всплывает один раз на конкретный ивент — если игрок его уже
+    // закрывал, при следующем заходе (или пока сидит в приложении) он не
+    // будет снова навязываться, но плашка сверху "Участвовать" остаётся
+    const stamp = String(ev.createdAt || '');
+    if(stamp && localStorage.getItem('dismissedEventStamp') !== stamp && !eventOverlayEl.classList.contains('open')){
+      eventOverlayEl.classList.add('open');
     }
-    eventBannerEl.classList.add('show');
-    renderEventClaimButton(ev);
   }
   window.renderEventBanner = renderEventBanner;
+
+  document.getElementById('event-popup-close-btn').addEventListener('click', () => {
+    eventOverlayEl.classList.remove('open');
+    if(latestEventData?.createdAt) localStorage.setItem('dismissedEventStamp', String(latestEventData.createdAt));
+  });
+  eventOverlayEl.addEventListener('click', (e) => { if(e.target === eventOverlayEl) document.getElementById('event-popup-close-btn').click(); });
 
   db.ref('events/current').on('value', (snapshot) => {
     latestEventData = snapshot.val();
