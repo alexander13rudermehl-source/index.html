@@ -361,26 +361,28 @@
     cursor:pointer;
   }
   .event-claim-btn.show{ display:flex; }
-  /* маленькая палитра из темы игрока — под именем в комнате боя, чтобы
-     видеть оформление друг друга, не переключая своё собственное */
-  .theme-swatch{
-    display:flex;
-    justify-content:center;
-    gap:4px;
-    margin-top:4px;
-    height:9px;
-  }
-  .theme-swatch span{
-    display:inline-block;
-    width:9px; height:9px;
-    border-radius:50%;
-    border: 1px solid rgba(255,255,255,0.25);
+  /* рамка вокруг аватара в комнате боя — показывает обои (фон), которые
+     игрок поставил себе в "Моих темах", как декоративную подложку вокруг
+     фото, а не абстрактные цвета; если своих обоев нет — просто заливка
+     цветом темы */
+  .theme-frame{
+    position: relative;
+    width: 84px; height: 84px;
+    border-radius: 50%;
+    margin: 0 auto 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-size: cover;
+    background-position: center;
+    background-color: var(--panel-2);
+    border: 2px solid var(--line);
   }
 
-  /* значок симпатий — прикреплён к аватару, а не отдельной строкой */
+  /* значок симпатий — прикреплён к рамке аватара, а не отдельной строкой */
   .heart-badge{
     position: absolute;
-    bottom: -3px; right: -6px;
+    bottom: 8px; right: 5px;
     display: flex;
     align-items: center;
     gap: 3px;
@@ -1314,21 +1316,19 @@
         </div>
 
         <div style="text-align:center;">
-          <div style="position:relative; display:inline-block;">
-            <div class="profile-avatar" id="room-opponent-avatar" style="margin:0 auto 8px;">—</div>
+          <div class="theme-frame" id="room-opponent-frame">
+            <div class="profile-avatar" id="room-opponent-avatar">—</div>
             <div class="heart-badge" id="room-opponent-heart">❤️ <span id="likes-opponent-count">0</span></div>
           </div>
           <div style="font-size:13px; font-weight:600;" id="room-opponent-name">—</div>
-          <div class="theme-swatch" id="room-opponent-theme"></div>
         </div>
         <div style="font-family:'Bebas Neue',sans-serif; font-size:18px; color:var(--muted); margin:2px 0;">VS</div>
         <div style="text-align:center;">
-          <div style="position:relative; display:inline-block;">
-            <div class="profile-avatar" id="room-me-avatar" style="margin:0 auto 8px;">—</div>
+          <div class="theme-frame" id="room-me-frame">
+            <div class="profile-avatar" id="room-me-avatar">—</div>
             <div class="heart-badge" id="room-me-heart">❤️ <span id="likes-me-count">0</span></div>
           </div>
           <div style="font-size:13px; font-weight:600;" id="room-me-name">—</div>
-          <div class="theme-swatch" id="room-me-theme"></div>
         </div>
       </div>
 
@@ -1337,21 +1337,19 @@
       <div id="room-referee-view" style="display:none;">
         <div style="display:flex; align-items:center; justify-content:center; gap:20px; margin-bottom:18px;">
           <div style="text-align:center;">
-            <div style="position:relative; display:inline-block;">
-              <div class="profile-avatar" id="ref-host-avatar" style="margin:0 auto 8px;">—</div>
+            <div class="theme-frame" id="ref-host-frame">
+              <div class="profile-avatar" id="ref-host-avatar">—</div>
               <div class="heart-badge tappable" id="ref-like-host">❤️ <span id="ref-like-host-count">0</span></div>
             </div>
             <div style="font-size:13px; font-weight:600;" id="ref-host-name">—</div>
-            <div class="theme-swatch" id="ref-host-theme"></div>
           </div>
           <div style="font-family:'Bebas Neue',sans-serif; font-size:18px; color:var(--muted);">VS</div>
           <div style="text-align:center;">
-            <div style="position:relative; display:inline-block;">
-              <div class="profile-avatar" id="ref-guest-avatar" style="margin:0 auto 8px;">—</div>
+            <div class="theme-frame" id="ref-guest-frame">
+              <div class="profile-avatar" id="ref-guest-avatar">—</div>
               <div class="heart-badge tappable" id="ref-like-guest">❤️ <span id="ref-like-guest-count">0</span></div>
             </div>
             <div style="font-size:13px; font-weight:600;" id="ref-guest-name">—</div>
-            <div class="theme-swatch" id="ref-guest-theme"></div>
           </div>
         </div>
         <div style="display:flex; gap:10px; margin-bottom:20px;">
@@ -1554,20 +1552,19 @@
   // здесь, при входе в комнату (тот же поиск по playerId, что и в
   // admin-панели/поиске игрока).
   //
-  // Заодно подтягиваем и оформление (тему) игрока — свечение вокруг
-  // аватара его акцентным цветом плюс мини-палитра из трёх точек — чтобы
-  // соперники видели оформление друг друга, не переключая своё.
-  // window.resolveOpponentTheme определена в блоке настроек ниже по
-  // странице (там же живут themes/computeCustomTheme) — к моменту первого
-  // реального вызова этой функции, после входа в баттл, та часть страницы
-  // уже точно выполнилась.
-  function applyRoomAvatar(avatarEl, playerId, fallbackName, swatchEl) {
+  // Заодно подтягиваем и оформление игрока — рамка вокруг аватара
+  // показывает его обои (фон, загруженный в "Моих темах"), как в рамке-
+  // подложке под фото, а не абстрактными цветами; если своих обоев нет —
+  // просто заливка цветом темы. Так соперники видят оформление друг
+  // друга, не переключая своё. window.resolveOpponentTheme определена в
+  // блоке настроек ниже по странице (там же живут themes/
+  // computeCustomTheme) — к моменту первого реального вызова этой функции,
+  // после входа в баттл, та часть страницы уже точно выполнилась.
+  function applyRoomAvatar(avatarEl, playerId, fallbackName, frameEl) {
     avatarEl.style.backgroundImage = '';
     avatarEl.classList.remove('has-image');
-    avatarEl.style.borderColor = '';
-    avatarEl.style.boxShadow = '';
     avatarEl.textContent = (fallbackName || '??').slice(0, 2).toUpperCase();
-    if (swatchEl) swatchEl.innerHTML = '';
+    if (frameEl) { frameEl.style.backgroundImage = ''; frameEl.style.backgroundColor = ''; frameEl.style.borderColor = ''; }
     if (!playerId) return;
     db.ref('users').orderByChild('playerId').equalTo(playerId).once('value').then((snap) => {
       if (!snap.exists()) return;
@@ -1577,12 +1574,13 @@
         avatarEl.classList.add('has-image');
         avatarEl.textContent = '';
       }
-      const theme = window.resolveOpponentTheme?.(user) || { bg: '#0B0B0D', live: '#FF3D2E', gold: '#F2B705', liveRgb: '255,61,46' };
-      avatarEl.style.borderColor = theme.live;
-      avatarEl.style.boxShadow = `0 0 10px rgba(${theme.liveRgb},0.6)`;
-      if (swatchEl) {
-        swatchEl.innerHTML = [theme.bg, theme.live, theme.gold]
-          .map((c) => `<span style="background:${c}"></span>`).join('');
+      if (!frameEl) return;
+      const theme = window.resolveOpponentTheme?.(user) || { bg: '#0B0B0D', live: '#FF3D2E' };
+      frameEl.style.borderColor = theme.live;
+      if (theme.wallpaper) {
+        frameEl.style.backgroundImage = `url(${theme.wallpaper})`;
+      } else {
+        frameEl.style.backgroundColor = theme.bg;
       }
     }).catch((err) => window.showDebugError?.('Оформление в комнате боя', err));
   }
@@ -1599,8 +1597,8 @@
     document.getElementById('room-referee-view').style.display = 'none';
     document.getElementById('room-me-name').textContent = meName || '—';
     document.getElementById('room-opponent-name').textContent = oppName || '—';
-    applyRoomAvatar(document.getElementById('room-me-avatar'), meId, meName, document.getElementById('room-me-theme'));
-    applyRoomAvatar(document.getElementById('room-opponent-avatar'), oppId, oppName, document.getElementById('room-opponent-theme'));
+    applyRoomAvatar(document.getElementById('room-me-avatar'), meId, meName, document.getElementById('room-me-frame'));
+    applyRoomAvatar(document.getElementById('room-opponent-avatar'), oppId, oppName, document.getElementById('room-opponent-frame'));
     overlay.classList.remove('open');
     roomOverlay.classList.add('open');
     attachLikesListener(code, isHost ? 'host' : 'guest', isHost ? 'guest' : 'host');
@@ -1616,8 +1614,8 @@
     document.getElementById('room-referee-view').style.display = 'block';
     document.getElementById('ref-host-name').textContent = data.hostName || '—';
     document.getElementById('ref-guest-name').textContent = data.guestName || '—';
-    applyRoomAvatar(document.getElementById('ref-host-avatar'), data.hostId, data.hostName, document.getElementById('ref-host-theme'));
-    applyRoomAvatar(document.getElementById('ref-guest-avatar'), data.guestId, data.guestName, document.getElementById('ref-guest-theme'));
+    applyRoomAvatar(document.getElementById('ref-host-avatar'), data.hostId, data.hostName, document.getElementById('ref-host-frame'));
+    applyRoomAvatar(document.getElementById('ref-guest-avatar'), data.guestId, data.guestName, document.getElementById('ref-guest-frame'));
     document.getElementById('ref-declare-host-name').textContent = data.hostName || '—';
     document.getElementById('ref-declare-guest-name').textContent = data.guestName || '—';
     overlay.classList.remove('open');
@@ -2835,13 +2833,13 @@
   // оформление соперника, не применяя его к собственному интерфейсу.
   window.resolveOpponentTheme = function(userData){
     const active = userData?.activeTheme;
-    let t = null;
+    let t = null, wallpaper = null;
     if (active?.type === 'custom') {
-      t = (userData.savedThemes || []).find((x) => x.id === active.themeId);
-      if (t) t = computeCustomTheme(t.mode, t.live, t.gold, t.bg);
+      const raw = (userData.savedThemes || []).find((x) => x.id === active.themeId);
+      if (raw) { t = computeCustomTheme(raw.mode, raw.live, raw.gold, raw.bg); wallpaper = raw.wallpaper || null; }
     }
     if (!t) t = (active?.type === 'preset' && themes[active.name]) ? themes[active.name] : themes.classic;
-    return { bg: t.bg, live: t.live, gold: t.gold, liveRgb: hexToRgb(t.live).join(',') };
+    return { bg: t.bg, live: t.live, gold: t.gold, liveRgb: hexToRgb(t.live).join(','), wallpaper };
   };
 
   // ===== обои (фоновая картинка приложения) =====
