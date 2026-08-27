@@ -1806,6 +1806,10 @@
   let demoMatchTimeoutId = null;
   async function startDemoMatch(me){
     const code = generateRoomCode();
+    // рефери и лайки от "зрителей" в реальном бою появляются только когда
+    // их кто-то реально назначил/тапнул — в демо-режиме, где второго живого
+    // участника нет и быть не может, подставляем то же самое понарошку,
+    // чтобы было видно, как это вообще выглядит
     const battleData = {
       hostId: me.playerId,
       hostName: me.firstName,
@@ -1814,9 +1818,21 @@
       status: 'active',
       rated: false,
       demo: true,
+      refereeId: 'DEMO-REF',
+      refereeName: 'Судья-бот',
       createdAt: Date.now()
     };
     await db.ref('battles/' + code).set(battleData);
+    // несколько поддельных симпатий с задержкой — просто чтобы счётчики не
+    // стояли на нуле, пока тестируешь в одиночку; если комнату уже закрыли,
+    // проверка myRoomCode останавливает дальнейшие "лайки"
+    [3000, 5500, 8000].forEach((delay, i) => {
+      setTimeout(() => {
+        if (myRoomCode !== code) return;
+        db.ref('battles/' + code + '/audienceLikes/' + (i % 2 === 0 ? 'host' : 'guest'))
+          .set(firebase.database.ServerValue.increment(1));
+      }, delay);
+    });
     // не мгновенно — короткая пауза сохраняет ощущение "поиска", а не
     // подмену интерфейса без анимации
     demoMatchTimeoutId = setTimeout(() => {
