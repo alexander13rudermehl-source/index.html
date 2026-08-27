@@ -358,6 +358,17 @@
     cursor:pointer;
   }
   .event-claim-btn.show{ display:flex; }
+  .like-btn{
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 100px;
+    padding: 6px 14px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .like-btn:active{ transform: scale(0.96); }
+
   .event-claim-btn.claimed{
     background: var(--panel-2);
     color: var(--muted);
@@ -1200,12 +1211,17 @@
           </div>
 
           <button class="sheet-cta" id="btn-start-rating-queue">Искать соперника</button>
+
+          <p style="color:var(--muted); font-size:12.5px; line-height:1.5; margin:14px 0 10px;">
+            Или посуди уже идущий бой — послушаешь баттл и в конце выберешь победителя.
+          </p>
+          <button class="sheet-cta secondary" id="btn-start-referee-queue">⚖️ Судить бой</button>
         </div>
 
         <div id="rq-waiting" style="display:none; text-align:center;">
           <div class="warp-wrap">
             <canvas id="rq-warp-canvas" width="300" height="170"></canvas>
-            <div class="warp-label"><div class="status-dot"></div> Ищем соперника…</div>
+            <div class="warp-label"><div class="status-dot"></div> <span id="rq-waiting-label">Ищем соперника…</span></div>
           </div>
           <button class="sheet-cta secondary" id="btn-cancel-rating-queue">Отменить поиск</button>
         </div>
@@ -1229,16 +1245,47 @@
       </div>
     </div>
     <div class="sheet-body" style="text-align:center; padding-top:24px;">
-      <div style="font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:1px; color:var(--live); margin-bottom:20px;">СОПЕРНИК НАЙДЕН</div>
-      <div style="display:flex; align-items:center; justify-content:center; gap:20px; margin-bottom:24px;">
+      <div id="room-headline" style="font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:1px; color:var(--live); margin-bottom:20px;">СОПЕРНИК НАЙДЕН</div>
+
+      <!-- для бойца (host/guest): сверху всегда соперник, снизу всегда я —
+           от лица того, кто смотрит на экран, а не по ролям host/guest
+           (иначе на одном устройстве "я" слева, а на другом — справа) -->
+      <div id="room-combatant-view" style="display:flex; flex-direction:column; align-items:center; gap:6px; margin-bottom:20px;">
         <div style="text-align:center;">
-          <div class="profile-avatar" id="room-host-avatar" style="margin:0 auto 8px;">—</div>
-          <div style="font-size:13px; font-weight:600;" id="room-host-name">—</div>
+          <div class="profile-avatar" id="room-opponent-avatar" style="margin:0 auto 8px;">—</div>
+          <div style="font-size:13px; font-weight:600;" id="room-opponent-name">—</div>
         </div>
-        <div style="font-family:'Bebas Neue',sans-serif; font-size:20px; color:var(--muted);">VS</div>
+        <div style="font-family:'Bebas Neue',sans-serif; font-size:18px; color:var(--muted); margin:2px 0;">VS</div>
         <div style="text-align:center;">
-          <div class="profile-avatar" id="room-guest-avatar" style="margin:0 auto 8px;">—</div>
-          <div style="font-size:13px; font-weight:600;" id="room-guest-name">—</div>
+          <div class="profile-avatar" id="room-me-avatar" style="margin:0 auto 8px;">—</div>
+          <div style="font-size:13px; font-weight:600;" id="room-me-name">—</div>
+        </div>
+      </div>
+
+      <!-- зрительские симпатии видны и бойцам — только просмотр, без кнопок -->
+      <div id="room-likes-readout" style="display:none; align-items:center; justify-content:center; gap:24px; margin-bottom:20px; font-size:13px; color:var(--muted);">
+        <div>❤️ <span id="likes-host-count">0</span> · <span id="likes-host-label"></span></div>
+        <div>❤️ <span id="likes-guest-count">0</span> · <span id="likes-guest-label"></span></div>
+      </div>
+
+      <!-- для рефери: оба бойца рядом, кнопки симпатий + объявление победителя -->
+      <div id="room-referee-view" style="display:none;">
+        <div style="display:flex; align-items:center; justify-content:center; gap:20px; margin-bottom:18px;">
+          <div style="text-align:center;">
+            <div class="profile-avatar" id="ref-host-avatar" style="margin:0 auto 8px;">—</div>
+            <div style="font-size:13px; font-weight:600; margin-bottom:8px;" id="ref-host-name">—</div>
+            <button class="like-btn" id="ref-like-host">❤️ <span id="ref-like-host-count">0</span></button>
+          </div>
+          <div style="font-family:'Bebas Neue',sans-serif; font-size:18px; color:var(--muted);">VS</div>
+          <div style="text-align:center;">
+            <div class="profile-avatar" id="ref-guest-avatar" style="margin:0 auto 8px;">—</div>
+            <div style="font-size:13px; font-weight:600; margin-bottom:8px;" id="ref-guest-name">—</div>
+            <button class="like-btn" id="ref-like-guest">❤️ <span id="ref-like-guest-count">0</span></button>
+          </div>
+        </div>
+        <div style="display:flex; gap:10px; margin-bottom:20px;">
+          <button class="sheet-cta" id="ref-declare-host" style="flex:1; padding:12px 6px;">Победил <span id="ref-declare-host-name"></span></button>
+          <button class="sheet-cta" id="ref-declare-guest" style="flex:1; padding:12px 6px;">Победил <span id="ref-declare-guest-name"></span></button>
         </div>
       </div>
 
@@ -1272,7 +1319,11 @@
         <span id="remote-volume-val" style="font-size:11px; color:var(--muted); width:36px; text-align:right;">150%</span>
       </div>
 
-      <audio id="room-remote-audio" autoplay playsinline></audio>
+      <!-- рефери слышит и хоста, и гостя — участников в комнате может быть
+           больше двух, поэтому аудио-элементы создаются динамически по
+           одному на участника (см. ensureRemoteAudioEl в JS), а не один
+           статичный тег на "соперника" -->
+      <div id="remote-audio-container" style="display:none;"></div>
     </div>
   </div>
 </div>
@@ -1352,17 +1403,126 @@
   const roomOverlay = document.getElementById('room-overlay');
   let myRoomListener = null;
   let myRoomCode = null;
+  let myRoomRole = null; // 'host' | 'guest' | 'referee'
+
+  // зрительские симпатии (❤️ по каждой стороне) — считает рефери, видят все
+  let likesRef = null, likesListener = null;
+  function attachLikesListener(code) {
+    detachLikesListener();
+    likesRef = db.ref('battles/' + code + '/audienceLikes');
+    likesListener = likesRef.on('value', (snap) => {
+      const likes = snap.val() || {};
+      const h = likes.host || 0, g = likes.guest || 0;
+      ['ref-like-host-count', 'likes-host-count'].forEach((id) => { const el = document.getElementById(id); if (el) el.textContent = h; });
+      ['ref-like-guest-count', 'likes-guest-count'].forEach((id) => { const el = document.getElementById(id); if (el) el.textContent = g; });
+    });
+  }
+  function detachLikesListener() {
+    if (likesRef && likesListener) likesRef.off('value', likesListener);
+    likesRef = null; likesListener = null;
+  }
+  function bumpLike(side) {
+    if (!myRoomCode) return;
+    db.ref('battles/' + myRoomCode + '/audienceLikes/' + side).set(firebase.database.ServerValue.increment(1));
+  }
+  document.getElementById('ref-like-host').addEventListener('click', () => bumpLike('host'));
+  document.getElementById('ref-like-guest').addEventListener('click', () => bumpLike('guest'));
+
+  // бойцы узнают, что бой завершён (рефери объявил победителя), и сами
+  // закрывают у себя комнату — рефери закрывает свою явно, ему слушатель не нужен
+  let finishRef = null, finishListener = null;
+  function attachFinishListener(code) {
+    detachFinishListener();
+    finishRef = db.ref('battles/' + code + '/status');
+    finishListener = finishRef.on('value', (snap) => {
+      if (snap.val() === 'finished' && roomOverlay.classList.contains('open')) closeRoom();
+    });
+  }
+  function detachFinishListener() {
+    if (finishRef && finishListener) finishRef.off('value', finishListener);
+    finishRef = null; finishListener = null;
+  }
+
+  function closeRoom() {
+    roomOverlay.classList.remove('open');
+    teardownVoiceConnection();
+    detachLikesListener();
+    detachFinishListener();
+    myRoomCode = null;
+    myRoomRole = null;
+  }
 
   function showRoom(code, data, isHost) {
     myRoomCode = code;
-    document.getElementById('room-host-name').textContent = data.hostName || '—';
-    document.getElementById('room-host-avatar').textContent = (data.hostName || '??').slice(0, 2).toUpperCase();
-    document.getElementById('room-guest-name').textContent = data.guestName || '—';
-    document.getElementById('room-guest-avatar').textContent = (data.guestName || '??').slice(0, 2).toUpperCase();
+    myRoomRole = isHost ? 'host' : 'guest';
+    const meName = isHost ? data.hostName : data.guestName;
+    const oppName = isHost ? data.guestName : data.hostName;
+    document.getElementById('room-headline').textContent = 'СОПЕРНИК НАЙДЕН';
+    document.getElementById('room-combatant-view').style.display = 'flex';
+    document.getElementById('room-referee-view').style.display = 'none';
+    document.getElementById('room-likes-readout').style.display = 'flex';
+    document.getElementById('room-me-name').textContent = meName || '—';
+    document.getElementById('room-me-avatar').textContent = (meName || '??').slice(0, 2).toUpperCase();
+    document.getElementById('room-opponent-name').textContent = oppName || '—';
+    document.getElementById('room-opponent-avatar').textContent = (oppName || '??').slice(0, 2).toUpperCase();
+    document.getElementById('likes-host-label').textContent = data.hostName || '—';
+    document.getElementById('likes-guest-label').textContent = data.guestName || '—';
     overlay.classList.remove('open');
     roomOverlay.classList.add('open');
-    if (typeof setupVoiceConnection === 'function') setupVoiceConnection(code, isHost);
+    attachLikesListener(code);
+    attachFinishListener(code);
+    if (typeof setupVoiceConnection === 'function') setupVoiceConnection(code, isHost ? 'host' : 'guest');
   }
+
+  function showRoomAsReferee(code, data) {
+    myRoomCode = code;
+    myRoomRole = 'referee';
+    document.getElementById('room-headline').textContent = 'СУДИШЬ БОЙ';
+    document.getElementById('room-combatant-view').style.display = 'none';
+    document.getElementById('room-referee-view').style.display = 'block';
+    document.getElementById('room-likes-readout').style.display = 'none';
+    document.getElementById('ref-host-name').textContent = data.hostName || '—';
+    document.getElementById('ref-host-avatar').textContent = (data.hostName || '??').slice(0, 2).toUpperCase();
+    document.getElementById('ref-guest-name').textContent = data.guestName || '—';
+    document.getElementById('ref-guest-avatar').textContent = (data.guestName || '??').slice(0, 2).toUpperCase();
+    document.getElementById('ref-declare-host-name').textContent = data.hostName || '—';
+    document.getElementById('ref-declare-guest-name').textContent = data.guestName || '—';
+    overlay.classList.remove('open');
+    roomOverlay.classList.add('open');
+    attachLikesListener(code);
+    if (typeof setupVoiceConnection === 'function') setupVoiceConnection(code, 'referee');
+  }
+
+  async function refereeDeclareWinner(winnerSide) {
+    if (!myRoomCode || myRoomRole !== 'referee') return;
+    const code = myRoomCode;
+    const battleSnap = await db.ref('battles/' + code).once('value');
+    const battle = battleSnap.val();
+    if (!battle) { closeRoom(); return; }
+    const winnerId = winnerSide === 'host' ? battle.hostId : battle.guestId;
+    const loserId = winnerSide === 'host' ? battle.guestId : battle.hostId;
+    const likesSnap = await db.ref('battles/' + code + '/audienceLikes').once('value');
+    const likes = likesSnap.val() || {};
+    const pointsAwarded = {};
+    if (winnerId) pointsAwarded[winnerId] = 30;
+    if (loserId) pointsAwarded[loserId] = -10;
+    const audienceVotes = {};
+    if (battle.hostId) audienceVotes[battle.hostId] = likes.host || 0;
+    if (battle.guestId) audienceVotes[battle.guestId] = likes.guest || 0;
+    try {
+      await window.finishMatch?.(code, {
+        winnerId, loserId,
+        refereeId: battle.refereeId || window.currentPlayer?.playerId,
+        pointsAwarded, audienceVotes
+      });
+      await db.ref('battles/' + code).update({ status: 'finished' });
+    } catch (err) {
+      window.showDebugError?.('Судейство: объявление победителя', err);
+    }
+    closeRoom();
+  }
+  document.getElementById('ref-declare-host').addEventListener('click', () => refereeDeclareWinner('host'));
+  document.getElementById('ref-declare-guest').addEventListener('click', () => refereeDeclareWinner('guest'));
 
   document.getElementById('btn-create-room').addEventListener('click', () => {
     const me = window.currentPlayer || { firstName: 'Игрок', playerId: 'guest' };
@@ -1456,10 +1616,7 @@
     });
   });
 
-  document.getElementById('room-close-btn').addEventListener('click', () => {
-    roomOverlay.classList.remove('open');
-    teardownVoiceConnection();
-  });
+  document.getElementById('room-close-btn').addEventListener('click', closeRoom);
 
   // ===== Рейтинговый бой — матчинг случайного соперника из очереди =====
   // Без бэкенда/облачных функций: два клиента сами разруливают очередь через
@@ -1469,6 +1626,8 @@
   // другом — обычная transaction() тут ранее давала ложные срабатывания.
   let myQueueRef = null;
   let myQueueListener = null;
+  let myRefQueueRef = null;
+  let myRefQueueListener = null;
 
   function rqShowError(text) {
     const el = document.getElementById('rq-error');
@@ -1579,6 +1738,8 @@
     if (demoMatchTimeoutId) { clearTimeout(demoMatchTimeoutId); demoMatchTimeoutId = null; }
     if (myQueueListener) { myQueueRef?.off('value', myQueueListener); myQueueListener = null; }
     if (myQueueRef) { myQueueRef.onDisconnect().cancel(); myQueueRef.remove().catch(() => {}); myQueueRef = null; }
+    if (myRefQueueListener) { myRefQueueRef?.off('value', myRefQueueListener); myRefQueueListener = null; }
+    if (myRefQueueRef) { myRefQueueRef.onDisconnect().cancel(); myRefQueueRef.remove().catch(() => {}); myRefQueueRef = null; }
     document.getElementById('rq-idle').style.display = 'block';
     document.getElementById('rq-waiting').style.display = 'none';
   }
@@ -1590,6 +1751,7 @@
 
     document.getElementById('rq-idle').style.display = 'none';
     document.getElementById('rq-waiting').style.display = 'block';
+    document.getElementById('rq-waiting-label').textContent = 'Ищем соперника…';
     startWarpAnimation();
 
     if (isDemoModeEligible() && rqDemoToggle.classList.contains('on')) {
@@ -1628,6 +1790,7 @@
         };
         await db.ref('battles/' + code).set(battleData);
         window.ensureMatchRecord?.(code, battleData);
+        tryAssignWaitingReferee(code); // если кто-то уже ждёт в очереди судейства — не ждём, сразу подключаем
 
         stopWarpAnimation();
         document.getElementById('rq-idle').style.display = 'block';
@@ -1685,6 +1848,108 @@
   document.getElementById('btn-start-rating-queue').addEventListener('click', startRatingQueue);
   document.getElementById('btn-cancel-rating-queue').addEventListener('click', leaveRatingQueue);
 
+  // ===== Судейство — третья роль в баттле =====
+  // Рефери подключается только к рейтинговым боям (rated: true) — у боёв
+  // с другом и демо-боёв нет смысла звать постороннего судью. Два пути:
+  // 1) уже идёт рейтинговый бой без судьи — подключаемся сразу;
+  // 2) свободных боёв нет — встаём в очередь и ждём, пока кто-то не
+  //    создаст новый рейтинговый матч (см. tryAssignWaitingReferee ниже,
+  //    вызывается сразу после создания такого матча).
+  async function claimRefereeSlot(code, me) {
+    const battleRef = db.ref('battles/' + code);
+    const snap = await battleRef.once('value');
+    const battle = snap.val();
+    if (!battle || battle.refereeId) return false;
+    await battleRef.update({ refereeId: me.playerId, refereeName: me.firstName || 'Рефери' });
+    const recheck = (await battleRef.once('value')).val();
+    return recheck?.refereeId === me.playerId;
+  }
+
+  async function tryAssignWaitingReferee(code) {
+    const REF_STALE_MS = 2 * 60 * 1000;
+    const snap = await db.ref('refereeQueue').once('value');
+    const all = snap.val() || {};
+    const candidates = Object.entries(all)
+      .filter(([, r]) => r && !r.matchedRoom && (Date.now() - (r.joinedAt || 0)) < REF_STALE_MS)
+      .sort((a, b) => (a[1].joinedAt || 0) - (b[1].joinedAt || 0));
+    for (const [refKey, refData] of candidates) {
+      const slotRef = db.ref('refereeQueue/' + refKey + '/matchedRoom');
+      await slotRef.set(code);
+      const recheck = (await slotRef.once('value')).val();
+      if (recheck === code) {
+        await db.ref('battles/' + code).update({ refereeId: refData.playerId, refereeName: refData.firstName || 'Рефери' });
+        return true;
+      }
+    }
+    return false;
+  }
+
+  async function startRefereeQueue() {
+    document.getElementById('rq-error').style.display = 'none';
+    const me = window.currentPlayer || { firstName: 'Игрок', playerId: 'guest' };
+    const myKey = window.currentTelegramId || me.playerId;
+
+    document.getElementById('rq-idle').style.display = 'none';
+    document.getElementById('rq-waiting').style.display = 'block';
+    document.getElementById('rq-waiting-label').textContent = 'Ищем баттл для судейства…';
+    startWarpAnimation();
+
+    try {
+      const battlesSnap = await db.ref('battles').once('value');
+      const all = battlesSnap.val() || {};
+      const openCode = Object.keys(all).find((code) => {
+        const b = all[code];
+        return b && b.status === 'active' && b.rated === true && !b.refereeId &&
+          b.hostId !== me.playerId && b.guestId !== me.playerId;
+      });
+
+      if (openCode && await claimRefereeSlot(openCode, me)) {
+        stopWarpAnimation();
+        document.getElementById('rq-idle').style.display = 'block';
+        document.getElementById('rq-waiting').style.display = 'none';
+        showRoomAsReferee(openCode, { ...all[openCode], refereeId: me.playerId, refereeName: me.firstName });
+        return;
+      }
+
+      // свободных боёв нет (или кто-то опередил) — встаём в очередь судей
+      myRefQueueRef = db.ref('refereeQueue/' + myKey);
+      await myRefQueueRef.set({
+        playerId: me.playerId,
+        firstName: me.firstName,
+        matchedRoom: null,
+        joinedAt: Date.now()
+      });
+      myRefQueueRef.onDisconnect().remove();
+
+      myRefQueueListener = myRefQueueRef.on('value', async (snap) => {
+        const data = snap.val();
+        if (data && data.matchedRoom) {
+          const code = data.matchedRoom;
+          myRefQueueRef.off('value', myRefQueueListener);
+          myRefQueueListener = null;
+          myRefQueueRef.onDisconnect().cancel();
+          await myRefQueueRef.remove();
+          myRefQueueRef = null;
+          const battleSnap = await db.ref('battles/' + code).once('value');
+          const battleData = battleSnap.val();
+          stopWarpAnimation();
+          document.getElementById('rq-idle').style.display = 'block';
+          document.getElementById('rq-waiting').style.display = 'none';
+          if (battleData) showRoomAsReferee(code, battleData);
+          else rqShowError('Не удалось подключиться, попробуй ещё раз');
+        }
+      });
+    } catch (err) {
+      window.showDebugError?.('Судейство', err);
+      rqShowError('Не удалось найти бой для судейства, попробуй ещё раз');
+      stopWarpAnimation();
+      document.getElementById('rq-idle').style.display = 'block';
+      document.getElementById('rq-waiting').style.display = 'none';
+    }
+  }
+
+  document.getElementById('btn-start-referee-queue').addEventListener('click', startRefereeQueue);
+
   // ===== Голос через LiveKit — вместо самодельного WebRTC =====
   // LiveKit сам разруливает ICE/TURN/переподключения — то, с чем мы мучились
   // руками раньше. Sandbox token server выдаёт токены без своего бэкенда
@@ -1709,25 +1974,46 @@
   const savedVolumePct = localStorage.getItem('battleRemoteVolumePct');
   if (savedVolumePct) { remoteVolumeSlider.value = savedVolumePct; remoteVolumeVal.textContent = savedVolumePct + '%'; }
 
+  // с рефери в комнате участников может быть трое — у каждого удалённого
+  // участника свой <audio> и свой узел усиления (createMediaElementSource
+  // можно вызвать только один раз на элемент, поэтому это Map, а не одна
+  // общая переменная)
+  const gainNodes = new Map(); // audioEl -> GainNode
+
   function ensureAudioGraph(audioEl) {
-    if (gainNode) return gainNode;
+    if (gainNodes.has(audioEl)) return gainNodes.get(audioEl);
     try {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const source = audioCtx.createMediaElementSource(audioEl);
-      gainNode = audioCtx.createGain();
-      gainNode.gain.value = Number(remoteVolumeSlider.value) / 100;
-      source.connect(gainNode).connect(audioCtx.destination);
+      const gain = audioCtx.createGain();
+      gain.gain.value = Number(remoteVolumeSlider.value) / 100;
+      source.connect(gain).connect(audioCtx.destination);
+      gainNodes.set(audioEl, gain);
+      return gain;
     } catch (err) {
       window.showDebugError?.('Голос: усиление громкости', err.message || String(err));
+      return null;
     }
-    return gainNode;
+  }
+
+  function ensureRemoteAudioEl(identity) {
+    const id = 'remote-audio-' + identity;
+    let el = document.getElementById(id);
+    if (!el) {
+      el = document.createElement('audio');
+      el.id = id;
+      el.autoplay = true;
+      el.playsInline = true;
+      document.getElementById('remote-audio-container').appendChild(el);
+    }
+    return el;
   }
 
   remoteVolumeSlider.addEventListener('input', () => {
     const pct = Number(remoteVolumeSlider.value);
     remoteVolumeVal.textContent = pct + '%';
     localStorage.setItem('battleRemoteVolumePct', pct);
-    if (gainNode) gainNode.gain.value = pct / 100;
+    gainNodes.forEach((gain) => { gain.gain.value = pct / 100; });
   });
 
   function setVoiceStatus(text) {
@@ -1735,7 +2021,7 @@
     if (el) el.innerHTML = `<div class="status-dot"></div> ${text}`;
   }
 
-  async function setupVoiceConnection(code, isHost) {
+  async function setupVoiceConnection(code, role) {
     if (!window.micPermissionGranted) {
       setVoiceStatus('Нет доступа к микрофону — разреши в Настройках');
       window.showDebugError?.('Голос (LiveKit)', 'micPermissionGranted=false — подключение прервано до getUserMedia');
@@ -1746,24 +2032,26 @@
 
     try {
       const tokenSource = LivekitClient.TokenSource.sandboxTokenServer(LIVEKIT_TOKEN_SERVER_ID);
-      // Без явного participantName оба участника запрашивали токен с
+      // Без явного participantName участники запрашивали токен с
       // одинаковыми параметрами (только roomName) — если сервер токенов в
       // таком случае выдаёт совпадающую identity по умолчанию, LiveKit
       // считает второе подключение переподключением первого и вытесняет
       // его из комнаты. Из-за этого один слышал другого, а другой — нет
       // (кто кого "вытеснил", зависело от того, кто успел подключиться позже).
-      const participantName = (isHost ? 'host-' : 'guest-') + code + '-' + Math.random().toString(36).slice(2, 8);
+      const participantName = role + '-' + code + '-' + Math.random().toString(36).slice(2, 8);
       const { serverUrl, participantToken } = await tokenSource.fetch({ roomName: code, participantName });
       window.showDebugError?.('Голос (LiveKit)', `токен получен, identity=${participantName}, serverUrl=${serverUrl}`);
 
       const room = new LivekitClient.Room();
 
-      room.on(LivekitClient.RoomEvent.TrackSubscribed, (track) => {
+      // с рефери участников в комнате может быть трое — у каждого удалённого
+      // участника свой аудио-элемент, а не один общий "звук соперника"
+      room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
         if (track.kind === 'audio') {
-          const remoteAudio = document.getElementById('room-remote-audio');
+          const remoteAudio = ensureRemoteAudioEl(participant.identity);
           track.attach(remoteAudio);
           ensureAudioGraph(remoteAudio);
-          window.showDebugError?.('Голос (LiveKit)', 'получили аудио-трек соперника');
+          window.showDebugError?.('Голос (LiveKit)', 'получили аудио-трек: ' + participant.identity);
 
           // .attach() сам вызывает play() — но если это не было напрямую
           // вызвано кликом пользователя (типично для хоста, которому звук
@@ -1806,6 +2094,12 @@
     }
     isMuted = false;
     document.getElementById('btn-unmute-audio').style.display = 'none';
+    // сбрасываем аудио-графы между баттлами — иначе элементы прошлой
+    // комнаты остаются висеть в контейнере, а AudioContext накапливает
+    // мёртвые source-узлы от уже удалённых <audio>
+    document.getElementById('remote-audio-container').innerHTML = '';
+    gainNodes.clear();
+    if (audioCtx) { audioCtx.close().catch(() => {}); audioCtx = null; }
   }
 
   document.getElementById('btn-toggle-mute').addEventListener('click', () => {
@@ -1816,9 +2110,9 @@
   });
 
   document.getElementById('btn-unmute-audio').addEventListener('click', () => {
-    const remoteAudio = document.getElementById('room-remote-audio');
     audioCtx?.resume();
-    remoteAudio.play().then(() => {
+    const els = document.querySelectorAll('#remote-audio-container audio');
+    Promise.all(Array.from(els).map((el) => el.play())).then(() => {
       document.getElementById('btn-unmute-audio').style.display = 'none';
       setVoiceStatus('Связь установлена');
     }).catch((err) => {
