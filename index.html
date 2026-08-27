@@ -316,6 +316,29 @@
     color: var(--muted);
     line-height: 1.4;
   }
+  .event-claim-btn{
+    display:none;
+    align-items:center;
+    justify-content:center;
+    gap: 6px;
+    width:100%;
+    margin-top: 10px;
+    background: var(--gold);
+    color: #0B0B0D;
+    border: none;
+    border-radius: 10px;
+    padding: 10px;
+    font-family:'Bebas Neue', sans-serif;
+    font-size: 13px;
+    letter-spacing: 1px;
+    cursor:pointer;
+  }
+  .event-claim-btn.show{ display:flex; }
+  .event-claim-btn.claimed{
+    background: var(--panel-2);
+    color: var(--muted);
+    cursor:default;
+  }
   @keyframes eventBannerIn{
     from{ opacity:0; transform: translateY(-6px); }
     to{ opacity:1; transform: translateY(0); }
@@ -943,6 +966,7 @@
       <div class="event-banner-tag">ИВЕНТ</div>
       <div class="event-banner-title" id="event-banner-title"></div>
       <div class="event-banner-desc" id="event-banner-desc"></div>
+      <button class="event-claim-btn" id="event-claim-btn">🎁 Забрать значок</button>
     </div>
   </div>
 
@@ -2570,6 +2594,7 @@
 
   resolveIdentity().then((telegramId) => {
   window.currentTelegramId = telegramId;
+  window.renderEventBanner?.();
   const userRef = db.ref('users/' + telegramId);
 
   userRef.get().then((snap) => {
@@ -2780,7 +2805,8 @@
   // Публикуется/убирается из админ-панели (battle-admin-bot) записью в
   // events/current. startAt/endAt — необязательные границы показа
   // (null = без ограничения), чтобы можно было запланировать анонс заранее
-  // или дать ему автоматически исчезнуть.
+  // или дать ему автоматически исчезнуть. badgeId (необязательно) — значок
+  // за участие: игрок сам забирает его кнопкой, начисление не автоматическое.
   function isEventLive(ev){
     if(!ev) return false;
     const now = Date.now();
@@ -2792,8 +2818,35 @@
   const eventBannerImgEl = document.getElementById('event-banner-img');
   const eventBannerTitleEl = document.getElementById('event-banner-title');
   const eventBannerDescEl = document.getElementById('event-banner-desc');
-  db.ref('events/current').on('value', (snapshot) => {
-    const ev = snapshot.val();
+  const eventClaimBtnEl = document.getElementById('event-claim-btn');
+  let latestEventData = null;
+
+  function renderEventClaimButton(ev){
+    if(!ev || !ev.badgeId || !window.currentTelegramId){
+      eventClaimBtnEl.classList.remove('show', 'claimed');
+      return;
+    }
+    eventClaimBtnEl.classList.add('show');
+    db.ref('users/' + window.currentTelegramId + '/badges/' + ev.badgeId).once('value').then((snap) => {
+      if(snap.val()){
+        eventClaimBtnEl.classList.add('claimed');
+        eventClaimBtnEl.textContent = '✅ Значок получен';
+        eventClaimBtnEl.onclick = null;
+      } else {
+        eventClaimBtnEl.classList.remove('claimed');
+        eventClaimBtnEl.textContent = '🎁 Забрать значок';
+        eventClaimBtnEl.onclick = () => {
+          db.ref('users/' + window.currentTelegramId + '/badges/' + ev.badgeId).set(true).then(() => {
+            window.fetchAndRenderBadges?.(window.currentTelegramId);
+            renderEventClaimButton(ev);
+          }).catch((err) => window.showDebugError?.('Забрать значок ивента', err));
+        };
+      }
+    });
+  }
+
+  function renderEventBanner(){
+    const ev = latestEventData;
     if(!isEventLive(ev)){
       eventBannerEl.classList.remove('show');
       return;
@@ -2807,6 +2860,13 @@
       eventBannerImgEl.style.display = 'none';
     }
     eventBannerEl.classList.add('show');
+    renderEventClaimButton(ev);
+  }
+  window.renderEventBanner = renderEventBanner;
+
+  db.ref('events/current').on('value', (snapshot) => {
+    latestEventData = snapshot.val();
+    renderEventBanner();
   });
 </script>
 
