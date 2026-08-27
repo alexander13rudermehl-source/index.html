@@ -1060,6 +1060,19 @@
           </div>
         </div>
 
+        <!-- показывается вместо плашки выше, когда одновременно идёт
+             несколько ивентов — ведёт в список ниже (data-view="events-list") -->
+        <div class="cat-card" data-goto="events-list" id="events-list-card" style="display:none;">
+          <div class="icon points">
+            <svg viewBox="0 0 24 24"><path d="M20 12v9H4v-9"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C10 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C14 2 12 7 12 7z"/></svg>
+          </div>
+          <div class="body">
+            <div class="title">Ивенты</div>
+            <div class="desc" id="events-list-desc">Сейчас идёт несколько ивентов</div>
+          </div>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+
         <div class="cat-card" data-goto="friend-mode">
           <div class="icon training">
             <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c.8-3 3-4.6 6-4.6s5.2 1.6 6 4.6"/><path d="M15 15.5c2.4.2 4 1.6 4.6 4.5"/></svg>
@@ -1082,6 +1095,11 @@
           <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
         </div>
 
+      </div>
+
+      <!-- список ивентов, когда их несколько активных одновременно -->
+      <div class="sheet-view" data-view="events-list">
+        <div id="events-list-body"></div>
       </div>
 
       <!-- level 0.5: выбор — создать комнату или ввести код -->
@@ -1236,7 +1254,8 @@
     'friend-mode': 'Играть с другом',
     'friend-create': 'Создать баттл',
     'friend-join': 'Ввести код',
-    'rating-queue': 'Рейтинговый бой'
+    'rating-queue': 'Рейтинговый бой',
+    'events-list': 'Ивенты'
   };
 
   // родитель для кнопки "назад" — теперь есть промежуточный уровень
@@ -1245,7 +1264,8 @@
     'friend-mode': 'main',
     'friend-create': 'friend-mode',
     'friend-join': 'friend-mode',
-    'rating-queue': 'main'
+    'rating-queue': 'main',
+    'events-list': 'main'
   };
 
   function showView(name){
@@ -2619,7 +2639,7 @@
 
   resolveIdentity().then((telegramId) => {
   window.currentTelegramId = telegramId;
-  window.renderEventBanner?.();
+  window.renderEventsUI?.();
   const userRef = db.ref('users/' + telegramId);
 
   userRef.get().then((snap) => {
@@ -2826,12 +2846,19 @@
     onlineCountEl.textContent = `онлайн ${count.toLocaleString('ru-RU')}`;
   });
 
-  // ===== Ивент-баннер на главном экране =====
-  // Публикуется/убирается из админ-панели (battle-admin-bot) записью в
-  // events/current. startAt/endAt — необязательные границы показа
-  // (null = без ограничения), чтобы можно было запланировать анонс заранее
-  // или дать ему автоматически исчезнуть. badgeId (необязательно) — значок
-  // за участие: игрок сам забирает его кнопкой, начисление не автоматическое.
+  // ===== Ивенты на главном экране =====
+  // Публикуются/убираются из админ-панели (battle-admin-bot), пишутся в
+  // events/<id> — одновременно активных может быть несколько. startAt/endAt
+  // — необязательные границы показа (null = без ограничения). badgeId
+  // (необязательно) — значок за участие: игрок сам забирает его кнопкой,
+  // начисление не автоматическое.
+  //
+  // Когда активен ровно один ивент — ведём себя как раньше: закрываемый
+  // попап (один раз на новый ивент, дальше не навязывается — помним через
+  // localStorage) плюс компактная плашка сверху листа "Участвовать". Когда
+  // активны несколько одновременно — попап не показываем (не наслаивать
+  // окна друг на друга), а вместо плашки — кнопка "Ивенты" со счётчиком,
+  // ведущая в список всех активных.
   function isEventLive(ev){
     if(!ev) return false;
     const now = Date.now();
@@ -2839,14 +2866,14 @@
     if(ev.endAt && now > ev.endAt) return false;
     return true;
   }
-  // Баннер живёт в двух местах: как закрываемый попап (показывается один
-  // раз на новый ивент, дальше не мешает — запоминаем через localStorage) и
-  // как компактная плашка сверху листа "Участвовать" (видна всегда, пока
-  // ивент активен, вне зависимости от того, закрывали попап или нет).
   const eventOverlayEl = document.getElementById('event-overlay');
   const eventBannerPopupEl = document.getElementById('event-banner-popup');
   const eventBannerMiniEl = document.getElementById('event-banner-mini');
-  let latestEventData = null;
+  const eventsListCardEl = document.getElementById('events-list-card');
+  const eventsListDescEl = document.getElementById('events-list-desc');
+  const eventsListBodyEl = document.getElementById('events-list-body');
+  let latestEventsMap = {};
+  let singleEventStamp = null; // для попапа только когда активен один ивент
 
   function renderEventClaimButton(ev, btnEl){
     if(!ev || !ev.badgeId || !window.currentTelegramId){
@@ -2880,41 +2907,91 @@
     else { imgEl.style.display = 'none'; }
   }
 
-  function renderEventBanner(){
-    const ev = latestEventData;
-    if(!isEventLive(ev)){
+  function pluralEvents(n){
+    const mod10 = n % 10, mod100 = n % 100;
+    if(mod10 === 1 && mod100 !== 11) return 'ивент';
+    if([2,3,4].includes(mod10) && ![12,13,14].includes(mod100)) return 'ивента';
+    return 'ивентов';
+  }
+
+  function renderEventsList(liveEntries){
+    eventsListBodyEl.innerHTML = liveEntries.map(([id]) => `
+      <div class="event-banner show" data-event-id="${id}" style="margin:0 0 14px;">
+        <img class="event-banner-img" alt="" style="display:none;">
+        <div class="event-banner-body">
+          <div class="event-banner-tag">ИВЕНТ</div>
+          <div class="event-banner-title"></div>
+          <div class="event-banner-desc"></div>
+          <button class="event-claim-btn">🎁 Забрать значок</button>
+        </div>
+      </div>
+    `).join('');
+    liveEntries.forEach(([id, ev]) => {
+      const card = eventsListBodyEl.querySelector(`[data-event-id="${id}"]`);
+      card.querySelector('.event-banner-title').textContent = ev.title || '';
+      card.querySelector('.event-banner-desc').textContent = ev.description || '';
+      const imgEl = card.querySelector('.event-banner-img');
+      if(ev.imageData){ imgEl.src = ev.imageData; imgEl.style.display = ''; }
+      renderEventClaimButton(ev, card.querySelector('.event-claim-btn'));
+    });
+  }
+
+  function renderEventsUI(){
+    const liveEntries = Object.entries(latestEventsMap)
+      .filter(([, ev]) => isEventLive(ev))
+      .sort((a, b) => (b[1].createdAt || 0) - (a[1].createdAt || 0));
+
+    if(liveEntries.length === 0){
       eventBannerPopupEl.classList.remove('show');
       eventBannerMiniEl.classList.remove('show');
+      eventsListCardEl.style.display = 'none';
+      singleEventStamp = null;
       return;
     }
 
-    fillEventBanner(ev, 'event-banner-popup');
-    eventBannerPopupEl.classList.add('show');
-    renderEventClaimButton(ev, document.getElementById('event-claim-btn-popup'));
+    if(liveEntries.length === 1){
+      const [id, ev] = liveEntries[0];
+      eventsListCardEl.style.display = 'none';
 
-    fillEventBanner(ev, 'event-banner-mini');
-    eventBannerMiniEl.classList.add('show');
-    renderEventClaimButton(ev, document.getElementById('event-claim-btn-mini'));
+      fillEventBanner(ev, 'event-banner-popup');
+      eventBannerPopupEl.classList.add('show');
+      renderEventClaimButton(ev, document.getElementById('event-claim-btn-popup'));
 
-    // попап всплывает один раз на конкретный ивент — если игрок его уже
-    // закрывал, при следующем заходе (или пока сидит в приложении) он не
-    // будет снова навязываться, но плашка сверху "Участвовать" остаётся
-    const stamp = String(ev.createdAt || '');
-    if(stamp && localStorage.getItem('dismissedEventStamp') !== stamp && !eventOverlayEl.classList.contains('open')){
-      eventOverlayEl.classList.add('open');
+      fillEventBanner(ev, 'event-banner-mini');
+      eventBannerMiniEl.classList.add('show');
+      renderEventClaimButton(ev, document.getElementById('event-claim-btn-mini'));
+
+      // попап всплывает один раз на конкретный ивент — если игрок его уже
+      // закрывал, при следующем заходе (или пока сидит в приложении) он не
+      // будет снова навязываться, но плашка сверху "Участвовать" остаётся
+      singleEventStamp = String(ev.createdAt || id);
+      if(localStorage.getItem('dismissedEventStamp') !== singleEventStamp && !eventOverlayEl.classList.contains('open')){
+        eventOverlayEl.classList.add('open');
+      }
+      return;
     }
+
+    // несколько одновременных ивентов — не наслаиваем попапы, вместо
+    // плашки даём кнопку со счётчиком, ведущую в список
+    singleEventStamp = null;
+    eventBannerPopupEl.classList.remove('show');
+    eventBannerMiniEl.classList.remove('show');
+    eventOverlayEl.classList.remove('open');
+    eventsListCardEl.style.display = 'flex';
+    eventsListDescEl.textContent = `Сейчас идёт ${liveEntries.length} ${pluralEvents(liveEntries.length)}`;
+    renderEventsList(liveEntries);
   }
-  window.renderEventBanner = renderEventBanner;
+  window.renderEventsUI = renderEventsUI;
 
   document.getElementById('event-popup-close-btn').addEventListener('click', () => {
     eventOverlayEl.classList.remove('open');
-    if(latestEventData?.createdAt) localStorage.setItem('dismissedEventStamp', String(latestEventData.createdAt));
+    if(singleEventStamp) localStorage.setItem('dismissedEventStamp', singleEventStamp);
   });
   eventOverlayEl.addEventListener('click', (e) => { if(e.target === eventOverlayEl) document.getElementById('event-popup-close-btn').click(); });
 
-  db.ref('events/current').on('value', (snapshot) => {
-    latestEventData = snapshot.val();
-    renderEventBanner();
+  db.ref('events').on('value', (snapshot) => {
+    latestEventsMap = snapshot.val() || {};
+    renderEventsUI();
   });
 </script>
 
