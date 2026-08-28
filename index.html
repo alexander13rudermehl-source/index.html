@@ -3844,8 +3844,8 @@
     let orbitAnimId = null;
     let orbitIcons = []; // {el, offsetDeg}
     const ORBIT_PERIOD_MS = 16000; // один оборот — как у прежней CSS-анимации
-    const ORBIT_RX = 76; // по горизонтали значки выходят за край аватара (116px)
-    const ORBIT_RY = 28; // по вертикали — сильно сплюснуто, ныряют за/перед ней
+    const ORBIT_RX = 100; // по горизонтали значки выходят за край аватара (116px)
+    const ORBIT_RY = 36; // по вертикали — сильно сплюснуто, ныряют за/перед ней
 
     function stepOrbit(now) {
       const baseDeg = (now / ORBIT_PERIOD_MS) * 360;
