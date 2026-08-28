@@ -1349,7 +1349,11 @@
            Каждая половина закрашена обоями/фоном именно ЭТОГО игрока —
            жёсткая граница на разделителе VS, без перетекания одного в
            другое. Симпатии — бейджиком на аватаре. Бейдж рефери в углу. -->
-      <div id="room-combatant-view" style="margin-bottom:20px; position:relative; background-size:cover; background-position:center;">
+      <!-- общий фон боя (фото/цвет темы) красится один раз на этой обёртке
+           и продолжается непрерывно и под панелью голоса — иначе граница
+           между "картинкой боя" и голым низом снова выглядела бы швом -->
+      <div id="room-visual-wrap" style="position:relative; background-size:cover; background-position:center;">
+      <div id="room-combatant-view" style="margin-bottom:20px; position:relative;">
         <div class="ref-indicator" id="room-ref-indicator">
           <div class="ref-avatar" id="room-ref-indicator-avatar"></div>
           <span>⚖️ <span id="room-ref-indicator-name">—</span></span>
@@ -1387,7 +1391,7 @@
       <!-- для рефери: то же самое, но половины слева/справа, а не сверху/
            снизу — тоже каждая закрашена обоями своего бойца -->
       <div id="room-referee-view" style="display:none; margin-bottom:20px;">
-        <div id="room-referee-zones-wrap" style="position:relative; display:flex; margin:0 -18px; background-size:cover; background-position:center;">
+        <div id="room-referee-zones-wrap" style="position:relative; display:flex; margin:0 -18px;">
           <div class="battle-zone" id="ref-host-zone" style="flex:1; margin:0;">
             <div class="battle-zone-fade at-left"></div>
             <div class="battle-zone-fade at-right"></div>
@@ -1456,6 +1460,7 @@
             <span id="remote-volume-val" style="font-size:11px; color:var(--muted); width:36px; text-align:right;">150%</span>
           </div>
         </div>
+      </div>
       </div>
 
       <!-- рефери слышит и хоста, и гостя — участников в комнате может быть
@@ -1720,7 +1725,7 @@
     // темизированные зоны держатся одного размера (аватар+имя), как на
     // референсе, а не растягиваются под контролы голоса
     document.getElementById('room-voice-neutral-slot').appendChild(document.getElementById('room-voice-controls'));
-    applyBattleZones(document.getElementById('room-combatant-view'), [
+    applyBattleZones(document.getElementById('room-visual-wrap'), [
       { avatarEl: document.getElementById('room-opponent-avatar'), zoneEl: document.getElementById('room-opponent-zone'), playerId: oppId, fallbackName: oppName },
       { avatarEl: document.getElementById('room-me-avatar'), zoneEl: document.getElementById('room-me-zone'), playerId: meId, fallbackName: meName }
     ]);
@@ -1742,7 +1747,7 @@
     document.getElementById('room-voice-neutral-slot').appendChild(document.getElementById('room-voice-controls'));
     document.getElementById('ref-host-name').textContent = data.hostName || '—';
     document.getElementById('ref-guest-name').textContent = data.guestName || '—';
-    applyBattleZones(document.getElementById('room-referee-zones-wrap'), [
+    applyBattleZones(document.getElementById('room-visual-wrap'), [
       { avatarEl: document.getElementById('ref-host-avatar'), zoneEl: document.getElementById('ref-host-zone'), playerId: data.hostId, fallbackName: data.hostName },
       { avatarEl: document.getElementById('ref-guest-avatar'), zoneEl: document.getElementById('ref-guest-zone'), playerId: data.guestId, fallbackName: data.guestName }
     ]);
