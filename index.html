@@ -358,6 +358,10 @@
     position: relative;
     margin: 0 -18px;
     padding: 22px 18px;
+    /* без этого увеличенный блюр на стыке (.battle-zone-fade) выходил за
+       границы зоны и подмешивал в размытие то, что вообще не фото —
+       фон страницы за краем карточки — отсюда светлые пятна по краям */
+    overflow: hidden;
   }
   .battle-zone-overlay{
     position: absolute;
@@ -375,10 +379,10 @@
      backdrop-filter эту проблему WebView не разделяет. По умолчанию скрыт
      inline-стилем в HTML — JS показывает его только в режиме раздельных обоев. */
   .battle-zone-fade{ position: absolute; z-index: 0; pointer-events: none; overflow: hidden; }
-  .battle-zone-fade.at-top{ top: 0; left: 0; right: 0; height: 130px; }
-  .battle-zone-fade.at-bottom{ bottom: 0; left: 0; right: 0; height: 130px; }
-  .battle-zone-fade.at-left{ top: 0; bottom: 0; left: 0; width: 100px; }
-  .battle-zone-fade.at-right{ top: 0; bottom: 0; right: 0; width: 100px; }
+  .battle-zone-fade.at-top{ top: 0; left: 0; right: 0; height: 90px; }
+  .battle-zone-fade.at-bottom{ bottom: 0; left: 0; right: 0; height: 90px; }
+  .battle-zone-fade.at-left{ top: 0; bottom: 0; left: 0; width: 70px; }
+  .battle-zone-fade.at-right{ top: 0; bottom: 0; right: 0; width: 70px; }
   .battle-zone-content{
     position: relative;
     z-index: 2;
@@ -1742,14 +1746,14 @@
     const anchorProp = dir.slice(3);
     const horizontal = dir === 'at-left' || dir === 'at-right';
     const SLICES = 18;
-    const totalSize = horizontal ? 100 : 130;
+    const totalSize = horizontal ? 70 : 90;
     const sliceSize = totalSize / SLICES;
     for (let i = 0; i < SLICES; i++) {
       const t = 1 - i / SLICES; // 1 у самого стыка, к 0 на дальнем краю
       const slice = document.createElement('div');
       slice.style.position = 'absolute';
-      slice.style.backdropFilter = 'blur(28px)';
-      slice.style.webkitBackdropFilter = 'blur(28px)';
+      slice.style.backdropFilter = 'blur(24px)';
+      slice.style.webkitBackdropFilter = 'blur(24px)';
       slice.style.opacity = Math.pow(t, 1.2).toFixed(3);
       slice.style[anchorProp] = (i * sliceSize) + 'px';
       if (horizontal) { slice.style.top = '0'; slice.style.bottom = '0'; slice.style.width = sliceSize + 'px'; }
