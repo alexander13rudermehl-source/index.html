@@ -134,33 +134,41 @@
   }
   .ring-pulse.delay{ animation-delay: 1.2s; }
 
-  /* значки-награды — крутятся по кольцу вокруг аватара на главном экране */
+  /* значки-награды — крутятся вокруг аватара на главном экране по сплюснутой
+     эллиптической орбите ("как Сатурн"), а не по кругу — так что позиции
+     каждого значка (left/top/z-index) считает JS покадрово (см.
+     renderHomeBadgeOrbit/stepOrbit), простой CSS rotate() тут даёт только
+     окружность, а не эллипс. z-index у каждого значка тоже меняется по
+     кадрам — в нижней дуге эллипса значок рисуется ПЕРЕД аватаркой, в
+     верхней — ЗА ней, как кольцо, ныряющее за планету. */
   .badge-orbit{
     position:absolute;
     inset:0;
-    z-index:2;
     pointer-events:none;
-    animation: orbit-spin 16s linear infinite;
   }
-  .orbit-slot{ position:absolute; inset:0; }
   .orbit-icon{
     position:absolute;
-    /* радиус подобран так, чтобы значок шёл прямо по краю аватара
-       (116px), а не по внешнему пульсирующему кольцу (168px) — раньше
-       между значком и фото был заметный пустой зазор */
-    top: 14px;
-    left:50%;
-    width:24px; height:24px;
-    margin-left:-12px;
-    border-radius:50%;
+    transform: translate(-50%, -50%);
+    display:flex; align-items:center; gap:4px;
+    padding: 3px 10px 3px 3px;
+    border-radius:100px;
     background: var(--panel);
     border: 1.5px solid var(--gold);
     box-shadow: 0 0 8px var(--gold);
-    display:flex; align-items:center; justify-content:center;
-    font-size:12px;
+    font-size:10.5px;
+    font-weight:600;
+    color: var(--text);
+    white-space:nowrap;
     pointer-events:auto;
   }
-  @keyframes orbit-spin{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
+  .orbit-icon .emoji{
+    width:16px; height:16px;
+    flex-shrink:0;
+    border-radius:50%;
+    background: var(--bg);
+    display:flex; align-items:center; justify-content:center;
+    font-size:10px;
+  }
 
   @keyframes pulse{
     0%   { transform: scale(0.78); opacity: 0.9; }
@@ -3830,18 +3838,44 @@
     }
     window.renderProfileBadges = renderProfileBadges;
 
-    // Те же значки — маленькими кружками, вращающимися по кольцу вокруг
-    // аватара на главном экране (см. .badge-orbit в <style>).
+    // Те же значки (эмодзи + название) — вращаются вокруг аватара на
+    // главном экране по сплюснутому эллипсу, "как Сатурн" (см. .badge-orbit
+    // в <style> — почему это JS, а не CSS rotate()).
+    let orbitAnimId = null;
+    let orbitIcons = []; // {el, offsetDeg}
+    const ORBIT_PERIOD_MS = 16000; // один оборот — как у прежней CSS-анимации
+    const ORBIT_RX = 76; // по горизонтали значки выходят за край аватара (116px)
+    const ORBIT_RY = 28; // по вертикали — сильно сплюснуто, ныряют за/перед ней
+
+    function stepOrbit(now) {
+      const baseDeg = (now / ORBIT_PERIOD_MS) * 360;
+      orbitIcons.forEach(({ el, offsetDeg }) => {
+        const rad = (baseDeg + offsetDeg) * Math.PI / 180;
+        const x = Math.cos(rad) * ORBIT_RX;
+        const y = Math.sin(rad) * ORBIT_RY;
+        el.style.left = `calc(50% + ${x.toFixed(1)}px)`;
+        el.style.top = `calc(50% + ${y.toFixed(1)}px)`;
+        // нижняя дуга эллипса (y>0) — значок ближе к зрителю, рисуется
+        // ПЕРЕД аватаркой (z-index:2); верхняя дуга — ЗА ней (z-index:1,
+        // у .stage-avatar z-index:2)
+        el.style.zIndex = y > 0 ? '3' : '1';
+      });
+      orbitAnimId = requestAnimationFrame(stepOrbit);
+    }
+
     function renderHomeBadgeOrbit(userBadges, badgeDefs) {
       const wrap = document.getElementById('home-badge-orbit');
       if (!wrap) return;
+      if (orbitAnimId) { cancelAnimationFrame(orbitAnimId); orbitAnimId = null; }
       const keys = Object.keys(userBadges || {}).filter(id => (badgeDefs || {})[id]);
-      if (!keys.length) { wrap.innerHTML = ''; return; }
+      if (!keys.length) { wrap.innerHTML = ''; orbitIcons = []; return; }
       const step = 360 / keys.length;
-      wrap.innerHTML = keys.map((id, i) => {
+      wrap.innerHTML = keys.map((id) => {
         const def = badgeDefs[id];
-        return `<div class="orbit-slot" style="transform:rotate(${i * step}deg)"><div class="orbit-icon" title="${def.label || ''}">${def.emoji || '🏅'}</div></div>`;
+        return `<div class="orbit-icon" title="${def.label || ''}"><span class="emoji">${def.emoji || '🏅'}</span><span>${def.label || ''}</span></div>`;
       }).join('');
+      orbitIcons = Array.from(wrap.children).map((el, i) => ({ el, offsetDeg: i * step }));
+      orbitAnimId = requestAnimationFrame(stepOrbit);
     }
     window.renderHomeBadgeOrbit = renderHomeBadgeOrbit;
 
