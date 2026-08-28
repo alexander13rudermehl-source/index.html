@@ -1708,21 +1708,23 @@
   }
 
   // wrapperEl — общий контейнер вокруг обеих .battle-zone (для боя —
-  // #room-combatant-view, для рефери — #room-referee-zones-wrap). На
-  // референсе вся карточка целиком — одна картинка/один тон, без деления
-  // на половины и без шва между ними, поэтому фон всегда рисуется ОДИН РАЗ
-  // на wrapperEl (обои того, у кого они есть, при обоих — первого по
-  // списку), а не отдельно в каждой .battle-zone — красить одним и тем же
-  // фоном две независимо обрезаемые зоны даёт фрагменты (два разных
-  // cover-кропа одной картинки), а фон общего родителя такой проблемы не
-  // имеет. Свои обои каждый видит и у себя, и у соперника — просто теперь
-  // это один непрерывный фон на двоих, а не два конкурирующих полотна.
+  // #room-combatant-view, для рефери — #room-referee-zones-wrap).
+  // Если своими обоями решил похвастаться только ОДИН игрок (у второго их
+  // нет вообще) — красить нечего делить, картинка растягивается одним
+  // куском на весь wrapperEl, без шва (см. референс). Но если обои есть у
+  // ОБОИХ — это уже не "нечего делить", а буквально две разные картинки:
+  // каждый должен увидеть СВОЮ и СОПЕРНИКА, а не одну и ту же дважды —
+  // тогда каждая .battle-zone красится своей собственной картинкой
+  // отдельно (ценой того, что честно склеить две разные фотографии без
+  // шва средствами CSS всё ещё невозможно).
   function applyBattleZones(wrapperEl, pairs) {
-    pairs.forEach(({ avatarEl, fallbackName }) => {
+    pairs.forEach(({ avatarEl, zoneEl, fallbackName }) => {
       avatarEl.style.backgroundImage = '';
       avatarEl.classList.remove('has-image');
       avatarEl.style.borderColor = '';
       avatarEl.textContent = (fallbackName || '??').slice(0, 2).toUpperCase();
+      zoneEl.style.backgroundImage = '';
+      zoneEl.style.backgroundColor = 'transparent';
     });
     wrapperEl.style.backgroundImage = '';
     wrapperEl.style.backgroundColor = '';
@@ -1737,9 +1739,21 @@
         }
         p.avatarEl.style.borderColor = theme.live;
       });
-      const wallpaper = themes.map((t) => t?.wallpaper).find(Boolean);
-      if (wallpaper) {
-        wrapperEl.style.backgroundImage = `url(${wallpaper})`;
+      const wallpapers = themes.map((t) => t?.wallpaper).filter(Boolean);
+      if (wallpapers.length >= 2) {
+        // у каждого свои обои — показываем их раздельно, каждому свою половину
+        pairs.forEach((p, i) => {
+          const theme = themes[i];
+          if (theme?.wallpaper) {
+            p.zoneEl.style.backgroundImage = `url(${theme.wallpaper})`;
+            p.zoneEl.style.backgroundSize = 'cover';
+            p.zoneEl.style.backgroundPosition = 'center';
+          } else {
+            p.zoneEl.style.backgroundColor = theme?.bg || '#0B0B0D';
+          }
+        });
+      } else if (wallpapers.length === 1) {
+        wrapperEl.style.backgroundImage = `url(${wallpapers[0]})`;
       } else {
         wrapperEl.style.backgroundColor = (themes.find(Boolean) || { bg: '#0B0B0D' }).bg;
       }
