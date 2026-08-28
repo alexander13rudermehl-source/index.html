@@ -2957,13 +2957,14 @@
   }
 
   // ===== "Мои темы" — список сохранённых своих палитр (+обои) =====
-  // Тема — часть ЛИЧНОГО аккаунта, не устройства: хранится в Firebase у
-  // конкретного Telegram-аккаунта (users/<id>/savedThemes,
-  // users/<id>/activeTheme), поэтому её не видно другому человеку,
-  // который откроет приложение в том же браузере под своим аккаунтом.
-  // Единственное исключение — гость без Telegram (playerId начинается на
-  // "guest_"): для него привязать тему буквально не к чему, там
-  // по-прежнему используется localStorage этого устройства.
+  // Тема — часть аккаунта, не устройства: хранится в Firebase у конкретного
+  // Telegram-аккаунта (users/<id>/savedThemes, users/<id>/activeTheme),
+  // поэтому её не видно другому человеку, который откроет приложение в том
+  // же браузере под своим аккаунтом. Гость (playerId начинается на
+  // "guest_") — тоже пишет в Firebase, просто под своим одноразовым
+  // guest_-ID: без этого противник вообще не мог бы увидеть его обои в бою
+  // (см. applyBattleZones/resolveThemeForPlayer) — тема просто не переживёт
+  // новый визит с того же устройства, т.к. guest_-ID каждый раз новый.
   let savedThemesCache = [];
   let activeThemeRefCache = null;
 
@@ -2972,7 +2973,7 @@
 
   function persistThemeState(){
     const telegramId = window.currentTelegramId;
-    if (telegramId && !telegramId.startsWith('guest_')) {
+    if (telegramId) {
       db.ref('users/' + telegramId).update({ savedThemes: savedThemesCache, activeTheme: activeThemeRefCache });
     } else {
       try {
