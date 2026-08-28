@@ -1656,10 +1656,10 @@
     document.getElementById('room-referee-view').style.display = 'none';
     document.getElementById('room-me-name').textContent = meName || '—';
     document.getElementById('room-opponent-name').textContent = oppName || '—';
-    // панель голоса переезжает внутрь моей же зоны — так обои под ней
-    // продолжаются одним нерасрезанным изображением, а не начинаются
-    // заново во втором отдельном блоке
-    document.querySelector('#room-me-zone .battle-zone-content').appendChild(document.getElementById('room-voice-controls'));
+    // панель голоса остаётся в своём нейтральном месте ниже — обе
+    // темизированные зоны держатся одного размера (аватар+имя), как на
+    // референсе, а не растягиваются под контролы голоса
+    document.getElementById('room-voice-neutral-slot').appendChild(document.getElementById('room-voice-controls'));
     applyRoomAvatar(document.getElementById('room-me-avatar'), meId, meName, document.getElementById('room-me-zone'));
     applyRoomAvatar(document.getElementById('room-opponent-avatar'), oppId, oppName, document.getElementById('room-opponent-zone'));
     overlay.classList.remove('open');
