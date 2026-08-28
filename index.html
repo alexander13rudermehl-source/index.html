@@ -1115,6 +1115,17 @@
       <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
     </div>
 
+    <div class="action-row" id="community-btn">
+      <div class="icon">
+        <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2.5 20c1-3 3.2-4.6 6.5-4.6s5.5 1.6 6.5 4.6"/><circle cx="17" cy="8.5" r="2.4"/><path d="M15.5 15.6c2.6.3 4.2 1.7 5 4.4"/></svg>
+      </div>
+      <div class="label-wrap">
+        <div class="label">Сообщество</div>
+        <div class="desc">Топ игроков и друзья</div>
+      </div>
+      <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+    </div>
+
     <div class="action-row" id="profile-btn">
       <div class="icon">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1.2-3.6 4-5.5 7-5.5s5.8 1.9 7 5.5"/></svg>
@@ -2745,6 +2756,40 @@
   });
 </script>
 
+<!-- ===== community sheet — топ игроков и друзья ===== -->
+<div class="overlay" id="community-overlay">
+  <div class="sheet">
+    <div class="sheet-grabber"></div>
+    <div class="sheet-head">
+      <div class="back hidden"></div>
+      <div class="sheet-title">Сообщество</div>
+      <div class="sheet-close" id="community-close-btn">
+        <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+    <div class="sheet-body">
+      <div style="display:flex; gap:8px; margin-bottom:16px;">
+        <button type="button" class="sheet-cta" id="community-tab-top" style="flex:1; margin-top:0; padding:10px; font-size:12.5px;">🏆 Топ игроков</button>
+        <button type="button" class="sheet-cta secondary" id="community-tab-friends" style="flex:1; margin-top:0; padding:10px; font-size:12.5px;">👥 Друзья</button>
+      </div>
+
+      <div id="community-view-top">
+        <div id="community-top-list"><div class="admin-empty">Загрузка…</div></div>
+      </div>
+
+      <div id="community-view-friends" style="display:none;">
+        <div style="display:flex; gap:8px; margin-bottom:14px;">
+          <input type="text" id="community-friend-code-input" placeholder="Код игрока, напр. PLR-8X3F9K"
+            style="flex:1; min-width:0; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:11px; color:var(--text); font-size:13px; text-transform:uppercase;">
+          <button type="button" class="sheet-cta" id="btn-community-add-friend" style="margin-top:0; padding:0 16px; font-size:12.5px; width:auto; flex-shrink:0;">Добавить</button>
+        </div>
+        <div id="community-friend-error" style="display:none; color:var(--live); font-size:12.5px; margin-bottom:10px;"></div>
+        <div id="community-friends-list"><div class="admin-empty">Пока нет друзей</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ===== profile sheet ===== -->
 <div class="overlay" id="profile-overlay">
   <div class="sheet">
@@ -2802,6 +2847,110 @@
     </div>
   </div>
 </div>
+
+<script>
+  // ===== Сообщество: топ игроков (по очкам) + друзья (свой список,
+  // хранится в users/<uid>/friends/<friendUid>: true) =====
+  const communityOverlay = document.getElementById('community-overlay');
+  const communityTabTop = document.getElementById('community-tab-top');
+  const communityTabFriends = document.getElementById('community-tab-friends');
+
+  function renderCommunityTop(entries) {
+    const el = document.getElementById('community-top-list');
+    if (!entries.length) { el.innerHTML = '<div class="admin-empty">Пока никто не набрал очков</div>'; return; }
+    el.innerHTML = entries.map((u, i) => `
+      <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+        <div style="font-family:'Bebas Neue',sans-serif; font-size:16px; color:var(--muted); width:22px; text-align:center; flex-shrink:0;">${i + 1}</div>
+        <div class="profile-avatar" style="width:34px; height:34px; font-size:13px; flex-shrink:0;${u.avatarData ? ` background-image:url(${u.avatarData}); background-size:cover; background-position:center; color:transparent;` : ''}">${(u.firstName || '??').slice(0, 2).toUpperCase()}</div>
+        <div style="flex:1; min-width:0; font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${u.firstName || 'Игрок'}</div>
+        <div style="font-family:'Bebas Neue',sans-serif; font-size:15px; color:var(--gold);">${Number(u.points || 0).toLocaleString('ru-RU')}</div>
+      </div>
+    `).join('');
+  }
+  function loadCommunityTop() {
+    db.ref('users').orderByChild('points').limitToLast(20).once('value').then((snap) => {
+      const arr = Object.values(snap.val() || {}).sort((a, b) => Number(b.points || 0) - Number(a.points || 0));
+      renderCommunityTop(arr);
+    }).catch((err) => window.showDebugError?.('Сообщество: топ игроков', err));
+  }
+
+  function renderCommunityFriends(list) {
+    const el = document.getElementById('community-friends-list');
+    if (!list.length) { el.innerHTML = '<div class="admin-empty">Пока нет друзей</div>'; return; }
+    el.innerHTML = list.map(({ key, user }) => `
+      <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+        <div class="profile-avatar" style="width:34px; height:34px; font-size:13px; flex-shrink:0;${user.avatarData ? ` background-image:url(${user.avatarData}); background-size:cover; background-position:center; color:transparent;` : ''}">${(user.firstName || '??').slice(0, 2).toUpperCase()}</div>
+        <div style="flex:1; min-width:0;">
+          <div style="font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${user.firstName || 'Игрок'}</div>
+          <div style="font-size:11px; color:var(--muted);">${Number(user.points || 0).toLocaleString('ru-RU')} pts</div>
+        </div>
+        <button type="button" class="community-remove-friend" data-key="${key}" style="background:none; border:none; color:var(--muted); font-size:18px; line-height:1; cursor:pointer; padding:4px 8px;">✕</button>
+      </div>
+    `).join('');
+    el.querySelectorAll('.community-remove-friend').forEach((btn) => {
+      btn.addEventListener('click', () => removeCommunityFriend(btn.dataset.key));
+    });
+  }
+  function loadCommunityFriends() {
+    const myKey = window.currentTelegramId;
+    if (!myKey) return;
+    db.ref('users/' + myKey + '/friends').once('value').then((snap) => {
+      const ids = Object.keys(snap.val() || {});
+      if (!ids.length) { renderCommunityFriends([]); return; }
+      return Promise.all(ids.map((key) => db.ref('users/' + key).once('value').then((s) => ({ key, user: s.val() || {} }))))
+        .then((list) => renderCommunityFriends(list.filter((x) => x.user && x.user.firstName)));
+    }).catch((err) => window.showDebugError?.('Сообщество: друзья', err));
+  }
+  function removeCommunityFriend(key) {
+    const myKey = window.currentTelegramId;
+    if (!myKey) return;
+    db.ref('users/' + myKey + '/friends/' + key).remove().then(loadCommunityFriends);
+  }
+
+  document.getElementById('btn-community-add-friend').addEventListener('click', async () => {
+    const errEl = document.getElementById('community-friend-error');
+    errEl.style.display = 'none';
+    const myKey = window.currentTelegramId;
+    const input = document.getElementById('community-friend-code-input');
+    const code = input.value.trim().toUpperCase();
+    if (!code) return;
+    if (!myKey) { errEl.textContent = 'Профиль ещё не загружен, попробуй ещё раз'; errEl.style.display = 'block'; return; }
+    try {
+      const snap = await db.ref('users').orderByChild('playerId').equalTo(code).once('value');
+      if (!snap.exists()) { errEl.textContent = 'Игрок с таким кодом не найден'; errEl.style.display = 'block'; return; }
+      const friendKey = Object.keys(snap.val())[0];
+      if (friendKey === myKey) { errEl.textContent = 'Это твой собственный код'; errEl.style.display = 'block'; return; }
+      await db.ref('users/' + myKey + '/friends/' + friendKey).set(true);
+      input.value = '';
+      loadCommunityFriends();
+    } catch (err) {
+      window.showDebugError?.('Сообщество: добавить друга', err);
+      errEl.textContent = 'Не удалось добавить, попробуй ещё раз';
+      errEl.style.display = 'block';
+    }
+  });
+
+  document.getElementById('community-btn').addEventListener('click', () => {
+    communityOverlay.classList.add('open');
+    loadCommunityTop();
+    loadCommunityFriends();
+  });
+  document.getElementById('community-close-btn').addEventListener('click', () => communityOverlay.classList.remove('open'));
+  communityOverlay.addEventListener('click', (e) => { if (e.target === communityOverlay) communityOverlay.classList.remove('open'); });
+
+  communityTabTop.addEventListener('click', () => {
+    document.getElementById('community-view-top').style.display = 'block';
+    document.getElementById('community-view-friends').style.display = 'none';
+    communityTabTop.classList.remove('secondary');
+    communityTabFriends.classList.add('secondary');
+  });
+  communityTabFriends.addEventListener('click', () => {
+    document.getElementById('community-view-top').style.display = 'none';
+    document.getElementById('community-view-friends').style.display = 'block';
+    communityTabFriends.classList.remove('secondary');
+    communityTabTop.classList.add('secondary');
+  });
+</script>
 
 <script>
   const profileOverlay = document.getElementById('profile-overlay');
