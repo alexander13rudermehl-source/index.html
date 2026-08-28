@@ -1121,7 +1121,7 @@
       </div>
       <div class="label-wrap">
         <div class="label">Сообщество</div>
-        <div class="desc">Топ игроков и друзья</div>
+        <div class="desc">Топ месяца и друзья</div>
       </div>
       <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
     </div>
@@ -2769,11 +2769,12 @@
     </div>
     <div class="sheet-body">
       <div style="display:flex; gap:8px; margin-bottom:16px;">
-        <button type="button" class="sheet-cta" id="community-tab-top" style="flex:1; margin-top:0; padding:10px; font-size:12.5px;">🏆 Топ игроков</button>
+        <button type="button" class="sheet-cta" id="community-tab-top" style="flex:1; margin-top:0; padding:10px; font-size:12.5px;">🏆 Топ месяца</button>
         <button type="button" class="sheet-cta secondary" id="community-tab-friends" style="flex:1; margin-top:0; padding:10px; font-size:12.5px;">👥 Друзья</button>
       </div>
 
       <div id="community-view-top">
+        <p style="color:var(--muted); font-size:12px; line-height:1.5; margin-bottom:12px;">Рейтинг за текущий месяц — в начале каждого следующего обнуляется, счёт начинается заново.</p>
         <div id="community-top-list"><div class="admin-empty">Загрузка…</div></div>
       </div>
 
@@ -2857,19 +2858,30 @@
 
   function renderCommunityTop(entries) {
     const el = document.getElementById('community-top-list');
-    if (!entries.length) { el.innerHTML = '<div class="admin-empty">Пока никто не набрал очков</div>'; return; }
+    if (!entries.length) { el.innerHTML = '<div class="admin-empty">Пока никто не набрал очков в этом месяце</div>'; return; }
     el.innerHTML = entries.map((u, i) => `
       <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; display:flex; align-items:center; gap:10px; margin-bottom:8px;">
         <div style="font-family:'Bebas Neue',sans-serif; font-size:16px; color:var(--muted); width:22px; text-align:center; flex-shrink:0;">${i + 1}</div>
         <div class="profile-avatar" style="width:34px; height:34px; font-size:13px; flex-shrink:0;${u.avatarData ? ` background-image:url(${u.avatarData}); background-size:cover; background-position:center; color:transparent;` : ''}">${(u.firstName || '??').slice(0, 2).toUpperCase()}</div>
         <div style="flex:1; min-width:0; font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${u.firstName || 'Игрок'}</div>
-        <div style="font-family:'Bebas Neue',sans-serif; font-size:15px; color:var(--gold);">${Number(u.points || 0).toLocaleString('ru-RU')}</div>
+        <div style="font-family:'Bebas Neue',sans-serif; font-size:15px; color:var(--gold);">${Number(u.effectivePoints || 0).toLocaleString('ru-RU')}</div>
       </div>
     `).join('');
   }
   function loadCommunityTop() {
-    db.ref('users').orderByChild('points').limitToLast(20).once('value').then((snap) => {
-      const arr = Object.values(snap.val() || {}).sort((a, b) => Number(b.points || 0) - Number(a.points || 0));
+    // топ месяца, не за всё время — считаем locally по monthlyPoints с учётом
+    // monthlyPeriod (см. window.getMonthKey/finishMatch): у кого период не
+    // совпадает с текущим месяцем, тот в счёт ещё не заходил и эффективно
+    // считается за 0, даже если monthlyPoints у него из прошлого месяца.
+    // orderByChild по такому "вычисляемому" полю сервер не умеет, поэтому
+    // тянем всех и сортируем на клиенте.
+    const currentMonth = window.getMonthKey();
+    db.ref('users').once('value').then((snap) => {
+      const arr = Object.values(snap.val() || {})
+        .map((u) => ({ ...u, effectivePoints: u.monthlyPeriod === currentMonth ? Number(u.monthlyPoints || 0) : 0 }))
+        .filter((u) => u.effectivePoints > 0)
+        .sort((a, b) => b.effectivePoints - a.effectivePoints)
+        .slice(0, 20);
       renderCommunityTop(arr);
     }).catch((err) => window.showDebugError?.('Сообщество: топ игроков', err));
   }
@@ -4284,6 +4296,19 @@
     });
   };
 
+  // "2026-08" и т.п. — ключ текущего месяца для сезонного топа игроков.
+  // Никакого сервера/крона нет (см. общую архитектуру проекта — только
+  // Firebase RTDB), поэтому сброс не "в полночь 1-го числа", а ленивый:
+  // как только сохранённый monthlyPeriod у игрока не совпадает с текущим,
+  // его monthlyPoints для нового месяца считаются с нуля (см. ниже и
+  // loadCommunityTop, где то же самое применяется и на чтение — иначе
+  // игрок, который в новом месяце ещё не сыграл, до первого же боя
+  // продолжал бы висеть в топе со старыми очками).
+  window.getMonthKey = function() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  };
+
   window.finishMatch = async function(matchId, result) {
     const ref=db.ref('matches/'+matchId);
     const snap=await ref.once('value'); const match=snap.val();
@@ -4304,8 +4329,14 @@
       const delta=Number(pointsAwarded[playerId]||0);
       const likeDelta=Number(audienceVotes[playerId]||0);
       const stats=u.stats||{};
+      const currentMonth=window.getMonthKey();
+      // тот же месяц — прибавляем как обычно; другой (или ещё не было
+      // ни одного боя в этом месяце) — начинаем месячный счёт заново
+      const monthlyBase=(u.monthlyPeriod===currentMonth) ? Number(u.monthlyPoints||0) : 0;
       const update={};
       update['users/'+key+'/points']=Number(u.points||0)+delta;
+      update['users/'+key+'/monthlyPoints']=monthlyBase+delta;
+      update['users/'+key+'/monthlyPeriod']=currentMonth;
       update['users/'+key+'/stats/battles']=Number(stats.battles||0)+1;
       update['users/'+key+'/stats/wins']=Number(stats.wins||0)+(winnerId===playerId?1:0);
       update['users/'+key+'/stats/losses']=Number(stats.losses||0)+(loserId===playerId?1:0);
