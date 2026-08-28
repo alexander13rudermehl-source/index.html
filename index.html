@@ -1040,7 +1040,6 @@
     margin-bottom: 4px;
   }
 
-  /* используется полем ввода кода друга (см. "friend-join") и пустыми состояниями списков */
   .admin-search{
     display:flex;
     gap: 8px;
@@ -1248,62 +1247,23 @@
         <div id="events-list-body"></div>
       </div>
 
-      <!-- level 0.5: выбор — создать комнату или ввести код -->
+      <!-- level 0.5: играть с другом — только по живому приглашению из
+           списка друзей (Сообщество → Друзья), без обмена кодами -->
       <div class="sheet-view" data-view="friend-mode">
-
-        <div class="cat-card" data-goto="friend-create">
-          <div class="icon training">
-            <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c.8-3 3-4.6 6-4.6s5.2 1.6 6 4.6"/><path d="M15 15.5c2.4.2 4 1.6 4.6 4.5"/></svg>
-          </div>
-          <div class="body">
-            <div class="title">Создать баттл с другом</div>
-            <div class="desc">Получишь код — отправь его сопернику</div>
-          </div>
-          <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
-        </div>
-
-        <div class="cat-card" data-goto="friend-join">
-          <div class="icon points">
-            <svg viewBox="0 0 24 24"><path d="M12 20v-6M12 14l-4 4M12 14l4 4"/><rect x="4" y="3" width="16" height="8" rx="2"/></svg>
-          </div>
-          <div class="body">
-            <div class="title">Ввести код друга</div>
-            <div class="desc">Присоединиться к уже созданному баттлу</div>
-          </div>
-          <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
-        </div>
-
-      </div>
-
-      <!-- level 1: создание комнаты -->
-      <div class="sheet-view" data-view="friend-create">
-        <div id="fc-idle">
-          <p style="color:var(--muted); font-size:13.5px; line-height:1.5; margin-bottom:16px;">
-            Нажми «Создать», получишь код из 5 символов. Перешли его другу — как только он введёт его на своём телефоне, баттл начнётся у вас обоих.
+        <div id="fm-list">
+          <p style="color:var(--muted); font-size:13px; line-height:1.5; margin-bottom:14px;">
+            Приглашение приходит другу прямо в приложении — код вводить не нужно.
           </p>
-          <button class="sheet-cta" id="btn-create-room">Создать комнату</button>
+          <div id="fm-friends-list"><div class="admin-empty">Загрузка…</div></div>
         </div>
 
-        <div id="fc-waiting" style="display:none; text-align:center;">
-          <div class="section-label" style="text-align:center;">Код комнаты</div>
-          <div id="room-code-display" style="font-family:'Bebas Neue',sans-serif; font-size:44px; letter-spacing:6px; color:var(--gold); margin:6px 0 18px;">—————</div>
-          <button class="sheet-cta secondary" id="btn-copy-code" style="margin-bottom:10px;">Скопировать код</button>
-          <div style="display:flex; align-items:center; justify-content:center; gap:8px; color:var(--muted); font-size:13px; margin-top:14px;">
-            <div class="status-dot"></div> Ждём соперника…
+        <div id="fm-waiting" style="display:none; text-align:center;">
+          <div style="display:flex; align-items:center; justify-content:center; gap:8px; color:var(--muted); font-size:13px; margin:20px 0;">
+            <div class="status-dot"></div> Ждём, примет ли <span id="fm-waiting-name" style="color:var(--text); font-weight:600;">—</span>…
           </div>
+          <button class="sheet-cta secondary" id="btn-cancel-friend-invite">Отменить</button>
+          <div id="fm-declined" style="display:none; color:var(--live); font-size:13px; margin-top:14px;">Приглашение отклонено</div>
         </div>
-      </div>
-
-      <!-- level 1: ввод кода -->
-      <div class="sheet-view" data-view="friend-join">
-        <p style="color:var(--muted); font-size:13.5px; line-height:1.5; margin-bottom:16px;">
-          Введи код, который прислал друг — баттл начнётся сразу у вас обоих.
-        </p>
-        <div class="admin-search">
-          <input type="text" id="join-code-input" placeholder="XXXXX" style="text-transform:uppercase; letter-spacing:3px; text-align:center; font-family:'Bebas Neue',sans-serif; font-size:18px;">
-          <button id="btn-join-room">Войти</button>
-        </div>
-        <div id="join-error" style="display:none; color:var(--live); font-size:13px; margin-top:10px; text-align:center;"></div>
       </div>
 
       <!-- level 1: рейтинговый бой — поиск случайного соперника из очереди -->
@@ -1564,8 +1524,6 @@
   const titles = {
     main: 'Участвовать',
     'friend-mode': 'Играть с другом',
-    'friend-create': 'Создать баттл',
-    'friend-join': 'Ввести код',
     'rating-queue': 'Рейтинговый бой',
     'events-list': 'Ивенты',
     'demo-bot-config': 'Тренировочный бот'
@@ -1575,8 +1533,6 @@
   // (friend-mode), поэтому просто "назад в main" уже не годится
   const viewParents = {
     'friend-mode': 'main',
-    'friend-create': 'friend-mode',
-    'friend-join': 'friend-mode',
     'rating-queue': 'main',
     'events-list': 'main',
     'demo-bot-config': 'rating-queue'
@@ -1598,6 +1554,7 @@
   function closeSheet(){
     overlay.classList.remove('open');
     leaveRatingQueue(); // если ждали соперника — снимаем себя из очереди
+    cancelFriendInvite(); // если ждали ответа на приглашение другу — тоже сворачиваем
   }
 
   document.querySelector('.cta-join').addEventListener('click', () => {
@@ -1614,12 +1571,14 @@
   overlay.addEventListener('click', (e) => { if(e.target === overlay) closeSheet(); });
   backBtn.addEventListener('click', () => {
     if (sheet.dataset.current === 'rating-queue') leaveRatingQueue();
+    if (sheet.dataset.current === 'friend-mode') cancelFriendInvite();
     showView(viewParents[sheet.dataset.current] || 'main');
   });
 
   document.querySelectorAll('[data-goto]').forEach(el => {
     el.addEventListener('click', () => showView(el.dataset.goto));
   });
+  document.querySelector('[data-goto="friend-mode"]')?.addEventListener('click', loadFriendModeList);
 
   // ===== баттл с другом — реальная логика через Firebase =====
   function generateRoomCode() {
@@ -1630,7 +1589,6 @@
   }
 
   const roomOverlay = document.getElementById('room-overlay');
-  let myRoomListener = null;
   let myRoomCode = null;
   let myRoomRole = null; // 'host' | 'guest' | 'referee'
 
@@ -1963,9 +1921,60 @@
   document.getElementById('ref-declare-host').addEventListener('click', () => refereeDeclareWinner('host'));
   document.getElementById('ref-declare-guest').addEventListener('click', () => refereeDeclareWinner('guest'));
 
-  document.getElementById('btn-create-room').addEventListener('click', () => {
+  // ===== Играть с другом — только по живому приглашению (без кодов) =====
+  // Общая логика похода "playerId -> полная запись пользователя" уже была
+  // продублирована в паре мест — вынесена сюда, используется и списком
+  // друзей на этом экране, и списком друзей в "Сообществе".
+  function fetchFriendUsers(myKey) {
+    return db.ref('users/' + myKey + '/friends').once('value').then((snap) => {
+      const ids = Object.keys(snap.val() || {});
+      if (!ids.length) return [];
+      return Promise.all(ids.map((key) => db.ref('users/' + key).once('value').then((s) => ({ key, user: s.val() || {} }))))
+        .then((list) => list.filter((x) => x.user && x.user.firstName));
+    });
+  }
+  window.fetchFriendUsers = fetchFriendUsers;
+
+  function renderFriendModeList(list) {
+    const el = document.getElementById('fm-friends-list');
+    if (!list.length) {
+      el.innerHTML = '<div class="admin-empty">Пока нет добавленных друзей — добавь через «Сообщество» → «Друзья»</div>';
+      return;
+    }
+    el.innerHTML = list.map(({ key, user }) => `
+      <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+        <div class="profile-avatar" style="width:34px; height:34px; font-size:13px; flex-shrink:0;${user.avatarData ? ` background-image:url(${user.avatarData}); background-size:cover; background-position:center; color:transparent;` : ''}">${(user.firstName || '??').slice(0, 2).toUpperCase()}</div>
+        <div style="flex:1; min-width:0; font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${user.firstName || 'Игрок'}</div>
+        <button type="button" class="fm-invite-btn" data-key="${key}" data-name="${(user.firstName || 'Игрок').replace(/"/g, '&quot;')}"
+          style="background:var(--gold); border:none; color:#0B0B0D; border-radius:100px; padding:7px 14px; font-size:12px; font-weight:700; cursor:pointer; flex-shrink:0;">Пригласить</button>
+      </div>
+    `).join('');
+    el.querySelectorAll('.fm-invite-btn').forEach((btn) => {
+      btn.addEventListener('click', () => sendFriendInvite(btn.dataset.key, btn.dataset.name));
+    });
+  }
+  function loadFriendModeList() {
+    resetFriendModeUI();
+    const myKey = window.currentTelegramId;
+    if (!myKey) return;
+    fetchFriendUsers(myKey).then(renderFriendModeList).catch((err) => window.showDebugError?.('Играть с другом: список друзей', err));
+  }
+
+  function resetFriendModeUI() {
+    document.getElementById('fm-list').style.display = 'block';
+    document.getElementById('fm-waiting').style.display = 'none';
+    document.getElementById('fm-declined').style.display = 'none';
+  }
+
+  let myFriendInviteListener = null;
+  let myFriendInviteCode = null;
+
+  function sendFriendInvite(friendKey, friendName) {
     const me = window.currentPlayer || { firstName: 'Игрок', playerId: 'guest' };
+    const myKey = window.currentTelegramId;
+    if (!myKey) return;
     const code = generateRoomCode();
+    myFriendInviteCode = code;
 
     db.ref('battles/' + code).set({
       hostId: me.playerId,
@@ -1974,85 +1983,107 @@
       guestName: null,
       status: 'waiting',
       createdAt: Date.now()
-    }).then(() => {
-      document.getElementById('fc-idle').style.display = 'none';
-      document.getElementById('fc-waiting').style.display = 'block';
-      document.getElementById('room-code-display').textContent = code;
+    }).then(() => db.ref('users/' + friendKey + '/invite').set({
+      fromId: me.playerId,
+      fromName: me.firstName,
+      fromTelegramId: myKey,
+      code,
+      createdAt: Date.now()
+    })).then(() => {
+      document.getElementById('fm-list').style.display = 'none';
+      document.getElementById('fm-waiting').style.display = 'block';
+      document.getElementById('fm-declined').style.display = 'none';
+      document.getElementById('fm-waiting-name').textContent = friendName;
 
-      // слушаем — как только друг присоединится, статус сменится на 'active'
-      myRoomListener = db.ref('battles/' + code).on('value', (snap) => {
+      // ждём — либо друг примет (status='active'), либо отклонит
+      // (status='declined', см. btn-invite-decline)
+      myFriendInviteListener = db.ref('battles/' + code).on('value', (snap) => {
         const data = snap.val();
-        if (data && data.status === 'active') {
-          db.ref('battles/' + code).off('value', myRoomListener);
+        if (!data) return;
+        if (data.status === 'active') {
+          db.ref('battles/' + code).off('value', myFriendInviteListener);
+          myFriendInviteListener = null;
+          myFriendInviteCode = null;
           showRoom(code, data, true);
+        } else if (data.status === 'declined') {
+          db.ref('battles/' + code).off('value', myFriendInviteListener);
+          myFriendInviteListener = null;
+          document.getElementById('fm-declined').style.display = 'block';
+          db.ref('battles/' + code).remove().catch(() => {});
         }
       });
+    }).catch((err) => window.showDebugError?.('Приглашение другу', err));
+  }
+
+  // отмена ожидания — по кнопке "Отменить", кнопке "назад" или закрытию
+  // шторки; раньше при уходе с экрана ожидания комната-код просто оставалась
+  // висеть в Firebase навсегда (слушатель не отписывался) — здесь прибрано
+  function cancelFriendInvite() {
+    if (myFriendInviteListener && myFriendInviteCode) {
+      db.ref('battles/' + myFriendInviteCode).off('value', myFriendInviteListener);
+    }
+    if (myFriendInviteCode) {
+      db.ref('battles/' + myFriendInviteCode).remove().catch(() => {});
+    }
+    myFriendInviteListener = null;
+    myFriendInviteCode = null;
+    resetFriendModeUI();
+  }
+  document.getElementById('btn-cancel-friend-invite').addEventListener('click', cancelFriendInvite);
+
+  // ===== приём входящих приглашений (сторона того, кого позвали) =====
+  let pendingInvite = null;
+  window.attachInviteListener = function(myUid) {
+    if (!myUid || window._inviteListenerAttached) return;
+    window._inviteListenerAttached = true;
+    db.ref('users/' + myUid + '/invite').on('value', (snap) => {
+      const invite = snap.val();
+      const inviteOverlay = document.getElementById('invite-overlay');
+      if (!invite) { inviteOverlay.classList.remove('open'); pendingInvite = null; return; }
+      pendingInvite = invite;
+      document.getElementById('invite-from-name').textContent = invite.fromName || 'Игрок';
+      inviteOverlay.classList.add('open');
     });
-  });
+  };
 
-  document.getElementById('btn-copy-code').addEventListener('click', () => {
-    const code = document.getElementById('room-code-display').textContent;
-    navigator.clipboard?.writeText(code);
-  });
-
-  document.getElementById('btn-join-room').addEventListener('click', () => {
-    const input = document.getElementById('join-code-input');
-    const code = input.value.trim().toUpperCase();
-    const errorEl = document.getElementById('join-error');
-    errorEl.style.display = 'none';
-    if (!code) return;
-
+  document.getElementById('btn-invite-accept').addEventListener('click', async () => {
+    const invite = pendingInvite;
+    const myKey = window.currentTelegramId;
+    const inviteOverlay = document.getElementById('invite-overlay');
+    if (!invite || !myKey) return;
     const me = window.currentPlayer || { firstName: 'Игрок', playerId: 'guest' };
+    const code = invite.code;
     const roomRef = db.ref('battles/' + code);
-
-    // Раньше здесь стояла db.ref(...).transaction(...). По debug-логам
-    // выяснилось, что сама transaction() у части клиентов стабильно получает
-    // пустой snapshot, даже когда обычный once('value') секундой раньше и
-    // секундой позже прекрасно видит комнату (status: waiting). Это баг/квирк
-    // именно транзакционного механизма в Firebase JS SDK, а не проблема связи.
-    // Заменяем на простую связку "прочитать → проверить → записать" —
-    // обычные .once()/.update() отрабатывают надёжно.
-    // Небольшой риск гонки (два человека жмут "Войти" в одну и ту же секунду)
-    // тут не критичен: код комнаты знают только двое друзей, а не толпа.
-    roomRef.once('value').then((snap) => {
-      if (!snap.exists()) {
-        errorEl.textContent = 'Комната с таким кодом не найдена';
-        errorEl.style.display = 'block';
-        window.showDebugError?.('Вход по коду', `код "${code}" не найден в battles/`);
-        return null;
-      }
-
-      const data = snap.val();
-      if (data.status !== 'waiting') {
-        errorEl.textContent = 'Эта комната уже занята';
-        errorEl.style.display = 'block';
-        window.showDebugError?.('Вход по коду', `"${code}" уже не waiting: status=${data.status}`);
-        return null;
-      }
-
-      return roomRef.update({
-        guestId: me.playerId,
-        guestName: me.firstName,
-        status: 'active'
-      }).then(() => roomRef.once('value'));
-    }).then((finalSnap) => {
-      if (!finalSnap) return; // уже показали ошибку выше
-
-      const data = finalSnap.val();
-      if (!data || data.guestId !== me.playerId) {
-        // Кто-то успел зайти на долю секунды раньше нас
-        errorEl.textContent = 'Эта комната уже занята';
-        errorEl.style.display = 'block';
-        window.showDebugError?.('Вход по коду', `после записи в "${code}" guestId не совпал с нашим — комнату занял кто-то другой`);
+    try {
+      const snap = await roomRef.once('value');
+      if (!snap.exists() || snap.val().status !== 'waiting') {
+        // друг уже отменил приглашение или комната протухла — просто гасим
+        await db.ref('users/' + myKey + '/invite').remove();
+        inviteOverlay.classList.remove('open');
+        window.showDebugError?.('Приглашение', `battles/${code} недоступна: ${snap.exists() ? snap.val().status : 'нет записи'}`);
         return;
       }
+      await roomRef.update({ guestId: me.playerId, guestName: me.firstName, status: 'active' });
+      const finalSnap = await roomRef.once('value');
+      const data = finalSnap.val();
+      await db.ref('users/' + myKey + '/invite').remove();
+      inviteOverlay.classList.remove('open');
+      if (data && data.guestId === me.playerId) showRoom(code, data, false);
+    } catch (err) {
+      window.showDebugError?.('Приглашение: принять', err);
+    }
+  });
 
-      showRoom(code, data, false);
-    }).catch((err) => {
-      errorEl.textContent = 'Не удалось подключиться, попробуй ещё раз';
-      errorEl.style.display = 'block';
-      window.showDebugError?.('Вход по коду', err);
-    });
+  document.getElementById('btn-invite-decline').addEventListener('click', () => {
+    const invite = pendingInvite;
+    const myKey = window.currentTelegramId;
+    document.getElementById('invite-overlay').classList.remove('open');
+    if (myKey) db.ref('users/' + myKey + '/invite').remove().catch(() => {});
+    if (invite?.code) {
+      db.ref('battles/' + invite.code).once('value').then((s) => {
+        if (s.exists() && s.val().status === 'waiting') db.ref('battles/' + invite.code + '/status').set('declined');
+      }).catch(() => {});
+    }
   });
 
   document.getElementById('room-close-btn').addEventListener('click', closeRoom);
@@ -2756,6 +2787,25 @@
   });
 </script>
 
+<!-- ===== входящее приглашение на баттл от друга =====
+     показывается поверх всего, откуда бы ни открыли приложение — слушает
+     users/<uid>/invite (см. attachInviteListener в JS) -->
+<div class="overlay" id="invite-overlay">
+  <div class="sheet" style="max-width:340px;">
+    <div class="sheet-body" style="text-align:center; padding:26px 22px;">
+      <div style="font-size:28px; margin-bottom:10px;">⚔️</div>
+      <div style="font-size:15px; font-weight:600; margin-bottom:6px;">
+        <span id="invite-from-name">Игрок</span> зовёт тебя в баттл
+      </div>
+      <p style="color:var(--muted); font-size:13px; margin-bottom:20px;">Голосовой баттл 1×1 начнётся сразу, как только примешь.</p>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="sheet-cta secondary" id="btn-invite-decline" style="flex:1; margin-top:0; padding:12px; font-size:13px;">Отклонить</button>
+        <button type="button" class="sheet-cta" id="btn-invite-accept" style="flex:1; margin-top:0; padding:12px; font-size:13px;">Принять</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ===== community sheet — топ игроков и друзья ===== -->
 <div class="overlay" id="community-overlay">
   <div class="sheet">
@@ -2906,12 +2956,8 @@
   function loadCommunityFriends() {
     const myKey = window.currentTelegramId;
     if (!myKey) return;
-    db.ref('users/' + myKey + '/friends').once('value').then((snap) => {
-      const ids = Object.keys(snap.val() || {});
-      if (!ids.length) { renderCommunityFriends([]); return; }
-      return Promise.all(ids.map((key) => db.ref('users/' + key).once('value').then((s) => ({ key, user: s.val() || {} }))))
-        .then((list) => renderCommunityFriends(list.filter((x) => x.user && x.user.firstName)));
-    }).catch((err) => window.showDebugError?.('Сообщество: друзья', err));
+    window.fetchFriendUsers(myKey).then(renderCommunityFriends)
+      .catch((err) => window.showDebugError?.('Сообщество: друзья', err));
   }
   function removeCommunityFriend(key) {
     const myKey = window.currentTelegramId;
@@ -4080,6 +4126,11 @@
     }
 
     window.currentPlayer = userData; // доступно из остальных скриптов при необходимости
+    // слушаем свои живые приглашения на баттл от друзей (см. "Играть с
+    // другом" — sendFriendInvite/attachInviteListener); гостям (без
+    // Telegram-аккаунта) звать/приглашать некого, а приглашать их и
+    // подавно, но слушатель всё равно безвреден, если currentTelegramId есть
+    window.attachInviteListener?.(window.currentTelegramId);
     window.refreshDemoModeVisibility?.();
     // тема — приватная часть аккаунта, а не устройства; подтягиваем именно
     // ту, что сохранена у ЭТОГО Telegram-аккаунта, а не то, что случайно
