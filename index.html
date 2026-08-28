@@ -365,6 +365,23 @@
     z-index: 1;
     background: rgba(0,0,0,0.4);
   }
+  /* размытие СВОЕГО ЖЕ края у стыка, только когда там реально стык двух
+     РАЗНЫХ обоев (см. applyBattleZones) — mask-image вместе с
+     backdrop-filter гасит сам blur на части WebView, поэтому тут простой
+     немаскированный блок фиксированной высоты, без градиента прозрачности.
+     По умолчанию скрыт inline-стилем в HTML — JS показывает его только в
+     режиме раздельных обоев. */
+  .battle-zone-fade{
+    position: absolute;
+    z-index: 0;
+    pointer-events: none;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  .battle-zone-fade.at-top{ top: 0; left: 0; right: 0; height: 40px; }
+  .battle-zone-fade.at-bottom{ bottom: 0; left: 0; right: 0; height: 40px; }
+  .battle-zone-fade.at-left{ top: 0; bottom: 0; left: 0; width: 32px; }
+  .battle-zone-fade.at-right{ top: 0; bottom: 0; right: 0; width: 32px; }
   .battle-zone-content{
     position: relative;
     z-index: 2;
@@ -1402,6 +1419,7 @@
         </div>
 
         <div class="battle-zone" id="room-opponent-zone">
+          <div class="battle-zone-fade at-bottom" style="display:none;"></div>
           <div class="battle-zone-content">
             <div class="avatar-wrap">
               <div class="profile-avatar" id="room-opponent-avatar">—</div>
@@ -1414,6 +1432,7 @@
         <div class="battle-seam"><span class="battle-vs-badge">VS</span></div>
 
         <div class="battle-zone" id="room-me-zone">
+          <div class="battle-zone-fade at-top" style="display:none;"></div>
           <div class="battle-zone-content">
             <div class="avatar-wrap">
               <div class="profile-avatar" id="room-me-avatar">—</div>
@@ -1434,6 +1453,7 @@
       <div id="room-referee-view" style="display:none; margin-bottom:20px;">
         <div id="room-referee-zones-wrap" style="position:relative; display:flex; margin:0 -18px;">
           <div class="battle-zone" id="ref-host-zone" style="flex:1; margin:0;">
+            <div class="battle-zone-fade at-right" style="display:none;"></div>
             <div class="battle-zone-content">
               <div class="avatar-wrap">
                 <div class="profile-avatar" id="ref-host-avatar">—</div>
@@ -1443,6 +1463,7 @@
             </div>
           </div>
           <div class="battle-zone" id="ref-guest-zone" style="flex:1; margin:0;">
+            <div class="battle-zone-fade at-left" style="display:none;"></div>
             <div class="battle-zone-content">
               <div class="avatar-wrap">
                 <div class="profile-avatar" id="ref-guest-avatar">—</div>
@@ -1750,6 +1771,14 @@
       });
       const wallpapers = themes.map((t) => t?.wallpaper).filter(Boolean);
       const splitMode = wallpapers.length >= 2;
+      // .battle-zone-fade — размытый блок на стыке (см. CSS) — нужен, только
+      // когда там реально стык двух РАЗНЫХ картинок; при общем фоне на всю
+      // карточку блюрить нечего, поэтому прячем
+      pairs.forEach((p) => {
+        p.zoneEl.querySelectorAll('.battle-zone-fade').forEach((f) => {
+          f.style.display = splitMode ? '' : 'none';
+        });
+      });
       if (splitMode) {
         // у каждого свои обои — показываем их раздельно, каждому свою половину
         pairs.forEach((p, i) => {
