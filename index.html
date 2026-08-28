@@ -375,10 +375,10 @@
      backdrop-filter эту проблему WebView не разделяет. По умолчанию скрыт
      inline-стилем в HTML — JS показывает его только в режиме раздельных обоев. */
   .battle-zone-fade{ position: absolute; z-index: 0; pointer-events: none; overflow: hidden; }
-  .battle-zone-fade.at-top{ top: 0; left: 0; right: 0; height: 72px; }
-  .battle-zone-fade.at-bottom{ bottom: 0; left: 0; right: 0; height: 72px; }
-  .battle-zone-fade.at-left{ top: 0; bottom: 0; left: 0; width: 56px; }
-  .battle-zone-fade.at-right{ top: 0; bottom: 0; right: 0; width: 56px; }
+  .battle-zone-fade.at-top{ top: 0; left: 0; right: 0; height: 130px; }
+  .battle-zone-fade.at-bottom{ bottom: 0; left: 0; right: 0; height: 130px; }
+  .battle-zone-fade.at-left{ top: 0; bottom: 0; left: 0; width: 100px; }
+  .battle-zone-fade.at-right{ top: 0; bottom: 0; right: 0; width: 100px; }
   .battle-zone-content{
     position: relative;
     z-index: 2;
@@ -1741,16 +1741,16 @@
     const dir = ['at-top', 'at-bottom', 'at-left', 'at-right'].find((c) => fadeEl.classList.contains(c));
     const anchorProp = dir.slice(3);
     const horizontal = dir === 'at-left' || dir === 'at-right';
-    const SLICES = 14;
-    const totalSize = horizontal ? 56 : 72;
+    const SLICES = 18;
+    const totalSize = horizontal ? 100 : 130;
     const sliceSize = totalSize / SLICES;
     for (let i = 0; i < SLICES; i++) {
       const t = 1 - i / SLICES; // 1 у самого стыка, к 0 на дальнем краю
       const slice = document.createElement('div');
       slice.style.position = 'absolute';
-      slice.style.backdropFilter = 'blur(18px)';
-      slice.style.webkitBackdropFilter = 'blur(18px)';
-      slice.style.opacity = Math.pow(t, 1.5).toFixed(3);
+      slice.style.backdropFilter = 'blur(28px)';
+      slice.style.webkitBackdropFilter = 'blur(28px)';
+      slice.style.opacity = Math.pow(t, 1.2).toFixed(3);
       slice.style[anchorProp] = (i * sliceSize) + 'px';
       if (horizontal) { slice.style.top = '0'; slice.style.bottom = '0'; slice.style.width = sliceSize + 'px'; }
       else { slice.style.left = '0'; slice.style.right = '0'; slice.style.height = sliceSize + 'px'; }
@@ -1762,7 +1762,7 @@
     const darken = document.createElement('div');
     darken.style.position = 'absolute';
     darken.style.inset = '0';
-    darken.style.background = `linear-gradient(${gradientDir}, rgba(0,0,0,0.35), rgba(0,0,0,0))`;
+    darken.style.background = `linear-gradient(${gradientDir}, rgba(0,0,0,0.45), rgba(0,0,0,0))`;
     fadeEl.appendChild(darken);
   }
   document.querySelectorAll('.battle-zone-fade').forEach(buildFadeSlices);
