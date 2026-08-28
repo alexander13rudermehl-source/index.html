@@ -1387,7 +1387,7 @@
       <!-- для рефери: то же самое, но половины слева/справа, а не сверху/
            снизу — тоже каждая закрашена обоями своего бойца -->
       <div id="room-referee-view" style="display:none; margin-bottom:20px;">
-        <div style="position:relative; display:flex; margin:0 -18px;">
+        <div id="room-referee-zones-wrap" style="position:relative; display:flex; margin:0 -18px; background-size:cover; background-position:center;">
           <div class="battle-zone" id="ref-host-zone" style="flex:1; margin:0;">
             <div class="battle-zone-fade at-left"></div>
             <div class="battle-zone-fade at-right"></div>
@@ -1584,7 +1584,17 @@
     if (!el) return;
     if (!refereeId) { el.classList.remove('show'); return; }
     document.getElementById('room-ref-indicator-name').textContent = refereeName || 'Рефери';
-    applyRoomAvatar(document.getElementById('room-ref-indicator-avatar'), refereeId, refereeName);
+    const avatarEl = document.getElementById('room-ref-indicator-avatar');
+    avatarEl.style.backgroundImage = '';
+    avatarEl.classList.remove('has-image');
+    avatarEl.textContent = (refereeName || '??').slice(0, 2).toUpperCase();
+    resolveThemeForPlayer(refereeId).then((theme) => {
+      if (theme?.avatarData) {
+        avatarEl.style.backgroundImage = `url(${theme.avatarData})`;
+        avatarEl.classList.add('has-image');
+        avatarEl.textContent = '';
+      }
+    });
     el.classList.add('show');
   }
 
@@ -1625,44 +1635,78 @@
   // Заодно подтягиваем и оформление игрока — вся его половина экрана боя
   // (.battle-zone) закрашивается его обоями (фон, загруженный в "Моих
   // темах"), а не только рамка вокруг аватара; если своих обоев нет —
-  // просто заливка цветом темы. Половины жёстко разграничены разделителем
-  // VS — одно оформление не перетекает в другое. Так соперники видят
-  // оформление друг друга, не переключая своё. window.resolveOpponentTheme
-  // определена в блоке настроек ниже по странице (там же живут themes/
-  // computeCustomTheme) — к моменту первого реального вызова этой функции,
-  // после входа в баттл, та часть страницы уже точно выполнилась.
-  function applyRoomAvatar(avatarEl, playerId, fallbackName, zoneEls) {
-    const zones = zoneEls ? (Array.isArray(zoneEls) ? zoneEls : [zoneEls]) : [];
-    avatarEl.style.backgroundImage = '';
-    avatarEl.classList.remove('has-image');
-    avatarEl.style.borderColor = '';
-    avatarEl.textContent = (fallbackName || '??').slice(0, 2).toUpperCase();
-    zones.forEach((z) => { z.style.backgroundImage = ''; z.style.backgroundColor = ''; });
-    if (!playerId) return;
-    const applyTheme = (user) => {
-      if (user?.avatarData) {
-        avatarEl.style.backgroundImage = `url(${user.avatarData})`;
-        avatarEl.classList.add('has-image');
-        avatarEl.textContent = '';
-      }
-      const theme = window.resolveOpponentTheme?.(user) || { bg: '#0B0B0D', live: '#FF3D2E' };
-      avatarEl.style.borderColor = theme.live;
-      zones.forEach((z) => {
-        if (theme.wallpaper) z.style.backgroundImage = `url(${theme.wallpaper})`;
-        else z.style.backgroundColor = theme.bg;
-      });
-    };
-    // DEMO-BOT/DEMO-REF — фейковые ID демо-режима, их нет в users, поэтому
-    // поиск ниже ничего не находил и зона оставалась вообще без оформления
-    // (просто пустая/чёрная) — сразу подставляем готовую заметную тему,
-    // чтобы демо-бой наглядно показывал разделение оформления
+  // просто заливка цветом темы. Так соперники видят оформление друг друга,
+  // не переключая своё. window.resolveOpponentTheme определена в блоке
+  // настроек ниже по странице (там же живут themes/computeCustomTheme) —
+  // к моменту первого реального вызова этой функции, после входа в баттл,
+  // та часть страницы уже точно выполнилась.
+  function resolveThemeForPlayer(playerId) {
+    if (!playerId) return Promise.resolve(null);
+    // DEMO-BOT/DEMO-REF — фейковые ID демо-режима, их нет в users, поиск
+    // по ним ничего не находил и зона оставалась вообще без оформления —
+    // сразу подставляем готовую заметную тему для наглядности демо-боя
     if (playerId === 'DEMO-BOT' || playerId === 'DEMO-REF') {
-      applyTheme({ activeTheme: { type: 'preset', name: 'neon' } });
-      return;
+      return Promise.resolve(window.resolveOpponentTheme?.({ activeTheme: { type: 'preset', name: 'neon' } }));
     }
-    db.ref('users').orderByChild('playerId').equalTo(playerId).once('value').then((snap) => {
-      applyTheme(snap.exists() ? Object.values(snap.val())[0] : null);
-    }).catch((err) => window.showDebugError?.('Оформление в комнате боя', err));
+    return db.ref('users').orderByChild('playerId').equalTo(playerId).once('value').then((snap) => {
+      const user = snap.exists() ? Object.values(snap.val())[0] : null;
+      const theme = window.resolveOpponentTheme?.(user) || { bg: '#0B0B0D', live: '#FF3D2E' };
+      theme.avatarData = user?.avatarData || null;
+      return theme;
+    }).catch((err) => {
+      window.showDebugError?.('Оформление в комнате боя', err);
+      return { bg: '#0B0B0D', live: '#FF3D2E' };
+    });
+  }
+
+  // wrapperEl — общий контейнер вокруг обеих .battle-zone (для боя —
+  // #room-combatant-view, для рефери — #room-referee-zones-wrap). Если
+  // обои есть только у ОДНОЙ стороны — тянем именно эту картинку одним
+  // куском на весь wrapperEl, без деления на половины: красить одним и тем
+  // же фоном две независимо обрезаемые .battle-zone даёт фрагменты (два
+  // разных cover-кропа одной картинки), а общий фон родителя рисуется один
+  // раз и такой проблемы не имеет — ровно как на референсе, где всю
+  // карточку целиком занимает одна фотография. Если обои есть у ОБОИХ (и
+  // они разные) — по-честному склеить две разные фотографии без шва
+  // средствами CSS невозможно, поэтому в этом случае зоны остаются
+  // разделёнными пополам с размытым стыком.
+  function applyBattleZones(wrapperEl, pairs) {
+    pairs.forEach(({ avatarEl, zoneEl, fallbackName }) => {
+      avatarEl.style.backgroundImage = '';
+      avatarEl.classList.remove('has-image');
+      avatarEl.style.borderColor = '';
+      avatarEl.textContent = (fallbackName || '??').slice(0, 2).toUpperCase();
+      zoneEl.style.backgroundImage = '';
+      zoneEl.style.backgroundColor = '';
+      zoneEl.querySelectorAll('.battle-zone-fade').forEach((f) => { f.style.display = ''; });
+    });
+    wrapperEl.style.backgroundImage = '';
+    Promise.all(pairs.map((p) => resolveThemeForPlayer(p.playerId))).then((themes) => {
+      pairs.forEach((p, i) => {
+        const theme = themes[i];
+        if (!theme) return;
+        if (theme.avatarData) {
+          p.avatarEl.style.backgroundImage = `url(${theme.avatarData})`;
+          p.avatarEl.classList.add('has-image');
+          p.avatarEl.textContent = '';
+        }
+        p.avatarEl.style.borderColor = theme.live;
+      });
+      const wallpapers = themes.map((t) => t?.wallpaper).filter(Boolean);
+      if (wallpapers.length === 1) {
+        wrapperEl.style.backgroundImage = `url(${wallpapers[0]})`;
+        pairs.forEach((p) => {
+          p.zoneEl.querySelectorAll('.battle-zone-fade').forEach((f) => { f.style.display = 'none'; });
+        });
+      } else {
+        pairs.forEach((p, i) => {
+          const theme = themes[i];
+          if (!theme) return;
+          if (theme.wallpaper) p.zoneEl.style.backgroundImage = `url(${theme.wallpaper})`;
+          else p.zoneEl.style.backgroundColor = theme.bg;
+        });
+      }
+    });
   }
 
   function showRoom(code, data, isHost) {
@@ -1681,8 +1725,10 @@
     // темизированные зоны держатся одного размера (аватар+имя), как на
     // референсе, а не растягиваются под контролы голоса
     document.getElementById('room-voice-neutral-slot').appendChild(document.getElementById('room-voice-controls'));
-    applyRoomAvatar(document.getElementById('room-me-avatar'), meId, meName, document.getElementById('room-me-zone'));
-    applyRoomAvatar(document.getElementById('room-opponent-avatar'), oppId, oppName, document.getElementById('room-opponent-zone'));
+    applyBattleZones(document.getElementById('room-combatant-view'), [
+      { avatarEl: document.getElementById('room-opponent-avatar'), zoneEl: document.getElementById('room-opponent-zone'), playerId: oppId, fallbackName: oppName },
+      { avatarEl: document.getElementById('room-me-avatar'), zoneEl: document.getElementById('room-me-zone'), playerId: meId, fallbackName: meName }
+    ]);
     overlay.classList.remove('open');
     roomOverlay.classList.add('open');
     attachLikesListener(code, isHost ? 'host' : 'guest', isHost ? 'guest' : 'host');
@@ -1701,8 +1747,10 @@
     document.getElementById('room-voice-neutral-slot').appendChild(document.getElementById('room-voice-controls'));
     document.getElementById('ref-host-name').textContent = data.hostName || '—';
     document.getElementById('ref-guest-name').textContent = data.guestName || '—';
-    applyRoomAvatar(document.getElementById('ref-host-avatar'), data.hostId, data.hostName, document.getElementById('ref-host-zone'));
-    applyRoomAvatar(document.getElementById('ref-guest-avatar'), data.guestId, data.guestName, document.getElementById('ref-guest-zone'));
+    applyBattleZones(document.getElementById('room-referee-zones-wrap'), [
+      { avatarEl: document.getElementById('ref-host-avatar'), zoneEl: document.getElementById('ref-host-zone'), playerId: data.hostId, fallbackName: data.hostName },
+      { avatarEl: document.getElementById('ref-guest-avatar'), zoneEl: document.getElementById('ref-guest-zone'), playerId: data.guestId, fallbackName: data.guestName }
+    ]);
     document.getElementById('ref-declare-host-name').textContent = data.hostName || '—';
     document.getElementById('ref-declare-guest-name').textContent = data.guestName || '—';
     overlay.classList.remove('open');
