@@ -1421,6 +1421,11 @@
             </div>
             <div style="font-size:13px; font-weight:600;" id="room-me-name">—</div>
           </div>
+          <!-- когда у обеих сторон РАЗНЫЕ обои (см. applyBattleZones), панель
+               голоса переезжает сюда, чтобы её задник был тем же самым
+               куском МОЕЙ картинки без нового отдельного кропа — иначе
+               ровно на этой границе опять появлялся бы шов -->
+          <div id="room-me-voice-slot"></div>
         </div>
       </div>
 
@@ -1728,7 +1733,11 @@
     });
     wrapperEl.style.backgroundImage = '';
     wrapperEl.style.backgroundColor = '';
-    Promise.all(pairs.map((p) => resolveThemeForPlayer(p.playerId))).then((themes) => {
+    // возвращаем промис с флагом "зоны разделены" — вызывающий код (showRoom)
+    // по нему решает, куда девать панель голоса: в общий нейтральный слот
+    // (когда фон один на всех) или внутрь "моей" зоны (когда у каждого своя
+    // картинка — иначе панель голоса зависает без фона вообще, см. баг-репорт)
+    return Promise.all(pairs.map((p) => resolveThemeForPlayer(p.playerId))).then((themes) => {
       pairs.forEach((p, i) => {
         const theme = themes[i];
         if (!theme) return;
@@ -1740,7 +1749,8 @@
         p.avatarEl.style.borderColor = theme.live;
       });
       const wallpapers = themes.map((t) => t?.wallpaper).filter(Boolean);
-      if (wallpapers.length >= 2) {
+      const splitMode = wallpapers.length >= 2;
+      if (splitMode) {
         // у каждого свои обои — показываем их раздельно, каждому свою половину
         pairs.forEach((p, i) => {
           const theme = themes[i];
@@ -1757,6 +1767,7 @@
       } else {
         wrapperEl.style.backgroundColor = (themes.find(Boolean) || { bg: '#0B0B0D' }).bg;
       }
+      return splitMode;
     });
   }
 
@@ -1772,14 +1783,21 @@
     document.getElementById('room-referee-view').style.display = 'none';
     document.getElementById('room-me-name').textContent = meName || '—';
     document.getElementById('room-opponent-name').textContent = oppName || '—';
-    // панель голоса остаётся в своём нейтральном месте ниже — обе
-    // темизированные зоны держатся одного размера (аватар+имя), как на
-    // референсе, а не растягиваются под контролы голоса
-    document.getElementById('room-voice-neutral-slot').appendChild(document.getElementById('room-voice-controls'));
+    // по умолчанию панель голоса в нейтральном месте ниже (общий фон на
+    // всех — растягивать её под конкретную зону незачем); ниже, как только
+    // выяснится оформление, applyBattleZones скажет, разделены ли зоны на
+    // разные обои — если да, панель голоса переезжает внутрь "моей" зоны,
+    // чтобы у неё был тот же самый фон без нового шва (см. комментарий там)
+    const voiceControlsEl = document.getElementById('room-voice-controls');
+    document.getElementById('room-voice-neutral-slot').appendChild(voiceControlsEl);
     applyBattleZones(document.getElementById('room-visual-wrap'), [
       { avatarEl: document.getElementById('room-opponent-avatar'), zoneEl: document.getElementById('room-opponent-zone'), playerId: oppId, fallbackName: oppName },
       { avatarEl: document.getElementById('room-me-avatar'), zoneEl: document.getElementById('room-me-zone'), playerId: meId, fallbackName: meName }
-    ]);
+    ]).then((splitMode) => {
+      if (myRoomCode !== code) return; // комнату уже закрыли/сменили, пока шёл запрос
+      const target = document.getElementById(splitMode ? 'room-me-voice-slot' : 'room-voice-neutral-slot');
+      target.appendChild(voiceControlsEl);
+    });
     overlay.classList.remove('open');
     roomOverlay.classList.add('open');
     attachLikesListener(code, isHost ? 'host' : 'guest', isHost ? 'guest' : 'host');
