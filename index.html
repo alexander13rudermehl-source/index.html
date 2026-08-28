@@ -1756,6 +1756,14 @@
       else { slice.style.left = '0'; slice.style.right = '0'; slice.style.height = sliceSize + 'px'; }
       fadeEl.appendChild(slice);
     }
+    // небольшое отдельное затемнение прямо у стыка, поверх всех срезов
+    // блюра — просто градиент, сгущающийся к шву и растворяющийся к краю
+    const gradientDir = { top: 'to bottom', bottom: 'to top', left: 'to right', right: 'to left' }[anchorProp];
+    const darken = document.createElement('div');
+    darken.style.position = 'absolute';
+    darken.style.inset = '0';
+    darken.style.background = `linear-gradient(${gradientDir}, rgba(0,0,0,0.35), rgba(0,0,0,0))`;
+    fadeEl.appendChild(darken);
   }
   document.querySelectorAll('.battle-zone-fade').forEach(buildFadeSlices);
 
