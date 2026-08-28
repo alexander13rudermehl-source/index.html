@@ -1692,6 +1692,11 @@
         }
         p.avatarEl.style.borderColor = theme.live;
       });
+      // видно прямо в дебаг-панели на телефоне, есть ли вообще обои у
+      // каждой стороны — не приходится гадать по скриншоту, чёрный фон
+      // это "обоев нет, просто тёмный цвет темы" или баг
+      window.showDebugError?.('Оформление зон боя', pairs.map((p, i) =>
+        `${p.fallbackName}: обои=${themes[i]?.wallpaper ? 'есть' : 'нет'}`).join(' | '));
       const wallpapers = themes.map((t) => t?.wallpaper).filter(Boolean);
       if (wallpapers.length === 1) {
         wrapperEl.style.backgroundImage = `url(${wallpapers[0]})`;
