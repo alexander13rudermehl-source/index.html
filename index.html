@@ -1797,6 +1797,14 @@
       if (myRoomCode !== code) return; // комнату уже закрыли/сменили, пока шёл запрос
       const target = document.getElementById(splitMode ? 'room-me-voice-slot' : 'room-voice-neutral-slot');
       target.appendChild(voiceControlsEl);
+      // временная диагностика чёрной зоны под панелью голоса — чтобы не
+      // гадать по скриншоту, а увидеть реальные размеры/фон элементов
+      const meZone = document.getElementById('room-me-zone');
+      const neutralSlot = document.getElementById('room-voice-neutral-slot');
+      window.showDebugError?.('Диагностика: панель голоса',
+        `splitMode=${splitMode}, target=${target.id}, ` +
+        `meZone.height=${meZone.offsetHeight}, meZone.bgImage=${meZone.style.backgroundImage ? 'есть' : 'нет'}, ` +
+        `neutralSlot.height=${neutralSlot.offsetHeight}, voiceControls.height=${voiceControlsEl.offsetHeight}`);
     });
     overlay.classList.remove('open');
     roomOverlay.classList.add('open');
