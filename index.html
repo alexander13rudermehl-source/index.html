@@ -92,19 +92,9 @@
     box-shadow: 0 0 6px #3ED598;
   }
 
-  /* "варп" — анимация поиска соперника в рейтинговом бою */
-  .warp-wrap{
-    position:relative;
-    border-radius:16px;
-    overflow:hidden;
-    background:#000;
-    border: 1px solid var(--line);
-    margin: 4px 0 20px;
-  }
-  .warp-wrap canvas{ display:block; width:100%; height:170px; }
+  /* "варп" — полноэкранная анимация поиска соперника/боя для судейства,
+     см. #warp-overlay */
   .warp-label{
-    position:absolute;
-    left:0; right:0; bottom:12px;
     display:flex;
     align-items:center;
     justify-content:center;
@@ -1297,17 +1287,28 @@
           <button class="sheet-cta secondary" id="btn-start-referee-queue">⚖️ Судить бой</button>
         </div>
 
-        <div id="rq-waiting" style="display:none; text-align:center;">
-          <div class="warp-wrap">
-            <canvas id="rq-warp-canvas" width="300" height="170"></canvas>
-            <div class="warp-label"><div class="status-dot"></div> <span id="rq-waiting-label">Ищем соперника…</span></div>
-          </div>
-          <button class="sheet-cta secondary" id="btn-cancel-rating-queue">Отменить поиск</button>
-        </div>
+        <!-- сама анимация поиска и кнопка отмены переехали в отдельный
+             полноэкранный #warp-overlay ниже по странице — этот div
+             остаётся только как логическое состояние "идёт поиск" -->
+        <div id="rq-waiting" style="display:none;"></div>
 
         <div id="rq-error" style="display:none; color:var(--live); font-size:13px; margin-top:10px; text-align:center;"></div>
       </div>
 
+    </div>
+  </div>
+</div>
+
+<!-- ===== полноэкранная анимация поиска соперника/боя для судейства =====
+     во весь экран (а не маленькая коробка внутри шторки), с кнопкой
+     отмены по центру; при находке соперника — не мгновенный обрыв, а
+     резкий разгон и белая вспышка (см. warpAnnounceFound в JS) -->
+<div class="overlay" id="warp-overlay" style="background:#000; padding:0;">
+  <div style="position:relative; width:100%; height:100%;">
+    <canvas id="rq-warp-canvas" style="position:absolute; inset:0; width:100%; height:100%; display:block;"></canvas>
+    <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:28px; padding:24px;">
+      <div class="warp-label" style="position:static;"><div class="status-dot"></div> <span id="rq-waiting-label">Ищем соперника…</span></div>
+      <button class="sheet-cta secondary" id="btn-cancel-rating-queue" style="width:220px;">Отменить поиск</button>
     </div>
   </div>
 </div>
@@ -1868,39 +1869,74 @@
     el.style.display = 'block';
   }
 
-  // ===== "варп" — анимация поиска соперника =====
+  // ===== "варп" — полноэкранная анимация поиска соперника/боя =====
   // Звёзды разлетаются из центра, ускоряясь и вытягиваясь в полосы —
   // классический эффект полёта со скоростью света. Рисуется на canvas
   // (не CSS), чтобы разлёт по радиусу считался честно, а не имитировался.
+  // Три фазы: (1) почти неподвижные звёзды в момент запуска поиска,
+  // (2) плавный разгон, пока поиск идёт, (3) резкий финальный разгон и
+  // белая вспышка при находке соперника — см. warpAnnounceFound.
   let warpAnimId = null;
+  let warpStartTime = 0;
+  let warpFoundAt = null;
+  let warpFoundCallback = null;
+  const warpOverlayEl = document.getElementById('warp-overlay');
+
   function startWarpAnimation(){
     const canvas = document.getElementById('rq-warp-canvas');
     if (!canvas) return;
+    // полноэкранный canvas — реальный размер известен только после того,
+    // как #warp-overlay стал видимым, поэтому меряем его тут, а не задаём
+    // фиксированными атрибутами width/height в HTML
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
     const ctx = canvas.getContext('2d');
     const w = canvas.width, h = canvas.height;
     const cx = w / 2, cy = h / 2;
     const maxR = Math.hypot(cx, cy);
     const gold = getComputedStyle(document.documentElement).getPropertyValue('--gold').trim() || '#F2B705';
-    const STAR_COUNT = 130;
+    const STAR_COUNT = 160;
+    const baseSpeed = () => 0.15 + Math.random() * 0.35;
     const stars = Array.from({ length: STAR_COUNT }, () => ({
       angle: Math.random() * Math.PI * 2,
       radius: Math.random() * maxR,
-      speed: 1.4 + Math.random() * 2.6
+      speed: baseSpeed()
     }));
+    warpStartTime = performance.now();
+    warpFoundAt = null;
+    warpFoundCallback = null;
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, w, h);
     function frame(){
+      const now = performance.now();
+      // чем дольше идёт поиск — тем быстрее летят звёзды, разгон плавно
+      // тянется первые ~20 секунд ожидания
+      let boost = 1 + Math.min((now - warpStartTime) / 20000, 1) * 3;
+      let whiteAlpha = 0;
+      if (warpFoundAt !== null) {
+        // соперник найден — резкий финальный разгон и уход в белую вспышку
+        const t = now - warpFoundAt;
+        boost += (t / 600) * 40;
+        whiteAlpha = Math.min(1, t / 550);
+        if (whiteAlpha >= 1) {
+          const cb = warpFoundCallback;
+          warpFoundCallback = null;
+          stopWarpAnimation();
+          cb?.();
+          return;
+        }
+      }
       // не стираем кадр полностью — лёгкое затемнение поверх старого
       // содержимого оставляет короткий светящийся след за каждой звездой
       ctx.fillStyle = 'rgba(0,0,0,0.35)';
       ctx.fillRect(0, 0, w, h);
       stars.forEach((s) => {
         const prevR = s.radius;
-        s.radius += s.speed;
+        s.radius += s.speed * boost;
         s.speed += 0.03; // чем дальше от центра — тем быстрее, как в фильмах
         if (s.radius > maxR + 30) {
           s.radius = 0;
-          s.speed = 1.4 + Math.random() * 2.6;
+          s.speed = baseSpeed();
           s.angle = Math.random() * Math.PI * 2;
         }
         const x1 = cx + Math.cos(s.angle) * prevR, y1 = cy + Math.sin(s.angle) * prevR;
@@ -1914,6 +1950,10 @@
         ctx.stroke();
       });
       ctx.globalAlpha = 1;
+      if (whiteAlpha > 0) {
+        ctx.fillStyle = `rgba(255,255,255,${whiteAlpha})`;
+        ctx.fillRect(0, 0, w, h);
+      }
       warpAnimId = requestAnimationFrame(frame);
     }
     frame();
@@ -1921,6 +1961,16 @@
   function stopWarpAnimation(){
     if (warpAnimId) cancelAnimationFrame(warpAnimId);
     warpAnimId = null;
+    warpFoundAt = null;
+    warpFoundCallback = null;
+  }
+  // соперник/бой найден — вместо мгновенного обрыва анимации даём короткий
+  // резкий разгон со вспышкой в белый (см. фазу 3 в frame() выше), и только
+  // когда экран полностью побелел — зовём onDone (обычно showRoom(...))
+  function warpAnnounceFound(onDone){
+    if (!warpAnimId) { onDone?.(); return; }
+    warpFoundAt = performance.now();
+    warpFoundCallback = onDone;
   }
 
   // ===== демо-режим (только admin/moderator/superadmin) =====
@@ -1975,15 +2025,18 @@
     // подмену интерфейса без анимации
     demoMatchTimeoutId = setTimeout(() => {
       demoMatchTimeoutId = null;
-      stopWarpAnimation();
-      document.getElementById('rq-idle').style.display = 'block';
-      document.getElementById('rq-waiting').style.display = 'none';
-      showRoom(code, battleData, true);
+      warpAnnounceFound(() => {
+        document.getElementById('rq-idle').style.display = 'block';
+        document.getElementById('rq-waiting').style.display = 'none';
+        warpOverlayEl.classList.remove('open');
+        showRoom(code, battleData, true);
+      });
     }, 1400);
   }
 
   function leaveRatingQueue() {
     stopWarpAnimation();
+    warpOverlayEl.classList.remove('open');
     if (demoMatchTimeoutId) { clearTimeout(demoMatchTimeoutId); demoMatchTimeoutId = null; }
     if (myQueueListener) { myQueueRef?.off('value', myQueueListener); myQueueListener = null; }
     if (myQueueRef) { myQueueRef.onDisconnect().cancel(); myQueueRef.remove().catch(() => {}); myQueueRef = null; }
@@ -2001,6 +2054,7 @@
     document.getElementById('rq-idle').style.display = 'none';
     document.getElementById('rq-waiting').style.display = 'block';
     document.getElementById('rq-waiting-label').textContent = 'Ищем соперника…';
+    warpOverlayEl.classList.add('open');
     startWarpAnimation();
 
     if (isDemoModeEligible() && rqDemoToggle.classList.contains('on')) {
@@ -2041,10 +2095,12 @@
         window.ensureMatchRecord?.(code, battleData);
         tryAssignWaitingReferee(code); // если кто-то уже ждёт в очереди судейства — не ждём, сразу подключаем
 
-        stopWarpAnimation();
-        document.getElementById('rq-idle').style.display = 'block';
-        document.getElementById('rq-waiting').style.display = 'none';
-        showRoom(code, battleData, true);
+        warpAnnounceFound(() => {
+          document.getElementById('rq-idle').style.display = 'block';
+          document.getElementById('rq-waiting').style.display = 'none';
+          warpOverlayEl.classList.remove('open');
+          showRoom(code, battleData, true);
+        });
       } else {
         // свободных нет — встаём в очередь сами и ждём, пока кто-то нас найдёт
         myQueueRef = db.ref('queue/' + myKey);
@@ -2071,12 +2127,16 @@
             myQueueRef = null;
             const battleSnap = await db.ref('battles/' + code).once('value');
             const battleData = battleSnap.val();
-            stopWarpAnimation();
             if (battleData) {
-              document.getElementById('rq-idle').style.display = 'block';
-              document.getElementById('rq-waiting').style.display = 'none';
-              showRoom(code, battleData, false);
+              warpAnnounceFound(() => {
+                document.getElementById('rq-idle').style.display = 'block';
+                document.getElementById('rq-waiting').style.display = 'none';
+                warpOverlayEl.classList.remove('open');
+                showRoom(code, battleData, false);
+              });
             } else {
+              stopWarpAnimation();
+              warpOverlayEl.classList.remove('open');
               window.showDebugError?.('Рейтинговый бой', `matchedRoom=${code}, но battles/${code} не найден`);
               rqShowError('Не удалось подключиться, попробуй ещё раз');
               document.getElementById('rq-idle').style.display = 'block';
@@ -2089,6 +2149,7 @@
       window.showDebugError?.('Рейтинговый бой', err);
       rqShowError('Не удалось найти соперника, попробуй ещё раз');
       stopWarpAnimation();
+      warpOverlayEl.classList.remove('open');
       document.getElementById('rq-idle').style.display = 'block';
       document.getElementById('rq-waiting').style.display = 'none';
     }
@@ -2141,6 +2202,7 @@
     document.getElementById('rq-idle').style.display = 'none';
     document.getElementById('rq-waiting').style.display = 'block';
     document.getElementById('rq-waiting-label').textContent = 'Ищем баттл для судейства…';
+    warpOverlayEl.classList.add('open');
     startWarpAnimation();
 
     try {
@@ -2153,10 +2215,12 @@
       });
 
       if (openCode && await claimRefereeSlot(openCode, me)) {
-        stopWarpAnimation();
-        document.getElementById('rq-idle').style.display = 'block';
-        document.getElementById('rq-waiting').style.display = 'none';
-        showRoomAsReferee(openCode, { ...all[openCode], refereeId: me.playerId, refereeName: me.firstName });
+        warpAnnounceFound(() => {
+          document.getElementById('rq-idle').style.display = 'block';
+          document.getElementById('rq-waiting').style.display = 'none';
+          warpOverlayEl.classList.remove('open');
+          showRoomAsReferee(openCode, { ...all[openCode], refereeId: me.playerId, refereeName: me.firstName });
+        });
         return;
       }
 
@@ -2181,17 +2245,27 @@
           myRefQueueRef = null;
           const battleSnap = await db.ref('battles/' + code).once('value');
           const battleData = battleSnap.val();
-          stopWarpAnimation();
-          document.getElementById('rq-idle').style.display = 'block';
-          document.getElementById('rq-waiting').style.display = 'none';
-          if (battleData) showRoomAsReferee(code, battleData);
-          else rqShowError('Не удалось подключиться, попробуй ещё раз');
+          if (battleData) {
+            warpAnnounceFound(() => {
+              document.getElementById('rq-idle').style.display = 'block';
+              document.getElementById('rq-waiting').style.display = 'none';
+              warpOverlayEl.classList.remove('open');
+              showRoomAsReferee(code, battleData);
+            });
+          } else {
+            stopWarpAnimation();
+            warpOverlayEl.classList.remove('open');
+            document.getElementById('rq-idle').style.display = 'block';
+            document.getElementById('rq-waiting').style.display = 'none';
+            rqShowError('Не удалось подключиться, попробуй ещё раз');
+          }
         }
       });
     } catch (err) {
       window.showDebugError?.('Судейство', err);
       rqShowError('Не удалось найти бой для судейства, попробуй ещё раз');
       stopWarpAnimation();
+      warpOverlayEl.classList.remove('open');
       document.getElementById('rq-idle').style.display = 'block';
       document.getElementById('rq-waiting').style.display = 'none';
     }
