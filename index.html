@@ -366,22 +366,34 @@
     background: rgba(0,0,0,0.4);
   }
   /* размытие СВОЕГО ЖЕ края у стыка, только когда там реально стык двух
-     РАЗНЫХ обоев (см. applyBattleZones) — mask-image вместе с
-     backdrop-filter гасит сам blur на части WebView, поэтому тут простой
-     немаскированный блок фиксированной высоты, без градиента прозрачности.
-     По умолчанию скрыт inline-стилем в HTML — JS показывает его только в
-     режиме раздельных обоев. */
-  .battle-zone-fade{
+     РАЗНЫХ обоев (см. applyBattleZones). Плавности through mask-image не
+     добиться — он вместе с backdrop-filter гасит сам blur на части WebView
+     (уже проверено). Вместо одной маскированной полосы — три немаскированных
+     полосы разной силы и высоты, наложенные друг на друга от края к центру:
+     каждая следующая (уже размытую самим backdrop-filter'ом картинку под
+     предыдущей) размывает ещё сильнее, так что общая сила блюра растёт
+     ступенями по мере приближения к стыку — не идеальный градиент, но и без
+     маски, которая ломает blur целиком. По умолчанию скрыт inline-стилем в
+     HTML — JS показывает его только в режиме раздельных обоев. */
+  .battle-zone-fade, .battle-zone-fade::before, .battle-zone-fade::after{
     position: absolute;
-    z-index: 0;
     pointer-events: none;
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
   }
-  .battle-zone-fade.at-top{ top: 0; left: 0; right: 0; height: 40px; }
-  .battle-zone-fade.at-bottom{ bottom: 0; left: 0; right: 0; height: 40px; }
-  .battle-zone-fade.at-left{ top: 0; bottom: 0; left: 0; width: 32px; }
-  .battle-zone-fade.at-right{ top: 0; bottom: 0; right: 0; width: 32px; }
+  .battle-zone-fade{ z-index: 0; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+  .battle-zone-fade::before{ content: ''; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+  .battle-zone-fade::after{ content: ''; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+  .battle-zone-fade.at-top{ top: 0; left: 0; right: 0; height: 72px; }
+  .battle-zone-fade.at-top::before{ top: 0; left: 0; right: 0; height: 40px; }
+  .battle-zone-fade.at-top::after{ top: 0; left: 0; right: 0; height: 16px; }
+  .battle-zone-fade.at-bottom{ bottom: 0; left: 0; right: 0; height: 72px; }
+  .battle-zone-fade.at-bottom::before{ bottom: 0; left: 0; right: 0; height: 40px; }
+  .battle-zone-fade.at-bottom::after{ bottom: 0; left: 0; right: 0; height: 16px; }
+  .battle-zone-fade.at-left{ top: 0; bottom: 0; left: 0; width: 56px; }
+  .battle-zone-fade.at-left::before{ top: 0; bottom: 0; left: 0; width: 32px; }
+  .battle-zone-fade.at-left::after{ top: 0; bottom: 0; left: 0; width: 12px; }
+  .battle-zone-fade.at-right{ top: 0; bottom: 0; right: 0; width: 56px; }
+  .battle-zone-fade.at-right::before{ top: 0; bottom: 0; right: 0; width: 32px; }
+  .battle-zone-fade.at-right::after{ top: 0; bottom: 0; right: 0; width: 12px; }
   .battle-zone-content{
     position: relative;
     z-index: 2;
