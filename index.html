@@ -1278,6 +1278,9 @@
             </div>
             <div class="switch" id="rq-demo-toggle"></div>
           </div>
+          <div id="rq-demo-config-row" style="display:none; margin:-8px 0 16px;">
+            <button type="button" class="sheet-cta secondary" id="btn-demo-bot-config" style="margin-top:0; padding:10px; font-size:12.5px;">⚙️ Настроить тренировочного бота</button>
+          </div>
 
           <button class="sheet-cta" id="btn-start-rating-queue">Искать соперника</button>
 
@@ -1293,6 +1296,59 @@
         <div id="rq-waiting" style="display:none;"></div>
 
         <div id="rq-error" style="display:none; color:var(--live); font-size:13px; margin-top:10px; text-align:center;"></div>
+      </div>
+
+      <!-- настройка тренировочного бота (DEMO-BOT) — только видимость,
+           данные не пишутся в Firebase, это чисто локальная настройка
+           тестового окружения (localStorage), см. DEMO_BOT_CONFIG_KEY в JS -->
+      <div class="sheet-view" data-view="demo-bot-config">
+        <p style="color:var(--muted); font-size:13px; line-height:1.5; margin-bottom:18px;">
+          Как будет выглядеть тестовый соперник в демо-бое — эти настройки видны только тебе на этом устройстве.
+        </p>
+
+        <div style="margin-bottom:18px;">
+          <div class="t-label" style="margin-bottom:8px;">Имя бота</div>
+          <input type="text" id="demo-bot-name-input" placeholder="Тестовый соперник" maxlength="40"
+            style="width:100%; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:12px; color:var(--text); font-size:14px;">
+        </div>
+
+        <div style="background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px; margin-bottom:16px;">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+            <div class="profile-avatar" id="demo-bot-avatar-preview" style="width:44px; height:44px; font-size:16px;">ТС</div>
+            <div style="min-width:0;">
+              <div class="t-label">Аватар</div>
+              <div class="t-desc">Фото бота вместо инициалов</div>
+            </div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="sheet-cta secondary" id="btn-demo-bot-avatar-pick" style="flex:1; margin-top:0; padding:10px; font-size:12.5px;">Выбрать фото</button>
+            <button type="button" class="sheet-cta secondary" id="btn-demo-bot-avatar-remove" style="display:none; flex:1; margin-top:0; padding:10px; font-size:12.5px;">Убрать</button>
+          </div>
+          <input type="file" id="demo-bot-avatar-input" accept="image/*" style="display:none">
+        </div>
+
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+          <div>
+            <div class="t-label">Цвет</div>
+            <div class="t-desc">Заливка его половины экрана боя, если нет обоев</div>
+          </div>
+          <input type="color" id="demo-bot-bg-input" value="#050810" style="width:44px; height:34px; border:1px solid var(--line); border-radius:8px; background:none; padding:0; cursor:pointer;">
+        </div>
+
+        <div style="background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px;">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+            <div id="demo-bot-wallpaper-preview" style="width:44px; height:44px; border-radius:10px; background:var(--panel-2); border:1px solid var(--line); background-size:cover; background-position:center; flex-shrink:0;"></div>
+            <div style="min-width:0;">
+              <div class="t-label">Обои</div>
+              <div class="t-desc">Фото вместо сплошного цвета</div>
+            </div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="sheet-cta secondary" id="btn-demo-bot-wallpaper-pick" style="flex:1; margin-top:0; padding:10px; font-size:12.5px;">Выбрать фото</button>
+            <button type="button" class="sheet-cta secondary" id="btn-demo-bot-wallpaper-remove" style="display:none; flex:1; margin-top:0; padding:10px; font-size:12.5px;">Убрать</button>
+          </div>
+          <input type="file" id="demo-bot-wallpaper-input" accept="image/*" style="display:none">
+        </div>
       </div>
 
     </div>
@@ -1458,7 +1514,8 @@
     'friend-create': 'Создать баттл',
     'friend-join': 'Ввести код',
     'rating-queue': 'Рейтинговый бой',
-    'events-list': 'Ивенты'
+    'events-list': 'Ивенты',
+    'demo-bot-config': 'Тренировочный бот'
   };
 
   // родитель для кнопки "назад" — теперь есть промежуточный уровень
@@ -1468,7 +1525,8 @@
     'friend-create': 'friend-mode',
     'friend-join': 'friend-mode',
     'rating-queue': 'main',
-    'events-list': 'main'
+    'events-list': 'main',
+    'demo-bot-config': 'rating-queue'
   };
 
   function showView(name){
@@ -1621,10 +1679,21 @@
   // та часть страницы уже точно выполнилась.
   function resolveThemeForPlayer(playerId) {
     if (!playerId) return Promise.resolve(null);
-    // DEMO-BOT/DEMO-REF — фейковые ID демо-режима, их нет в users, поиск
-    // по ним ничего не находил и зона оставалась вообще без оформления —
-    // сразу подставляем готовую заметную тему для наглядности демо-боя
-    if (playerId === 'DEMO-BOT' || playerId === 'DEMO-REF') {
+    // DEMO-BOT — фейковый ID тренировочного бота, его нет в users, поиск по
+    // нему ничего не находил и зона оставалась вообще без оформления;
+    // теперь вместо этого читаем локально настроенный игроком облик бота
+    // (см. getDemoBotConfig/#demo-bot-config) вместо заглушки
+    if (playerId === 'DEMO-BOT') {
+      const cfg = getDemoBotConfig();
+      return Promise.resolve({
+        bg: cfg.bg || '#050810',
+        live: '#00E5A8',
+        wallpaper: cfg.wallpaper || null,
+        avatarData: cfg.avatarData || null
+      });
+    }
+    // DEMO-REF — фейковый ID судьи-бота в демо-бое, тоже нет в users
+    if (playerId === 'DEMO-REF') {
       return Promise.resolve(window.resolveOpponentTheme?.({ activeTheme: { type: 'preset', name: 'neon' } }));
     }
     return db.ref('users').orderByChild('playerId').equalTo(playerId).once('value').then((snap) => {
@@ -1978,6 +2047,7 @@
   // необходимости заходить с двух устройств/аккаунтов одновременно.
   const DEMO_MODE_KEY = 'battleDemoRatingMode';
   const rqDemoRow = document.getElementById('rq-demo-row');
+  const rqDemoConfigRow = document.getElementById('rq-demo-config-row');
   const rqDemoToggle = document.getElementById('rq-demo-toggle');
   rqDemoToggle.classList.toggle('on', localStorage.getItem(DEMO_MODE_KEY) === '1');
   rqDemoToggle.addEventListener('click', () => {
@@ -1988,8 +2058,114 @@
     return role === 'admin' || role === 'moderator' || role === 'superadmin';
   }
   window.refreshDemoModeVisibility = function(){
-    rqDemoRow.style.display = isDemoModeEligible() ? 'flex' : 'none';
+    const visible = isDemoModeEligible();
+    rqDemoRow.style.display = visible ? 'flex' : 'none';
+    rqDemoConfigRow.style.display = visible ? 'block' : 'none';
   };
+
+  // ===== настройка тренировочного бота (DEMO-BOT) =====
+  // Чисто локальная настройка тестового окружения этого устройства — не
+  // пишется в Firebase (бот не настоящий аккаунт, писать её некуда и не
+  // видно другим), поэтому обычный localStorage, без "Мои темы"-инфраструктуры.
+  const DEMO_BOT_CONFIG_KEY = 'battleDemoBotConfig';
+  function getDemoBotConfig(){
+    try { return JSON.parse(localStorage.getItem(DEMO_BOT_CONFIG_KEY) || '{}'); }
+    catch (e) { return {}; }
+  }
+  function saveDemoBotConfig(patch){
+    const cfg = { ...getDemoBotConfig(), ...patch };
+    localStorage.setItem(DEMO_BOT_CONFIG_KEY, JSON.stringify(cfg));
+    return cfg;
+  }
+
+  const demoBotNameInput = document.getElementById('demo-bot-name-input');
+  const demoBotAvatarPreview = document.getElementById('demo-bot-avatar-preview');
+  const demoBotAvatarInput = document.getElementById('demo-bot-avatar-input');
+  const demoBotBgInput = document.getElementById('demo-bot-bg-input');
+  const demoBotWallpaperPreview = document.getElementById('demo-bot-wallpaper-preview');
+  const demoBotWallpaperInput = document.getElementById('demo-bot-wallpaper-input');
+
+  function refreshDemoBotConfigUI(){
+    const cfg = getDemoBotConfig();
+    demoBotNameInput.value = cfg.name || '';
+    demoBotBgInput.value = cfg.bg || '#050810';
+    if (cfg.avatarData) {
+      demoBotAvatarPreview.style.backgroundImage = `url(${cfg.avatarData})`;
+      demoBotAvatarPreview.classList.add('has-image');
+      demoBotAvatarPreview.textContent = '';
+      document.getElementById('btn-demo-bot-avatar-remove').style.display = 'block';
+    } else {
+      demoBotAvatarPreview.style.backgroundImage = '';
+      demoBotAvatarPreview.classList.remove('has-image');
+      demoBotAvatarPreview.textContent = 'ТС';
+      document.getElementById('btn-demo-bot-avatar-remove').style.display = 'none';
+    }
+    if (cfg.wallpaper) {
+      demoBotWallpaperPreview.style.backgroundImage = `url(${cfg.wallpaper})`;
+      document.getElementById('btn-demo-bot-wallpaper-remove').style.display = 'block';
+    } else {
+      demoBotWallpaperPreview.style.backgroundImage = '';
+      document.getElementById('btn-demo-bot-wallpaper-remove').style.display = 'none';
+    }
+  }
+  refreshDemoBotConfigUI();
+
+  document.getElementById('btn-demo-bot-config').addEventListener('click', () => {
+    refreshDemoBotConfigUI();
+    showView('demo-bot-config');
+  });
+
+  demoBotNameInput.addEventListener('input', () => saveDemoBotConfig({ name: demoBotNameInput.value.trim() }));
+  demoBotBgInput.addEventListener('input', () => saveDemoBotConfig({ bg: demoBotBgInput.value }));
+
+  document.getElementById('btn-demo-bot-avatar-pick').addEventListener('click', () => demoBotAvatarInput.click());
+  demoBotAvatarInput.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !file.type.startsWith('image/')) return;
+    try {
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; });
+      const size = 256;
+      const canvas = document.createElement('canvas'); canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      const scale = Math.max(size / img.width, size / img.height);
+      const w = img.width * scale, h = img.height * scale;
+      ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+      URL.revokeObjectURL(img.src);
+      saveDemoBotConfig({ avatarData: canvas.toDataURL('image/jpeg', 0.82) });
+      refreshDemoBotConfigUI();
+    } catch (err) { console.error('demo bot avatar upload failed', err); }
+  });
+  document.getElementById('btn-demo-bot-avatar-remove').addEventListener('click', () => {
+    saveDemoBotConfig({ avatarData: null });
+    refreshDemoBotConfigUI();
+  });
+
+  document.getElementById('btn-demo-bot-wallpaper-pick').addEventListener('click', () => demoBotWallpaperInput.click());
+  demoBotWallpaperInput.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !file.type.startsWith('image/')) return;
+    try {
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; });
+      const maxW = 900;
+      const scale = Math.min(1, maxW / img.width);
+      const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+      const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(img.src);
+      saveDemoBotConfig({ wallpaper: canvas.toDataURL('image/jpeg', 0.72) });
+      refreshDemoBotConfigUI();
+    } catch (err) { console.error('demo bot wallpaper upload failed', err); }
+  });
+  document.getElementById('btn-demo-bot-wallpaper-remove').addEventListener('click', () => {
+    saveDemoBotConfig({ wallpaper: null });
+    refreshDemoBotConfigUI();
+  });
 
   let demoMatchTimeoutId = null;
   async function startDemoMatch(me){
@@ -2002,7 +2178,7 @@
       hostId: me.playerId,
       hostName: me.firstName,
       guestId: 'DEMO-BOT',
-      guestName: 'Тестовый соперник',
+      guestName: getDemoBotConfig().name || 'Тестовый соперник',
       status: 'active',
       rated: false,
       demo: true,
