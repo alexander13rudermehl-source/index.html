@@ -2031,60 +2031,10 @@
   }
   document.getElementById('btn-cancel-friend-invite').addEventListener('click', cancelFriendInvite);
 
-  // ===== приём входящих приглашений (сторона того, кого позвали) =====
-  let pendingInvite = null;
-  window.attachInviteListener = function(myUid) {
-    if (!myUid || window._inviteListenerAttached) return;
-    window._inviteListenerAttached = true;
-    db.ref('users/' + myUid + '/invite').on('value', (snap) => {
-      const invite = snap.val();
-      const inviteOverlay = document.getElementById('invite-overlay');
-      if (!invite) { inviteOverlay.classList.remove('open'); pendingInvite = null; return; }
-      pendingInvite = invite;
-      document.getElementById('invite-from-name').textContent = invite.fromName || 'Игрок';
-      inviteOverlay.classList.add('open');
-    });
-  };
-
-  document.getElementById('btn-invite-accept').addEventListener('click', async () => {
-    const invite = pendingInvite;
-    const myKey = window.currentTelegramId;
-    const inviteOverlay = document.getElementById('invite-overlay');
-    if (!invite || !myKey) return;
-    const me = window.currentPlayer || { firstName: 'Игрок', playerId: 'guest' };
-    const code = invite.code;
-    const roomRef = db.ref('battles/' + code);
-    try {
-      const snap = await roomRef.once('value');
-      if (!snap.exists() || snap.val().status !== 'waiting') {
-        // друг уже отменил приглашение или комната протухла — просто гасим
-        await db.ref('users/' + myKey + '/invite').remove();
-        inviteOverlay.classList.remove('open');
-        window.showDebugError?.('Приглашение', `battles/${code} недоступна: ${snap.exists() ? snap.val().status : 'нет записи'}`);
-        return;
-      }
-      await roomRef.update({ guestId: me.playerId, guestName: me.firstName, status: 'active' });
-      const finalSnap = await roomRef.once('value');
-      const data = finalSnap.val();
-      await db.ref('users/' + myKey + '/invite').remove();
-      inviteOverlay.classList.remove('open');
-      if (data && data.guestId === me.playerId) showRoom(code, data, false);
-    } catch (err) {
-      window.showDebugError?.('Приглашение: принять', err);
-    }
-  });
-
-  document.getElementById('btn-invite-decline').addEventListener('click', () => {
-    const invite = pendingInvite;
-    const myKey = window.currentTelegramId;
-    document.getElementById('invite-overlay').classList.remove('open');
-    if (myKey) db.ref('users/' + myKey + '/invite').remove().catch(() => {});
-    if (invite?.code) {
-      db.ref('battles/' + invite.code).once('value').then((s) => {
-        if (s.exists() && s.val().status === 'waiting') db.ref('battles/' + invite.code + '/status').set('declined');
-      }).catch(() => {});
-    }
-  });
+  // приём входящих приглашений (attachInviteListener + кнопки Принять/
+  // Отклонить) переехал в отдельный <script> сразу после HTML #invite-overlay
+  // ниже по странице — там эти кнопки уже точно существуют в DOM на момент
+  // выполнения скрипта (см. подробный комментарий там же)
 
   document.getElementById('room-close-btn').addEventListener('click', closeRoom);
 
@@ -2805,6 +2755,72 @@
     </div>
   </div>
 </div>
+
+<script>
+  // ===== приём входящих приглашений (сторона того, кого позвали) =====
+  // Специально вынесено в отдельный script СРАЗУ после HTML #invite-overlay
+  // (а не в общий script с "Играть с другом" выше по странице) — тот блок
+  // выполняется раньше, чем браузер успевает распарсить этот HTML, и
+  // getElementById('btn-invite-accept') там возвращал null. .addEventListener
+  // на null кидает необработанное исключение и обрывает остаток ТОГО script
+  // блока — в частности, ниже там же лежавший `let warpAnimId = null`,
+  // объявление которого после этого никогда не выполнялось, и любое
+  // обращение к warpAnimId дальше стабильно валилось с "Cannot access
+  // 'warpAnimId' before initialization". Здесь этот элемент уже точно есть.
+  let pendingInvite = null;
+  window.attachInviteListener = function(myUid) {
+    if (!myUid || window._inviteListenerAttached) return;
+    window._inviteListenerAttached = true;
+    db.ref('users/' + myUid + '/invite').on('value', (snap) => {
+      const invite = snap.val();
+      const inviteOverlay = document.getElementById('invite-overlay');
+      if (!invite) { inviteOverlay.classList.remove('open'); pendingInvite = null; return; }
+      pendingInvite = invite;
+      document.getElementById('invite-from-name').textContent = invite.fromName || 'Игрок';
+      inviteOverlay.classList.add('open');
+    });
+  };
+
+  document.getElementById('btn-invite-accept').addEventListener('click', async () => {
+    const invite = pendingInvite;
+    const myKey = window.currentTelegramId;
+    const inviteOverlay = document.getElementById('invite-overlay');
+    if (!invite || !myKey) return;
+    const me = window.currentPlayer || { firstName: 'Игрок', playerId: 'guest' };
+    const code = invite.code;
+    const roomRef = db.ref('battles/' + code);
+    try {
+      const snap = await roomRef.once('value');
+      if (!snap.exists() || snap.val().status !== 'waiting') {
+        // друг уже отменил приглашение или комната протухла — просто гасим
+        await db.ref('users/' + myKey + '/invite').remove();
+        inviteOverlay.classList.remove('open');
+        window.showDebugError?.('Приглашение', `battles/${code} недоступна: ${snap.exists() ? snap.val().status : 'нет записи'}`);
+        return;
+      }
+      await roomRef.update({ guestId: me.playerId, guestName: me.firstName, status: 'active' });
+      const finalSnap = await roomRef.once('value');
+      const data = finalSnap.val();
+      await db.ref('users/' + myKey + '/invite').remove();
+      inviteOverlay.classList.remove('open');
+      if (data && data.guestId === me.playerId) showRoom(code, data, false);
+    } catch (err) {
+      window.showDebugError?.('Приглашение: принять', err);
+    }
+  });
+
+  document.getElementById('btn-invite-decline').addEventListener('click', () => {
+    const invite = pendingInvite;
+    const myKey = window.currentTelegramId;
+    document.getElementById('invite-overlay').classList.remove('open');
+    if (myKey) db.ref('users/' + myKey + '/invite').remove().catch(() => {});
+    if (invite?.code) {
+      db.ref('battles/' + invite.code).once('value').then((s) => {
+        if (s.exists() && s.val().status === 'waiting') db.ref('battles/' + invite.code + '/status').set('declined');
+      }).catch(() => {});
+    }
+  });
+</script>
 
 <!-- ===== community sheet — топ игроков и друзья ===== -->
 <div class="overlay" id="community-overlay">
