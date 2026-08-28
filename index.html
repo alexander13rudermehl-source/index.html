@@ -1639,9 +1639,7 @@
     avatarEl.textContent = (fallbackName || '??').slice(0, 2).toUpperCase();
     zones.forEach((z) => { z.style.backgroundImage = ''; z.style.backgroundColor = ''; });
     if (!playerId) return;
-    db.ref('users').orderByChild('playerId').equalTo(playerId).once('value').then((snap) => {
-      if (!snap.exists()) return;
-      const user = Object.values(snap.val())[0];
+    const applyTheme = (user) => {
       if (user?.avatarData) {
         avatarEl.style.backgroundImage = `url(${user.avatarData})`;
         avatarEl.classList.add('has-image');
@@ -1653,6 +1651,17 @@
         if (theme.wallpaper) z.style.backgroundImage = `url(${theme.wallpaper})`;
         else z.style.backgroundColor = theme.bg;
       });
+    };
+    // DEMO-BOT/DEMO-REF — фейковые ID демо-режима, их нет в users, поэтому
+    // поиск ниже ничего не находил и зона оставалась вообще без оформления
+    // (просто пустая/чёрная) — сразу подставляем готовую заметную тему,
+    // чтобы демо-бой наглядно показывал разделение оформления
+    if (playerId === 'DEMO-BOT' || playerId === 'DEMO-REF') {
+      applyTheme({ activeTheme: { type: 'preset', name: 'neon' } });
+      return;
+    }
+    db.ref('users').orderByChild('playerId').equalTo(playerId).once('value').then((snap) => {
+      applyTheme(snap.exists() ? Object.values(snap.val())[0] : null);
     }).catch((err) => window.showDebugError?.('Оформление в комнате боя', err));
   }
 
