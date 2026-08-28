@@ -1349,7 +1349,7 @@
            Каждая половина закрашена обоями/фоном именно ЭТОГО игрока —
            жёсткая граница на разделителе VS, без перетекания одного в
            другое. Симпатии — бейджиком на аватаре. Бейдж рефери в углу. -->
-      <div id="room-combatant-view" style="margin-bottom:20px; position:relative;">
+      <div id="room-combatant-view" style="margin-bottom:20px; position:relative; background-size:cover; background-position:center;">
         <div class="ref-indicator" id="room-ref-indicator">
           <div class="ref-avatar" id="room-ref-indicator-avatar"></div>
           <span>⚖️ <span id="room-ref-indicator-name">—</span></span>
@@ -1660,27 +1660,30 @@
   }
 
   // wrapperEl — общий контейнер вокруг обеих .battle-zone (для боя —
-  // #room-combatant-view, для рефери — #room-referee-zones-wrap). Если
-  // обои есть только у ОДНОЙ стороны — тянем именно эту картинку одним
-  // куском на весь wrapperEl, без деления на половины: красить одним и тем
-  // же фоном две независимо обрезаемые .battle-zone даёт фрагменты (два
-  // разных cover-кропа одной картинки), а общий фон родителя рисуется один
-  // раз и такой проблемы не имеет — ровно как на референсе, где всю
-  // карточку целиком занимает одна фотография. Если обои есть у ОБОИХ (и
-  // они разные) — по-честному склеить две разные фотографии без шва
-  // средствами CSS невозможно, поэтому в этом случае зоны остаются
-  // разделёнными пополам с размытым стыком.
+  // #room-combatant-view, для рефери — #room-referee-zones-wrap). На
+  // референсе вся карточка целиком — одна картинка/один тон, без деления
+  // на половины и без шва между ними, поэтому фон всегда рисуется ОДИН РАЗ
+  // на wrapperEl (обои того, у кого они есть, при обоих — первого по
+  // списку), а не отдельно в каждой .battle-zone — красить одним и тем же
+  // фоном две независимо обрезаемые зоны даёт фрагменты (два разных
+  // cover-кропа одной картинки), а фон общего родителя такой проблемы не
+  // имеет. Свои обои каждый видит и у себя, и у соперника — просто теперь
+  // это один непрерывный фон на двоих, а не два конкурирующих полотна.
   function applyBattleZones(wrapperEl, pairs) {
     pairs.forEach(({ avatarEl, zoneEl, fallbackName }) => {
       avatarEl.style.backgroundImage = '';
       avatarEl.classList.remove('has-image');
       avatarEl.style.borderColor = '';
       avatarEl.textContent = (fallbackName || '??').slice(0, 2).toUpperCase();
-      zoneEl.style.backgroundImage = '';
-      zoneEl.style.backgroundColor = '';
-      zoneEl.querySelectorAll('.battle-zone-fade').forEach((f) => { f.style.display = ''; });
+      // у .battle-zone в CSS непрозрачный background-color по умолчанию —
+      // сбрасывать в '' недостаточно, иначе он перекроет собой общий фон
+      // wrapperEl; тут нужен именно прозрачный фон
+      zoneEl.style.backgroundImage = 'none';
+      zoneEl.style.backgroundColor = 'transparent';
+      zoneEl.querySelectorAll('.battle-zone-fade').forEach((f) => { f.style.display = 'none'; });
     });
     wrapperEl.style.backgroundImage = '';
+    wrapperEl.style.backgroundColor = '';
     Promise.all(pairs.map((p) => resolveThemeForPlayer(p.playerId))).then((themes) => {
       pairs.forEach((p, i) => {
         const theme = themes[i];
@@ -1692,24 +1695,11 @@
         }
         p.avatarEl.style.borderColor = theme.live;
       });
-      // видно прямо в дебаг-панели на телефоне, есть ли вообще обои у
-      // каждой стороны — не приходится гадать по скриншоту, чёрный фон
-      // это "обоев нет, просто тёмный цвет темы" или баг
-      window.showDebugError?.('Оформление зон боя', pairs.map((p, i) =>
-        `${p.fallbackName}: обои=${themes[i]?.wallpaper ? 'есть' : 'нет'}`).join(' | '));
-      const wallpapers = themes.map((t) => t?.wallpaper).filter(Boolean);
-      if (wallpapers.length === 1) {
-        wrapperEl.style.backgroundImage = `url(${wallpapers[0]})`;
-        pairs.forEach((p) => {
-          p.zoneEl.querySelectorAll('.battle-zone-fade').forEach((f) => { f.style.display = 'none'; });
-        });
+      const wallpaper = themes.map((t) => t?.wallpaper).find(Boolean);
+      if (wallpaper) {
+        wrapperEl.style.backgroundImage = `url(${wallpaper})`;
       } else {
-        pairs.forEach((p, i) => {
-          const theme = themes[i];
-          if (!theme) return;
-          if (theme.wallpaper) p.zoneEl.style.backgroundImage = `url(${theme.wallpaper})`;
-          else p.zoneEl.style.backgroundColor = theme.bg;
-        });
+        wrapperEl.style.backgroundColor = (themes.find(Boolean) || { bg: '#0B0B0D' }).bg;
       }
     });
   }
