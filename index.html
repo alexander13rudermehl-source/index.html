@@ -1797,14 +1797,17 @@
       if (myRoomCode !== code) return; // комнату уже закрыли/сменили, пока шёл запрос
       const target = document.getElementById(splitMode ? 'room-me-voice-slot' : 'room-voice-neutral-slot');
       target.appendChild(voiceControlsEl);
-      // временная диагностика чёрной зоны под панелью голоса — чтобы не
-      // гадать по скриншоту, а увидеть реальные размеры/фон элементов
+      // "моя" зона теперь последняя перед нижним краем карточки — но между
+      // ней и этим краем ещё margin-bottom родителя (#room-combatant-view,
+      // 20px) и padding-bottom самой шторки (.sheet-body, 24px), итого 44px,
+      // в которые фон зоны никогда не заходил (при общем фоне на всю
+      // карточку это была просто "воздух поверх той же картинки" и не
+      // бросалось в глаза, а при раздельных обоях остаётся голой пустотой).
+      // Тянем фон моей зоны через них отрицательным отступом, а не гоняем
+      // эти константы по всему коду.
       const meZone = document.getElementById('room-me-zone');
-      const neutralSlot = document.getElementById('room-voice-neutral-slot');
-      window.showDebugError?.('Диагностика: панель голоса',
-        `splitMode=${splitMode}, target=${target.id}, ` +
-        `meZone.height=${meZone.offsetHeight}, meZone.bgImage=${meZone.style.backgroundImage ? 'есть' : 'нет'}, ` +
-        `neutralSlot.height=${neutralSlot.offsetHeight}, voiceControls.height=${voiceControlsEl.offsetHeight}`);
+      meZone.style.marginBottom = splitMode ? '-44px' : '';
+      meZone.style.paddingBottom = splitMode ? '66px' : '';
     });
     overlay.classList.remove('open');
     roomOverlay.classList.add('open');
