@@ -122,7 +122,7 @@
     display:flex;
     align-items:center;
     justify-content:center;
-    margin-bottom: 26px;
+    margin-bottom: 14px;
   }
 
   .ring-pulse{
@@ -236,17 +236,19 @@
     font-size: 15px;
     font-weight: 600;
     color: var(--text);
-    margin-top: 12px;
-    margin-bottom: 6px;
+    margin-top: 6px;
+    margin-bottom: 4px;
   }
 
+  /* переехал внутрь карточки "Участвовать" (под описанием), а не отдельной
+     строкой ниже всей карточки — так они читаются как единое целое */
   .online-below-cta{
     display:flex;
     align-items:center;
-    justify-content:center;
+    justify-content:flex-start;
     gap:6px;
-    margin: 10px 0 4px;
-    font-size: 12.5px;
+    margin-top: 4px;
+    font-size: 11.5px;
     color: var(--muted);
   }
   .online-below-cta .status-dot{ position:static; }
@@ -272,7 +274,7 @@
     align-items:flex-end;
     gap: 3px;
     height: 20px;
-    margin-top: 18px;
+    margin-top: 10px;
   }
   .waveform span{
     width: 3px;
@@ -1105,13 +1107,12 @@
       <div class="label-wrap">
         <div class="label">УЧАСТВОВАТЬ</div>
         <div class="desc" id="cta-join-desc">Встать в очередь на баттл</div>
+        <div class="online-below-cta">
+          <div class="status-dot"></div>
+          <span id="online-count">онлайн …</span>
+        </div>
       </div>
       <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
-    </div>
-
-    <div class="online-below-cta">
-      <div class="status-dot"></div>
-      <span id="online-count">онлайн …</span>
     </div>
 
     <div class="action-row" id="profile-btn">
