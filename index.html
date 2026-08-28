@@ -4007,6 +4007,16 @@
       document.getElementById('profile-stars').innerHTML = `${Number(userData.starsBalance || 0).toLocaleString('ru-RU')} <span class="unit">⭐</span>`;
       document.getElementById('profile-points').innerHTML = `${Number(userData.points || 0).toLocaleString('ru-RU')} <span class="unit">pts</span>`;
 
+      const myLeague = window.getLeague(userData.points || 0);
+      const leagueTag = document.querySelector('.profile-league-tag');
+      if (leagueTag) {
+        leagueTag.style.display = 'inline-flex';
+        leagueTag.style.color = myLeague.color;
+        leagueTag.style.borderColor = myLeague.borderColor;
+        leagueTag.style.background = myLeague.bgColor;
+        leagueTag.innerHTML = `<span class="dot" style="background:${myLeague.color}"></span>${myLeague.emoji} ${myLeague.name}`;
+      }
+
       // Настройки → "Telegram-аккаунт": если есть username — показываем его,
       // если нет (у части людей username просто не задан в Telegram) — показываем
       // внутриигровой тег (PLR-XXXXXX), по которому всё равно можно найти игрока
@@ -4361,6 +4371,26 @@
       refereeId:null,
       createdAt:battle.createdAt||Date.now()
     });
+  };
+
+  // Лиги — чисто визуальные ранговые тиры поверх того же самого поля
+  // points (никакой отдельной ELO-формулы нет, очки как считались плоско
+  // +30/-10 за бой в finishMatch, так и считаются). Пороги подобраны по
+  // ощущению прогрессии; цвета переиспользуют уже существовавшую, но нигде
+  // не использовавшуюся раскраску .league-dot/.league-row (бронза/серебро/
+  // золото/красная "major"-лига чемпионов).
+  const LEAGUES = [
+    { name: 'Новичок',    minPoints: 0,     emoji: '🥉', color: '#B08D57', borderColor: 'rgba(176,141,87,0.35)',  bgColor: 'rgba(176,141,87,0.08)' },
+    { name: 'Боец',       minPoints: 500,   emoji: '🥈', color: '#C9C9CE', borderColor: 'rgba(201,201,206,0.35)', bgColor: 'rgba(201,201,206,0.08)' },
+    { name: 'Ветеран',    minPoints: 1500,  emoji: '🥇', color: '#F2B705', borderColor: 'rgba(242,183,5,0.35)',   bgColor: 'rgba(242,183,5,0.08)' },
+    { name: 'Мастер',     minPoints: 3000,  emoji: '💎', color: '#5CC8FF', borderColor: 'rgba(92,200,255,0.35)',  bgColor: 'rgba(92,200,255,0.08)' },
+    { name: 'Легенда',    minPoints: 6000,  emoji: '👑', color: 'var(--live)', borderColor: 'rgba(var(--live-rgb),0.35)', bgColor: 'rgba(var(--live-rgb),0.1)' }
+  ];
+  window.getLeague = function(points) {
+    const p = Number(points || 0);
+    let result = LEAGUES[0];
+    for (const league of LEAGUES) { if (p >= league.minPoints) result = league; }
+    return result;
   };
 
   // "2026-08" и т.п. — ключ текущего месяца для сезонного топа игроков.
