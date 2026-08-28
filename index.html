@@ -3642,9 +3642,18 @@
   window.restoreAccountTheme = function(userData){
     savedThemesCache = Array.isArray(userData.savedThemes) ? userData.savedThemes : [];
     activeThemeRefCache = userData.activeTheme || null;
-    window.showDebugError?.('Тема аккаунта',
-      `telegramId=${window.currentTelegramId}, playerId=${userData.playerId}, ` +
-      `activeTheme=${JSON.stringify(activeThemeRefCache)}, savedThemes=${savedThemesCache.length}`);
+    // раньше логировалось при каждой обычной загрузке — если ничего не
+    // сломано, это просто шум в дебаг-панели. Теперь пишем только когда
+    // данные выглядят подозрительно: activeTheme ссылается на custom-тему,
+    // которой нет в savedThemes (та самая причина "обои не резолвятся",
+    // которую этим логом когда-то и поймали).
+    const active = activeThemeRefCache;
+    const brokenRef = active?.type === 'custom' && !savedThemesCache.some((t) => t.id === active.themeId);
+    if (brokenRef) {
+      window.showDebugError?.('Тема аккаунта: битая ссылка',
+        `telegramId=${window.currentTelegramId}, playerId=${userData.playerId}, ` +
+        `activeTheme=${JSON.stringify(active)} не найдена среди savedThemes=${savedThemesCache.length}`);
+    }
     applyRestoredTheme();
   };
 </script>
