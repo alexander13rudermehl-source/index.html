@@ -3622,19 +3622,22 @@
     updateLabModeButtons();
   }
 
-  // До того как узнаем, под каким Telegram-аккаунтом открыто приложение (это
-  // выясняется чуть позже, асинхронно), сразу подтягиваем только то, что
-  // лежит в этом браузере — актуально исключительно для гостей без
-  // Telegram, у которых аккаунта, к которому можно привязать тему, попросту
-  // нет. Как только аккаунт определится, restoreAccountTheme() полностью
-  // заменит это на приватные данные именно этого аккаунта.
-  (function initialGuestThemeLoad(){
+  // Раньше это вызывалось сразу здесь, безусловно для ВСЕХ — но в этом
+  // месте скрипта тег с Telegram SDK ещё даже не подключен, узнать tgUser
+  // тут нельзя. Из-за этого у настоящих Telegram-аккаунтов на долю секунды
+  // успевала мелькнуть та тема, что случайно осталась в localStorage этого
+  // браузера от прошлого тестирования (гостя/другого аккаунта на том же
+  // устройстве) — прежде чем через Firebase подгружалась их настоящая. Сама
+  // функция теперь только объявляется тут, а вызывается ниже по странице,
+  // после того как выяснится tgUser, и только если это настоящий гость без
+  // Telegram — тогда так подставлять локальную тему всё ещё осмысленно.
+  window.loadGuestLocalTheme = function loadGuestLocalTheme(){
     try {
       savedThemesCache = JSON.parse(localStorage.getItem('battleSavedThemes') || '[]');
       activeThemeRefCache = JSON.parse(localStorage.getItem('battleActiveTheme') || 'null');
     } catch (e) { /* повреждённые данные в localStorage — остаёмся с пустым списком */ }
     applyRestoredTheme();
-  })();
+  };
 
   window.restoreAccountTheme = function(userData){
     savedThemesCache = Array.isArray(userData.savedThemes) ? userData.savedThemes : [];
@@ -3662,6 +3665,9 @@
   // именно на него привязываем внутренний профиль.
   const tgUser = tg?.initDataUnsafe?.user;
   const displayFirstName = tgUser?.first_name || 'Гость';
+  // настоящий Telegram-аккаунт — тему только из Firebase (см. restoreAccountTheme
+  // ниже), никакого промежуточного угадывания по localStorage этого браузера
+  if (!tgUser) window.loadGuestLocalTheme?.();
 
   const firebaseConfig = {
     apiKey: "AIzaSyBe2eSG48yzv_9r6Q5yUF7fe2b6YLQGuQg",
