@@ -366,34 +366,19 @@
     background: rgba(0,0,0,0.4);
   }
   /* размытие СВОЕГО ЖЕ края у стыка, только когда там реально стык двух
-     РАЗНЫХ обоев (см. applyBattleZones). Плавности through mask-image не
+     РАЗНЫХ обоев (см. applyBattleZones). Плавности через mask-image не
      добиться — он вместе с backdrop-filter гасит сам blur на части WebView
-     (уже проверено). Вместо одной маскированной полосы — три немаскированных
-     полосы разной силы и высоты, наложенные друг на друга от края к центру:
-     каждая следующая (уже размытую самим backdrop-filter'ом картинку под
-     предыдущей) размывает ещё сильнее, так что общая сила блюра растёт
-     ступенями по мере приближения к стыку — не идеальный градиент, но и без
-     маски, которая ломает blur целиком. По умолчанию скрыт inline-стилем в
-     HTML — JS показывает его только в режиме раздельных обоев. */
-  .battle-zone-fade, .battle-zone-fade::before, .battle-zone-fade::after{
-    position: absolute;
-    pointer-events: none;
-  }
-  .battle-zone-fade{ z-index: 0; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
-  .battle-zone-fade::before{ content: ''; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
-  .battle-zone-fade::after{ content: ''; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+     (уже проверено). Вместо маски — сам .battle-zone-fade просто контейнер
+     фиксированного размера, а плавность делают его дочерние полоски-срезы
+     (см. buildFadeSlices в JS): одна и та же сила блюра у всех срезов, но
+     opacity растёт от 0 на дальнем крае до 1 у самого стыка — opacity с
+     backdrop-filter эту проблему WebView не разделяет. По умолчанию скрыт
+     inline-стилем в HTML — JS показывает его только в режиме раздельных обоев. */
+  .battle-zone-fade{ position: absolute; z-index: 0; pointer-events: none; overflow: hidden; }
   .battle-zone-fade.at-top{ top: 0; left: 0; right: 0; height: 72px; }
-  .battle-zone-fade.at-top::before{ top: 0; left: 0; right: 0; height: 40px; }
-  .battle-zone-fade.at-top::after{ top: 0; left: 0; right: 0; height: 16px; }
   .battle-zone-fade.at-bottom{ bottom: 0; left: 0; right: 0; height: 72px; }
-  .battle-zone-fade.at-bottom::before{ bottom: 0; left: 0; right: 0; height: 40px; }
-  .battle-zone-fade.at-bottom::after{ bottom: 0; left: 0; right: 0; height: 16px; }
   .battle-zone-fade.at-left{ top: 0; bottom: 0; left: 0; width: 56px; }
-  .battle-zone-fade.at-left::before{ top: 0; bottom: 0; left: 0; width: 32px; }
-  .battle-zone-fade.at-left::after{ top: 0; bottom: 0; left: 0; width: 12px; }
   .battle-zone-fade.at-right{ top: 0; bottom: 0; right: 0; width: 56px; }
-  .battle-zone-fade.at-right::before{ top: 0; bottom: 0; right: 0; width: 32px; }
-  .battle-zone-fade.at-right::after{ top: 0; bottom: 0; right: 0; width: 12px; }
   .battle-zone-content{
     position: relative;
     z-index: 2;
@@ -1744,6 +1729,35 @@
       return { bg: '#0B0B0D', live: '#FF3D2E' };
     });
   }
+
+  // Наполняет .battle-zone-fade срезами с растущей к стыку opacity — сам
+  // контейнер строится один раз (dataset.built), дальше только показывается
+  // и прячется через display в applyBattleZones. blur у всех срезов
+  // одинаковый (18px), меняется только opacity (0 на дальнем краю → 1 у
+  // стыка) — этим и получаем плавность без mask-image.
+  function buildFadeSlices(fadeEl) {
+    if (fadeEl.dataset.built) return;
+    fadeEl.dataset.built = '1';
+    const dir = ['at-top', 'at-bottom', 'at-left', 'at-right'].find((c) => fadeEl.classList.contains(c));
+    const anchorProp = dir.slice(3);
+    const horizontal = dir === 'at-left' || dir === 'at-right';
+    const SLICES = 14;
+    const totalSize = horizontal ? 56 : 72;
+    const sliceSize = totalSize / SLICES;
+    for (let i = 0; i < SLICES; i++) {
+      const t = 1 - i / SLICES; // 1 у самого стыка, к 0 на дальнем краю
+      const slice = document.createElement('div');
+      slice.style.position = 'absolute';
+      slice.style.backdropFilter = 'blur(18px)';
+      slice.style.webkitBackdropFilter = 'blur(18px)';
+      slice.style.opacity = Math.pow(t, 1.5).toFixed(3);
+      slice.style[anchorProp] = (i * sliceSize) + 'px';
+      if (horizontal) { slice.style.top = '0'; slice.style.bottom = '0'; slice.style.width = sliceSize + 'px'; }
+      else { slice.style.left = '0'; slice.style.right = '0'; slice.style.height = sliceSize + 'px'; }
+      fadeEl.appendChild(slice);
+    }
+  }
+  document.querySelectorAll('.battle-zone-fade').forEach(buildFadeSlices);
 
   // wrapperEl — общий контейнер вокруг обеих .battle-zone (для боя —
   // #room-combatant-view, для рефери — #room-referee-zones-wrap).
