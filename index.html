@@ -365,7 +365,13 @@
   }
   .battle-zone-overlay{
     position: absolute;
-    inset: 0;
+    top: 0; bottom: 0;
+    /* .battle-zone (и #room-referee-zones-wrap) вылезают на 18px влево и
+       вправо за счёт margin:0 -18px, чтобы фото доставало до самых краёв
+       карточки — а это затемнение висит на #room-visual-wrap, у которого
+       такого вылета нет. inset:0 не покрывал те же лишние 18px с каждой
+       стороны, и они оставались незатемнённой светлой полоской по краям. */
+    left: -18px; right: -18px;
     z-index: 1;
     background: rgba(0,0,0,0.4);
   }
