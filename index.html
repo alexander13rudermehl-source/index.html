@@ -2226,9 +2226,9 @@
     }
     el.innerHTML = list.map(({ key, user }) => `
       <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-        <div class="profile-avatar" style="width:34px; height:34px; font-size:13px; flex-shrink:0;${user.avatarData ? ` background-image:url(${user.avatarData}); background-size:cover; background-position:center; color:transparent;` : ''}">${(user.firstName || '??').slice(0, 2).toUpperCase()}</div>
-        <div style="flex:1; min-width:0; font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${user.firstName || 'Игрок'}</div>
-        <button type="button" class="fm-invite-btn" data-key="${key}" data-name="${(user.firstName || 'Игрок').replace(/"/g, '&quot;')}"
+        <div class="profile-avatar" style="width:34px; height:34px; font-size:13px; flex-shrink:0;${user.avatarData ? ` background-image:url(${user.avatarData}); background-size:cover; background-position:center; color:transparent;` : ''}">${window.escapeHtml((user.firstName || '??').slice(0, 2).toUpperCase())}</div>
+        <div style="flex:1; min-width:0; font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${window.escapeHtml(user.firstName || 'Игрок')}</div>
+        <button type="button" class="fm-invite-btn" data-key="${key}" data-name="${window.escapeHtml(user.firstName || 'Игрок')}"
           style="background:var(--gold); border:none; color:#0B0B0D; border-radius:100px; padding:7px 14px; font-size:12px; font-weight:700; cursor:pointer; flex-shrink:0;">Пригласить</button>
       </div>
     `).join('');
@@ -3218,9 +3218,13 @@
       </div>
     </div>
     <div class="sheet-body">
-      <div style="display:flex; gap:8px; margin-bottom:16px;">
-        <button type="button" class="sheet-cta" id="community-tab-top" style="flex:1; margin-top:0; padding:10px; font-size:12.5px;">🏆 Топ месяца</button>
-        <button type="button" class="sheet-cta secondary" id="community-tab-friends" style="flex:1; margin-top:0; padding:10px; font-size:12.5px;">👥 Друзья</button>
+      <div style="display:flex; gap:6px; margin-bottom:16px;">
+        <button type="button" class="sheet-cta" id="community-tab-top" style="flex:1; margin-top:0; padding:10px 4px; font-size:11.5px;">🏆 Топ</button>
+        <button type="button" class="sheet-cta secondary" id="community-tab-friends" style="flex:1; margin-top:0; padding:10px 4px; font-size:11.5px;">👥 Друзья</button>
+        <button type="button" class="sheet-cta secondary" id="community-tab-requests" style="flex:1; margin-top:0; padding:10px 4px; font-size:11.5px; position:relative;">
+          📨 Запросы
+          <span id="community-requests-count" style="display:none; position:absolute; top:-6px; right:-6px; background:var(--live); color:#fff; font-size:10px; font-weight:700; min-width:16px; height:16px; border-radius:100px; align-items:center; justify-content:center; padding:0 3px;"></span>
+        </button>
       </div>
 
       <div id="community-view-top">
@@ -3234,8 +3238,15 @@
             style="flex:1; min-width:0; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:11px; color:var(--text); font-size:13px; text-transform:uppercase;">
           <button type="button" class="sheet-cta" id="btn-community-add-friend" style="margin-top:0; padding:0 16px; font-size:12.5px; width:auto; flex-shrink:0;">Добавить</button>
         </div>
-        <div id="community-friend-error" style="display:none; color:var(--live); font-size:12.5px; margin-bottom:10px;"></div>
+        <div id="community-friend-error" style="display:none; font-size:12.5px; margin-bottom:10px;"></div>
         <div id="community-friends-list"><div class="admin-empty">Пока нет друзей</div></div>
+      </div>
+
+      <!-- входящие заявки в друзья — добавление по коду теперь не мгновенное,
+           а заявка, которую нужно принять (см. JS ниже) -->
+      <div id="community-view-requests" style="display:none;">
+        <p style="color:var(--muted); font-size:12px; line-height:1.5; margin-bottom:12px;">Заявки в друзья от других игроков — прими, чтобы попасть друг другу в друзья.</p>
+        <div id="community-requests-list"><div class="admin-empty">Нет новых заявок в друзья</div></div>
       </div>
     </div>
   </div>
@@ -3300,11 +3311,23 @@
 </div>
 
 <script>
-  // ===== Сообщество: топ игроков (по очкам) + друзья (свой список,
-  // хранится в users/<uid>/friends/<friendUid>: true) =====
+  // ===== Сообщество: топ игроков (по очкам) + друзья по заявкам =====
+  // users/<uid>/friends/<friendUid>: true — взаимный список (появляется
+  // ТОЛЬКО после того, как получатель примет заявку, см. ниже), плюс
+  // users/<uid>/friendRequests/<fromUid> — входящие заявки, ждущие ответа.
   const communityOverlay = document.getElementById('community-overlay');
   const communityTabTop = document.getElementById('community-tab-top');
   const communityTabFriends = document.getElementById('community-tab-friends');
+  const communityTabRequests = document.getElementById('community-tab-requests');
+
+  // firstName игрока приходит из Telegram как есть, без экранирования —
+  // вставлять его в innerHTML напрямую небезопасно (см. соответствующую
+  // находку в code review: злой юзер может назвать себя HTML/JS-пейлоадом,
+  // это выполнится у всех, кто увидит его в топе/друзьях/заявках)
+  function escapeHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+  window.escapeHtml = escapeHtml;
 
   function renderCommunityTop(entries) {
     const el = document.getElementById('community-top-list');
@@ -3312,8 +3335,8 @@
     el.innerHTML = entries.map((u, i) => `
       <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; display:flex; align-items:center; gap:10px; margin-bottom:8px;">
         <div style="font-family:'Bebas Neue',sans-serif; font-size:16px; color:var(--muted); width:22px; text-align:center; flex-shrink:0;">${i + 1}</div>
-        <div class="profile-avatar" style="width:34px; height:34px; font-size:13px; flex-shrink:0;${u.avatarData ? ` background-image:url(${u.avatarData}); background-size:cover; background-position:center; color:transparent;` : ''}">${(u.firstName || '??').slice(0, 2).toUpperCase()}</div>
-        <div style="flex:1; min-width:0; font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${u.firstName || 'Игрок'}</div>
+        <div class="profile-avatar" style="width:34px; height:34px; font-size:13px; flex-shrink:0;${u.avatarData ? ` background-image:url(${u.avatarData}); background-size:cover; background-position:center; color:transparent;` : ''}">${escapeHtml((u.firstName || '??').slice(0, 2).toUpperCase())}</div>
+        <div style="flex:1; min-width:0; font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(u.firstName || 'Игрок')}</div>
         <div style="font-family:'Bebas Neue',sans-serif; font-size:15px; color:var(--gold);">${Number(u.effectivePoints || 0).toLocaleString('ru-RU')}</div>
       </div>
     `).join('');
@@ -3341,9 +3364,9 @@
     if (!list.length) { el.innerHTML = '<div class="admin-empty">Пока нет друзей</div>'; return; }
     el.innerHTML = list.map(({ key, user }) => `
       <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-        <div class="profile-avatar" style="width:34px; height:34px; font-size:13px; flex-shrink:0;${user.avatarData ? ` background-image:url(${user.avatarData}); background-size:cover; background-position:center; color:transparent;` : ''}">${(user.firstName || '??').slice(0, 2).toUpperCase()}</div>
+        <div class="profile-avatar" style="width:34px; height:34px; font-size:13px; flex-shrink:0;${user.avatarData ? ` background-image:url(${user.avatarData}); background-size:cover; background-position:center; color:transparent;` : ''}">${escapeHtml((user.firstName || '??').slice(0, 2).toUpperCase())}</div>
         <div style="flex:1; min-width:0;">
-          <div style="font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${user.firstName || 'Игрок'}</div>
+          <div style="font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(user.firstName || 'Игрок')}</div>
           <div style="font-size:11px; color:var(--muted);">${Number(user.points || 0).toLocaleString('ru-RU')} pts</div>
         </div>
         <button type="button" class="community-remove-friend" data-key="${key}" style="background:none; border:none; color:var(--muted); font-size:18px; line-height:1; cursor:pointer; padding:4px 8px;">✕</button>
@@ -3359,32 +3382,104 @@
     window.fetchFriendUsers(myKey).then(renderCommunityFriends)
       .catch((err) => window.showDebugError?.('Сообщество: друзья', err));
   }
+  // дружба взаимная — убираем запись с обеих сторон, а не только у себя,
+  // иначе у бывшего друга я бы так и остался висеть в его списке
   function removeCommunityFriend(key) {
     const myKey = window.currentTelegramId;
     if (!myKey) return;
-    db.ref('users/' + myKey + '/friends/' + key).remove().then(loadCommunityFriends);
+    Promise.all([
+      db.ref('users/' + myKey + '/friends/' + key).remove(),
+      db.ref('users/' + key + '/friends/' + myKey).remove()
+    ]).then(loadCommunityFriends).catch((err) => window.showDebugError?.('Сообщество: удалить друга', err));
   }
 
-  document.getElementById('btn-community-add-friend').addEventListener('click', async () => {
+  // ===== заявки в друзья =====
+  function renderCommunityRequests(list) {
+    const el = document.getElementById('community-requests-list');
+    const countEl = document.getElementById('community-requests-count');
+    if (list.length) { countEl.textContent = list.length; countEl.style.display = 'inline-flex'; }
+    else { countEl.style.display = 'none'; }
+    if (!list.length) { el.innerHTML = '<div class="admin-empty">Нет новых заявок в друзья</div>'; return; }
+    el.innerHTML = list.map(({ key, request }) => `
+      <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+        <div class="profile-avatar" style="width:34px; height:34px; font-size:13px; flex-shrink:0;">${escapeHtml((request.fromName || '??').slice(0, 2).toUpperCase())}</div>
+        <div style="flex:1; min-width:0; font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(request.fromName || 'Игрок')}</div>
+        <button type="button" class="community-accept-request" data-key="${key}" style="background:var(--gold); border:none; color:#0B0B0D; border-radius:100px; padding:7px 12px; font-size:12px; font-weight:700; cursor:pointer; flex-shrink:0;">✓ Принять</button>
+        <button type="button" class="community-decline-request" data-key="${key}" style="background:none; border:1px solid var(--line); color:var(--muted); border-radius:100px; width:30px; height:30px; font-size:14px; cursor:pointer; flex-shrink:0;">✕</button>
+      </div>
+    `).join('');
+    el.querySelectorAll('.community-accept-request').forEach((btn) => {
+      btn.addEventListener('click', () => acceptCommunityRequest(btn.dataset.key));
+    });
+    el.querySelectorAll('.community-decline-request').forEach((btn) => {
+      btn.addEventListener('click', () => declineCommunityRequest(btn.dataset.key));
+    });
+  }
+  function loadCommunityRequests() {
+    const myKey = window.currentTelegramId;
+    if (!myKey) { renderCommunityRequests([]); return; }
+    db.ref('users/' + myKey + '/friendRequests').once('value').then((snap) => {
+      const requests = snap.val() || {};
+      renderCommunityRequests(Object.keys(requests).map((key) => ({ key, request: requests[key] })));
+    }).catch((err) => window.showDebugError?.('Сообщество: заявки', err));
+  }
+  // принять — становимся друзьями взаимно (обе стороны сразу видят друг
+  // друга в "Друзьях", а не только тот, кто когда-то отправил заявку)
+  function acceptCommunityRequest(fromKey) {
+    const myKey = window.currentTelegramId;
+    if (!myKey) return;
+    Promise.all([
+      db.ref('users/' + myKey + '/friends/' + fromKey).set(true),
+      db.ref('users/' + fromKey + '/friends/' + myKey).set(true),
+      db.ref('users/' + myKey + '/friendRequests/' + fromKey).remove()
+    ]).then(() => { loadCommunityRequests(); loadCommunityFriends(); })
+      .catch((err) => window.showDebugError?.('Сообщество: принять заявку', err));
+  }
+  function declineCommunityRequest(fromKey) {
+    const myKey = window.currentTelegramId;
+    if (!myKey) return;
+    db.ref('users/' + myKey + '/friendRequests/' + fromKey).remove().then(loadCommunityRequests)
+      .catch((err) => window.showDebugError?.('Сообщество: отклонить заявку', err));
+  }
+
+  function showCommunityFriendStatus(text, isError) {
     const errEl = document.getElementById('community-friend-error');
-    errEl.style.display = 'none';
+    errEl.textContent = text;
+    errEl.style.color = isError ? 'var(--live)' : 'var(--muted)';
+    errEl.style.display = 'block';
+  }
+  // "Добавить" теперь не мгновенно закидывает в друзья, а кладёт заявку
+  // получателю в friendRequests — взаимными друзьями становятся только
+  // после того, как тот сам её примет во вкладке "Запросы" (см. выше)
+  document.getElementById('btn-community-add-friend').addEventListener('click', async () => {
+    document.getElementById('community-friend-error').style.display = 'none';
     const myKey = window.currentTelegramId;
     const input = document.getElementById('community-friend-code-input');
     const code = input.value.trim().toUpperCase();
     if (!code) return;
-    if (!myKey) { errEl.textContent = 'Профиль ещё не загружен, попробуй ещё раз'; errEl.style.display = 'block'; return; }
+    if (!myKey) { showCommunityFriendStatus('Профиль ещё не загружен, попробуй ещё раз', true); return; }
     try {
       const snap = await db.ref('users').orderByChild('playerId').equalTo(code).once('value');
-      if (!snap.exists()) { errEl.textContent = 'Игрок с таким кодом не найден'; errEl.style.display = 'block'; return; }
+      if (!snap.exists()) { showCommunityFriendStatus('Игрок с таким кодом не найден', true); return; }
       const friendKey = Object.keys(snap.val())[0];
-      if (friendKey === myKey) { errEl.textContent = 'Это твой собственный код'; errEl.style.display = 'block'; return; }
-      await db.ref('users/' + myKey + '/friends/' + friendKey).set(true);
+      if (friendKey === myKey) { showCommunityFriendStatus('Это твой собственный код', true); return; }
+      const [alreadyFriend, alreadyRequested] = await Promise.all([
+        db.ref('users/' + myKey + '/friends/' + friendKey).once('value'),
+        db.ref('users/' + friendKey + '/friendRequests/' + myKey).once('value')
+      ]);
+      if (alreadyFriend.exists()) { showCommunityFriendStatus('Вы уже друзья', true); return; }
+      if (alreadyRequested.exists()) { showCommunityFriendStatus('Заявка уже отправлена, жди ответа', true); return; }
+      const me = window.currentPlayer || {};
+      await db.ref('users/' + friendKey + '/friendRequests/' + myKey).set({
+        fromName: me.firstName || 'Игрок',
+        fromPlayerId: me.playerId || null,
+        createdAt: Date.now()
+      });
       input.value = '';
-      loadCommunityFriends();
+      showCommunityFriendStatus('Заявка отправлена — как только её примут, вы появитесь друг у друга в друзьях', false);
     } catch (err) {
       window.showDebugError?.('Сообщество: добавить друга', err);
-      errEl.textContent = 'Не удалось добавить, попробуй ещё раз';
-      errEl.style.display = 'block';
+      showCommunityFriendStatus('Не удалось отправить заявку, попробуй ещё раз', true);
     }
   });
 
@@ -3392,22 +3487,22 @@
     communityOverlay.classList.add('open');
     loadCommunityTop();
     loadCommunityFriends();
+    loadCommunityRequests();
   });
   document.getElementById('community-close-btn').addEventListener('click', () => communityOverlay.classList.remove('open'));
   communityOverlay.addEventListener('click', (e) => { if (e.target === communityOverlay) communityOverlay.classList.remove('open'); });
 
-  communityTabTop.addEventListener('click', () => {
-    document.getElementById('community-view-top').style.display = 'block';
-    document.getElementById('community-view-friends').style.display = 'none';
-    communityTabTop.classList.remove('secondary');
-    communityTabFriends.classList.add('secondary');
-  });
-  communityTabFriends.addEventListener('click', () => {
-    document.getElementById('community-view-top').style.display = 'none';
-    document.getElementById('community-view-friends').style.display = 'block';
-    communityTabFriends.classList.remove('secondary');
-    communityTabTop.classList.add('secondary');
-  });
+  function showCommunityTab(tab) {
+    document.getElementById('community-view-top').style.display = tab === 'top' ? 'block' : 'none';
+    document.getElementById('community-view-friends').style.display = tab === 'friends' ? 'block' : 'none';
+    document.getElementById('community-view-requests').style.display = tab === 'requests' ? 'block' : 'none';
+    communityTabTop.classList.toggle('secondary', tab !== 'top');
+    communityTabFriends.classList.toggle('secondary', tab !== 'friends');
+    communityTabRequests.classList.toggle('secondary', tab !== 'requests');
+  }
+  communityTabTop.addEventListener('click', () => showCommunityTab('top'));
+  communityTabFriends.addEventListener('click', () => showCommunityTab('friends'));
+  communityTabRequests.addEventListener('click', () => { showCommunityTab('requests'); loadCommunityRequests(); });
 </script>
 
 <script>
@@ -4436,7 +4531,7 @@
         const result=m.refereeId===me?'Рефери':(m.winnerId===me?'Победа':(m.loserId===me?'Поражение':'Матч'));
         const opp=(m.hostId===me?m.guestName:(m.guestId===me?m.hostName:''))||'Соперник';
         const date=m.finishedAt?new Date(m.finishedAt).toLocaleDateString('ru-RU'):'';
-        return `<div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;gap:10px;"><div><div style="font-size:13px;font-weight:600;">${result} · ${opp}</div><div style="font-size:10.5px;color:var(--muted);">${date}</div></div><div style="font-family:'Bebas Neue',sans-serif;font-size:16px;">${m.pointsAwarded?.[me] ? '+'+m.pointsAwarded[me]+' pts':''}</div></div>`;
+        return `<div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;gap:10px;"><div><div style="font-size:13px;font-weight:600;">${result} · ${window.escapeHtml(opp)}</div><div style="font-size:10.5px;color:var(--muted);">${date}</div></div><div style="font-family:'Bebas Neue',sans-serif;font-size:16px;">${m.pointsAwarded?.[me] ? '+'+m.pointsAwarded[me]+' pts':''}</div></div>`;
       }).join('');
     }
     window.renderMatchList = renderMatchList;
