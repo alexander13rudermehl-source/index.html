@@ -509,6 +509,31 @@
     font-size: 9.5px;
   }
 
+  /* таймер боя — общий для всех троих (боец/рефери/зритель), запускает и
+     меняет только рефери (см. .ref-timer-btn ниже); отсчёт каждый клиент
+     считает сам от timer.startedAt/durationSec (см. renderTimer в JS) —
+     сервера/крона нет, точной синхронизации до миллисекунды тут не нужно */
+  .room-timer-badge{
+    position: absolute;
+    top: 0; right: 0;
+    z-index: 6;
+    display: none;
+    align-items: center;
+    gap: 4px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 100px;
+    padding: 5px 12px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    color: var(--text);
+  }
+  .room-timer-badge.show{ display: flex; }
+  .room-timer-badge.expired{ color: var(--live); border-color: var(--live); }
+
+  .ref-timer-btn.active{ border-color: var(--gold); color: var(--gold); }
+
   .event-claim-btn.claimed{
     background: var(--panel-2);
     color: var(--muted);
@@ -1442,6 +1467,7 @@
       <div id="room-visual-wrap" style="position:relative; background-size:cover; background-position:center;">
         <div class="battle-zone-overlay"></div>
         <div class="spectators-rail" id="room-spectators-rail" style="display:none;"></div>
+        <div class="room-timer-badge" id="room-timer-badge"></div>
       <div id="room-combatant-view" style="margin-bottom:20px; position:relative;">
         <div class="ref-indicator" id="room-ref-indicator">
           <div class="ref-avatar" id="room-ref-indicator-avatar"></div>
@@ -1504,6 +1530,21 @@
           </div>
           <div class="battle-vs-badge" style="top:50%; left:50%; transform:translate(-50%,-50%);">VS</div>
         </div>
+
+        <!-- таймер боя — назначает только рефери, выбором одной из
+             готовых длительностей; сам отсчёт виден всем троим (см.
+             .room-timer-badge на #room-visual-wrap и renderTimer в JS) -->
+        <div style="margin-top:16px;">
+          <div style="font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; text-align:center;">Таймер боя</div>
+          <div style="display:flex; gap:6px;">
+            <button type="button" class="sheet-cta secondary ref-timer-btn" data-mins="2" style="flex:1; padding:9px 2px; font-size:12px; margin-top:0;">2 мин</button>
+            <button type="button" class="sheet-cta secondary ref-timer-btn" data-mins="4" style="flex:1; padding:9px 2px; font-size:12px; margin-top:0;">4 мин</button>
+            <button type="button" class="sheet-cta secondary ref-timer-btn" data-mins="6" style="flex:1; padding:9px 2px; font-size:12px; margin-top:0;">6 мин</button>
+            <button type="button" class="sheet-cta secondary ref-timer-btn" data-mins="8" style="flex:1; padding:9px 2px; font-size:12px; margin-top:0;">8 мин</button>
+            <button type="button" class="sheet-cta secondary ref-timer-btn" data-mins="10" style="flex:1; padding:9px 2px; font-size:12px; margin-top:0;">10 мин</button>
+          </div>
+        </div>
+
         <div style="display:flex; gap:10px; margin-top:16px;">
           <button class="sheet-cta" id="ref-declare-host" style="flex:1; padding:12px 6px;">Победил <span id="ref-declare-host-name"></span></button>
           <button class="sheet-cta" id="ref-declare-guest" style="flex:1; padding:12px 6px;">Победил <span id="ref-declare-guest-name"></span></button>
@@ -1766,6 +1807,56 @@
     mySpectatorRef = null;
   }
 
+  // ===== таймер боя — назначает и запускает только рефери, отсчёт виден
+  // всем троим (боец/рефери/зритель) через общий room-timer-badge на
+  // room-visual-wrap. battles/<code>/timer = { durationSec, startedAt } —
+  // сервера/крона нет, поэтому каждый клиент сам досчитывает от startedAt,
+  // а не ждёт "тика" откуда-то извне. По истечении времени — просто
+  // визуальный сигнал ("ВРЕМЯ ВЫШЛО"), бой всё равно завершает рефери
+  // вручную, как и раньше.
+  let timerRef = null, timerListener = null, timerIntervalId = null;
+  function attachTimerListener(code) {
+    detachTimerListener();
+    timerRef = db.ref('battles/' + code + '/timer');
+    timerListener = timerRef.on('value', (snap) => renderTimer(snap.val()));
+  }
+  function detachTimerListener() {
+    if (timerRef && timerListener) timerRef.off('value', timerListener);
+    timerRef = null; timerListener = null;
+    if (timerIntervalId) { clearInterval(timerIntervalId); timerIntervalId = null; }
+  }
+  function renderTimer(timer) {
+    const badge = document.getElementById('room-timer-badge');
+    if (timerIntervalId) { clearInterval(timerIntervalId); timerIntervalId = null; }
+    document.querySelectorAll('.ref-timer-btn').forEach((btn) => {
+      btn.classList.toggle('active', !!timer && Number(btn.dataset.mins) * 60 === timer.durationSec);
+    });
+    if (!timer) { badge.classList.remove('show', 'expired'); return; }
+    const tick = () => {
+      const remaining = Math.max(0, timer.durationSec - Math.floor((Date.now() - timer.startedAt) / 1000));
+      const expired = remaining <= 0;
+      badge.classList.toggle('expired', expired);
+      if (expired) {
+        badge.textContent = '⏱ ВРЕМЯ ВЫШЛО';
+        if (timerIntervalId) { clearInterval(timerIntervalId); timerIntervalId = null; }
+      } else {
+        const mm = String(Math.floor(remaining / 60)).padStart(2, '0');
+        const ss = String(remaining % 60).padStart(2, '0');
+        badge.textContent = '⏱ ' + mm + ':' + ss;
+      }
+    };
+    tick();
+    badge.classList.add('show');
+    timerIntervalId = setInterval(tick, 1000);
+  }
+  document.querySelectorAll('.ref-timer-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (!myRoomCode || myRoomRole !== 'referee') return;
+      const mins = Number(btn.dataset.mins);
+      db.ref('battles/' + myRoomCode + '/timer').set({ durationSec: mins * 60, startedAt: Date.now() });
+    });
+  });
+
   // бейдж "судит: имя" в углу экрана боя — только у бойцов (сам рефери и
   // так знает, что он рефери); показывается, как только судья назначен —
   // это может случиться и после того, как бойцы уже вошли в комнату
@@ -1812,6 +1903,7 @@
     detachLikesListener();
     detachFinishListener();
     detachSpectatorsListener();
+    detachTimerListener();
     if (myRoomRole === 'spectator') leaveAsSpectator();
     document.getElementById('room-ref-indicator')?.classList.remove('show');
     myRoomCode = null;
@@ -2011,6 +2103,7 @@
     attachLikesListener(code, isHost ? 'host' : 'guest', isHost ? 'guest' : 'host');
     attachFinishListener(code);
     attachSpectatorsListener(code);
+    attachTimerListener(code);
     if (typeof setupVoiceConnection === 'function') setupVoiceConnection(code, isHost ? 'host' : 'guest');
   }
 
@@ -2037,6 +2130,7 @@
     roomOverlay.classList.add('open');
     attachLikesListener(code);
     attachSpectatorsListener(code);
+    attachTimerListener(code);
     if (typeof setupVoiceConnection === 'function') setupVoiceConnection(code, 'referee');
   }
 
@@ -2065,6 +2159,7 @@
     attachLikesListener(code);
     attachFinishListener(code);
     attachSpectatorsListener(code);
+    attachTimerListener(code);
     joinAsSpectator(code, me);
     // зритель только слушает — свой микрофон в LiveKit не публикуем (см.
     // setupVoiceConnection), иначе любой из потенциально многих зрителей
