@@ -472,6 +472,43 @@
     color: var(--muted);
   }
 
+  /* зрители — колонка мелких аватарок вдоль левого края карточки боя, общая
+     для всех трёх видов комнаты (боец/рефери/зритель), см. room-visual-wrap
+     и attachSpectatorsListener в JS. Прячется целиком, если зрителей 0. */
+  .spectators-rail{
+    position: absolute;
+    left: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 6;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    max-height: 78%;
+    overflow: hidden;
+  }
+  .spectator-avatar{
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--panel-2);
+    background-size: cover;
+    background-position: center;
+    border: 1.5px solid var(--bg);
+    box-shadow: 0 0 0 1px var(--line);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .spectator-avatar.more{
+    background: var(--panel);
+    font-size: 9.5px;
+  }
+
   .event-claim-btn.claimed{
     background: var(--panel-2);
     color: var(--muted);
@@ -1292,6 +1329,11 @@
             Или посуди уже идущий бой — послушаешь баттл и в конце выберешь победителя.
           </p>
           <button class="sheet-cta secondary" id="btn-start-referee-queue">⚖️ Судить бой</button>
+
+          <p style="color:var(--muted); font-size:12.5px; line-height:1.5; margin:14px 0 10px;">
+            Или просто посмотри чужой бой со стороны, как зритель.
+          </p>
+          <button class="sheet-cta secondary" id="btn-start-watch-queue">👀 Смотреть бой</button>
         </div>
 
         <!-- сама анимация поиска и кнопка отмены переехали в отдельный
@@ -1399,6 +1441,7 @@
            заметно светлее, чем в зонах, и это тоже выглядело бы швом. -->
       <div id="room-visual-wrap" style="position:relative; background-size:cover; background-position:center;">
         <div class="battle-zone-overlay"></div>
+        <div class="spectators-rail" id="room-spectators-rail" style="display:none;"></div>
       <div id="room-combatant-view" style="margin-bottom:20px; position:relative;">
         <div class="ref-indicator" id="room-ref-indicator">
           <div class="ref-avatar" id="room-ref-indicator-avatar"></div>
@@ -1464,6 +1507,37 @@
         <div style="display:flex; gap:10px; margin-top:16px;">
           <button class="sheet-cta" id="ref-declare-host" style="flex:1; padding:12px 6px;">Победил <span id="ref-declare-host-name"></span></button>
           <button class="sheet-cta" id="ref-declare-guest" style="flex:1; padding:12px 6px;">Победил <span id="ref-declare-guest-name"></span></button>
+        </div>
+      </div>
+
+      <!-- для зрителя: та же раскладка слева/справа, что у рефери (та же
+           applyBattleZones), но без кнопок объявления победителя — вместо
+           этого зритель сам может тапать по симпатиям (см. spec-like-*,
+           тот же bumpLike, что и у рефери — простая переиспользуемая
+           механика "тапнул сердечко") -->
+      <div id="room-spectator-view" style="display:none; margin-bottom:20px;">
+        <div style="position:relative; display:flex; margin:0 -18px;">
+          <div class="battle-zone" id="spec-host-zone" style="flex:1; margin:0;">
+            <div class="battle-zone-fade at-right" style="display:none;"></div>
+            <div class="battle-zone-content">
+              <div class="avatar-wrap">
+                <div class="profile-avatar" id="spec-host-avatar">—</div>
+                <div class="heart-badge tappable" id="spec-like-host">❤️ <span id="spec-like-host-count">0</span></div>
+              </div>
+              <div style="font-size:13px; font-weight:600;" id="spec-host-name">—</div>
+            </div>
+          </div>
+          <div class="battle-zone" id="spec-guest-zone" style="flex:1; margin:0;">
+            <div class="battle-zone-fade at-left" style="display:none;"></div>
+            <div class="battle-zone-content">
+              <div class="avatar-wrap">
+                <div class="profile-avatar" id="spec-guest-avatar">—</div>
+                <div class="heart-badge tappable" id="spec-like-guest">❤️ <span id="spec-like-guest-count">0</span></div>
+              </div>
+              <div style="font-size:13px; font-weight:600;" id="spec-guest-name">—</div>
+            </div>
+          </div>
+          <div class="battle-vs-badge" style="top:50%; left:50%; transform:translate(-50%,-50%);">VS</div>
         </div>
       </div>
 
@@ -1605,6 +1679,8 @@
       const h = likes.host || 0, g = likes.guest || 0;
       const refHostEl = document.getElementById('ref-like-host-count'); if (refHostEl) refHostEl.textContent = h;
       const refGuestEl = document.getElementById('ref-like-guest-count'); if (refGuestEl) refGuestEl.textContent = g;
+      const specHostEl = document.getElementById('spec-like-host-count'); if (specHostEl) specHostEl.textContent = h;
+      const specGuestEl = document.getElementById('spec-like-guest-count'); if (specGuestEl) specGuestEl.textContent = g;
       if (mySide) {
         const meEl = document.getElementById('likes-me-count');
         if (meEl) meEl.textContent = mySide === 'host' ? h : g;
@@ -1623,6 +1699,72 @@
   }
   document.getElementById('ref-like-host').addEventListener('click', () => bumpLike('host'));
   document.getElementById('ref-like-guest').addEventListener('click', () => bumpLike('guest'));
+  document.getElementById('spec-like-host').addEventListener('click', () => bumpLike('host'));
+  document.getElementById('spec-like-guest').addEventListener('click', () => bumpLike('guest'));
+
+  // ===== зрители — список тех, кто сейчас смотрит бой со стороны =====
+  // battles/<code>/spectators/<uid> — своя запись на каждого зрителя,
+  // используется и для рендера полосы аватарок слева (см. .spectators-rail),
+  // и просто как счётчик "сколько сейчас смотрит". Пишется один раз при
+  // входе в комнату зрителем (см. showRoomAsSpectator), убирается через
+  // onDisconnect() + явный remove() при выходе (см. closeRoom).
+  const SPECTATORS_VISIBLE_MAX = 6;
+  let spectatorsRef = null, spectatorsListener = null;
+  function attachSpectatorsListener(code) {
+    detachSpectatorsListener();
+    spectatorsRef = db.ref('battles/' + code + '/spectators');
+    spectatorsListener = spectatorsRef.on('value', (snap) => {
+      const list = Object.values(snap.val() || {});
+      const rail = document.getElementById('room-spectators-rail');
+      if (!rail) return;
+      if (!list.length) { rail.style.display = 'none'; rail.replaceChildren(); return; }
+      rail.style.display = 'flex';
+      const shown = list.slice(0, SPECTATORS_VISIBLE_MAX);
+      // через DOM API, а не innerHTML с шаблонной строкой — firstName зрителя
+      // приходит от Telegram и не экранирован (см. общий баг с этим же
+      // паттерном в друзьях/топе месяца, который ещё предстоит почистить)
+      const nodes = shown.map((s) => {
+        const el = document.createElement('div');
+        el.className = 'spectator-avatar';
+        if (s.avatarData) {
+          el.style.backgroundImage = `url(${s.avatarData})`;
+        } else {
+          el.textContent = (s.firstName || '??').slice(0, 2).toUpperCase();
+        }
+        return el;
+      });
+      if (list.length > SPECTATORS_VISIBLE_MAX) {
+        const more = document.createElement('div');
+        more.className = 'spectator-avatar more';
+        more.textContent = '+' + (list.length - SPECTATORS_VISIBLE_MAX);
+        nodes.push(more);
+      }
+      rail.replaceChildren(...nodes);
+    });
+  }
+  function detachSpectatorsListener() {
+    if (spectatorsRef && spectatorsListener) spectatorsRef.off('value', spectatorsListener);
+    spectatorsRef = null; spectatorsListener = null;
+  }
+  // своя запись зрителя в текущем бою — храним отдельно от spectatorsRef
+  // (который слушает ВЕСЬ список), чтобы явно убрать за собой только себя
+  let mySpectatorRef = null;
+  function joinAsSpectator(code, me) {
+    mySpectatorRef = db.ref('battles/' + code + '/spectators/' + (window.currentTelegramId || me.playerId));
+    mySpectatorRef.set({
+      playerId: me.playerId,
+      firstName: me.firstName || 'Зритель',
+      avatarData: me.avatarData || null,
+      joinedAt: Date.now()
+    });
+    mySpectatorRef.onDisconnect().remove();
+  }
+  function leaveAsSpectator() {
+    if (!mySpectatorRef) return;
+    mySpectatorRef.onDisconnect().cancel();
+    mySpectatorRef.remove().catch(() => {});
+    mySpectatorRef = null;
+  }
 
   // бейдж "судит: имя" в углу экрана боя — только у бойцов (сам рефери и
   // так знает, что он рефери); показывается, как только судья назначен —
@@ -1669,6 +1811,8 @@
     teardownVoiceConnection();
     detachLikesListener();
     detachFinishListener();
+    detachSpectatorsListener();
+    if (myRoomRole === 'spectator') leaveAsSpectator();
     document.getElementById('room-ref-indicator')?.classList.remove('show');
     myRoomCode = null;
     myRoomRole = null;
@@ -1832,6 +1976,8 @@
     document.getElementById('room-headline').textContent = 'СОПЕРНИК НАЙДЕН';
     document.getElementById('room-combatant-view').style.display = 'block';
     document.getElementById('room-referee-view').style.display = 'none';
+    document.getElementById('room-spectator-view').style.display = 'none';
+    document.getElementById('btn-toggle-mute').style.display = 'flex';
     document.getElementById('room-me-name').textContent = meName || '—';
     document.getElementById('room-opponent-name').textContent = oppName || '—';
     // по умолчанию панель голоса в нейтральном месте ниже (общий фон на
@@ -1864,6 +2010,7 @@
     roomOverlay.classList.add('open');
     attachLikesListener(code, isHost ? 'host' : 'guest', isHost ? 'guest' : 'host');
     attachFinishListener(code);
+    attachSpectatorsListener(code);
     if (typeof setupVoiceConnection === 'function') setupVoiceConnection(code, isHost ? 'host' : 'guest');
   }
 
@@ -1873,6 +2020,8 @@
     document.getElementById('room-headline').textContent = 'СУДИШЬ БОЙ';
     document.getElementById('room-combatant-view').style.display = 'none';
     document.getElementById('room-referee-view').style.display = 'block';
+    document.getElementById('room-spectator-view').style.display = 'none';
+    document.getElementById('btn-toggle-mute').style.display = 'flex';
     // у рефери нет "своей" половины экрана — панель голоса возвращается в
     // нейтральное место, а не остаётся в чьей-то теме от прошлого боя
     document.getElementById('room-voice-neutral-slot').appendChild(document.getElementById('room-voice-controls'));
@@ -1887,7 +2036,40 @@
     overlay.classList.remove('open');
     roomOverlay.classList.add('open');
     attachLikesListener(code);
+    attachSpectatorsListener(code);
     if (typeof setupVoiceConnection === 'function') setupVoiceConnection(code, 'referee');
+  }
+
+  // зритель видит ту же раскладку слева/справа, что и рефери, но без права
+  // объявить победителя — и, в отличие от рефери (сам явно закрывает
+  // комнату кнопкой), для зрителя нужен attachFinishListener, чтобы комната
+  // сама закрылась, когда бой завершат без его участия (как у бойцов).
+  function showRoomAsSpectator(code, data) {
+    myRoomCode = code;
+    myRoomRole = 'spectator';
+    const me = window.currentPlayer || { firstName: 'Игрок', playerId: 'guest' };
+    document.getElementById('room-headline').textContent = 'СМОТРИШЬ БОЙ';
+    document.getElementById('room-combatant-view').style.display = 'none';
+    document.getElementById('room-referee-view').style.display = 'none';
+    document.getElementById('room-spectator-view').style.display = 'block';
+    document.getElementById('btn-toggle-mute').style.display = 'none';
+    document.getElementById('room-voice-neutral-slot').appendChild(document.getElementById('room-voice-controls'));
+    document.getElementById('spec-host-name').textContent = data.hostName || '—';
+    document.getElementById('spec-guest-name').textContent = data.guestName || '—';
+    applyBattleZones(document.getElementById('room-visual-wrap'), [
+      { avatarEl: document.getElementById('spec-host-avatar'), zoneEl: document.getElementById('spec-host-zone'), playerId: data.hostId, fallbackName: data.hostName },
+      { avatarEl: document.getElementById('spec-guest-avatar'), zoneEl: document.getElementById('spec-guest-zone'), playerId: data.guestId, fallbackName: data.guestName }
+    ]);
+    overlay.classList.remove('open');
+    roomOverlay.classList.add('open');
+    attachLikesListener(code);
+    attachFinishListener(code);
+    attachSpectatorsListener(code);
+    joinAsSpectator(code, me);
+    // зритель только слушает — свой микрофон в LiveKit не публикуем (см.
+    // setupVoiceConnection), иначе любой из потенциально многих зрителей
+    // мог бы говорить поверх боя
+    if (typeof setupVoiceConnection === 'function') setupVoiceConnection(code, 'spectator');
   }
 
   async function refereeDeclareWinner(winnerSide) {
@@ -2285,6 +2467,20 @@
   });
 
   let demoMatchTimeoutId = null;
+  // несколько поддельных симпатий с задержкой — просто чтобы счётчики не
+  // стояли на нуле, пока тестируешь в одиночку; если комнату уже закрыли,
+  // проверка myRoomCode останавливает дальнейшие "лайки". Общий хелпер для
+  // всех трёх демо-входов (игрок/рефери/зритель, см. ниже).
+  function scheduleDemoLikes(code) {
+    [3000, 5500, 8000].forEach((delay, i) => {
+      setTimeout(() => {
+        if (myRoomCode !== code) return;
+        db.ref('battles/' + code + '/audienceLikes/' + (i % 2 === 0 ? 'host' : 'guest'))
+          .set(firebase.database.ServerValue.increment(1));
+      }, delay);
+    });
+  }
+
   async function startDemoMatch(me){
     const code = generateRoomCode();
     // рефери и лайки от "зрителей" в реальном бою появляются только когда
@@ -2304,16 +2500,7 @@
       createdAt: Date.now()
     };
     await db.ref('battles/' + code).set(battleData);
-    // несколько поддельных симпатий с задержкой — просто чтобы счётчики не
-    // стояли на нуле, пока тестируешь в одиночку; если комнату уже закрыли,
-    // проверка myRoomCode останавливает дальнейшие "лайки"
-    [3000, 5500, 8000].forEach((delay, i) => {
-      setTimeout(() => {
-        if (myRoomCode !== code) return;
-        db.ref('battles/' + code + '/audienceLikes/' + (i % 2 === 0 ? 'host' : 'guest'))
-          .set(firebase.database.ServerValue.increment(1));
-      }, delay);
-    });
+    scheduleDemoLikes(code);
     // не мгновенно — короткая пауза сохраняет ощущение "поиска", а не
     // подмену интерфейса без анимации
     demoMatchTimeoutId = setTimeout(() => {
@@ -2323,6 +2510,53 @@
         document.getElementById('rq-waiting').style.display = 'none';
         warpOverlayEl.classList.remove('open');
         showRoom(code, battleData, true);
+      });
+    }, 1400);
+  }
+
+  // демо-вход судьёй/зрителем — в отличие от startDemoMatch (где тестер сам
+  // играет против бота), здесь оба бойца ненастоящие, а тестер сразу занимает
+  // место рефери или зрителя — так можно проверить эти экраны в одиночку,
+  // без второго реального устройства/аккаунта
+  function buildDemoSpectateBattleData(){
+    return {
+      hostId: 'DEMO-BOT',
+      hostName: getDemoBotConfig().name || 'Тестовый соперник',
+      guestId: 'DEMO-BOT-2',
+      guestName: 'Тестовый соперник 2',
+      status: 'active',
+      rated: false,
+      demo: true,
+      createdAt: Date.now()
+    };
+  }
+  async function startDemoRefereeMatch(me){
+    const code = generateRoomCode();
+    const battleData = { ...buildDemoSpectateBattleData(), refereeId: me.playerId, refereeName: me.firstName };
+    await db.ref('battles/' + code).set(battleData);
+    scheduleDemoLikes(code);
+    demoMatchTimeoutId = setTimeout(() => {
+      demoMatchTimeoutId = null;
+      warpAnnounceFound(() => {
+        document.getElementById('rq-idle').style.display = 'block';
+        document.getElementById('rq-waiting').style.display = 'none';
+        warpOverlayEl.classList.remove('open');
+        showRoomAsReferee(code, battleData);
+      });
+    }, 1400);
+  }
+  async function startDemoSpectatorMatch(){
+    const code = generateRoomCode();
+    const battleData = { ...buildDemoSpectateBattleData(), refereeId: 'DEMO-REF', refereeName: 'Судья-бот' };
+    await db.ref('battles/' + code).set(battleData);
+    scheduleDemoLikes(code);
+    demoMatchTimeoutId = setTimeout(() => {
+      demoMatchTimeoutId = null;
+      warpAnnounceFound(() => {
+        document.getElementById('rq-idle').style.display = 'block';
+        document.getElementById('rq-waiting').style.display = 'none';
+        warpOverlayEl.classList.remove('open');
+        showRoomAsSpectator(code, battleData);
       });
     }, 1400);
   }
@@ -2498,6 +2732,10 @@
     warpOverlayEl.classList.add('open');
     startWarpAnimation();
 
+    if (isDemoModeEligible() && rqDemoToggle.classList.contains('on')) {
+      return startDemoRefereeMatch(me);
+    }
+
     try {
       const battlesSnap = await db.ref('battles').once('value');
       const all = battlesSnap.val() || {};
@@ -2565,6 +2803,44 @@
   }
 
   document.getElementById('btn-start-referee-queue').addEventListener('click', startRefereeQueue);
+
+  // ===== Смотреть бой — зритель =====
+  // В отличие от судейства, смотреть один и тот же бой могут сразу
+  // несколько человек — никакой очереди/эксклюзивности не нужно, просто
+  // берём случайный сейчас идущий бой и подключаемся к нему как зритель.
+  async function startWatchQueue() {
+    document.getElementById('rq-error').style.display = 'none';
+    const me = window.currentPlayer || { firstName: 'Игрок', playerId: 'guest' };
+
+    if (isDemoModeEligible() && rqDemoToggle.classList.contains('on')) {
+      document.getElementById('rq-idle').style.display = 'none';
+      document.getElementById('rq-waiting').style.display = 'block';
+      document.getElementById('rq-waiting-label').textContent = 'Ищем бой для просмотра…';
+      warpOverlayEl.classList.add('open');
+      startWarpAnimation();
+      return startDemoSpectatorMatch();
+    }
+
+    try {
+      const battlesSnap = await db.ref('battles').once('value');
+      const all = battlesSnap.val() || {};
+      const candidates = Object.keys(all).filter((code) => {
+        const b = all[code];
+        return b && b.status === 'active' &&
+          b.hostId !== me.playerId && b.guestId !== me.playerId && b.refereeId !== me.playerId;
+      });
+      if (!candidates.length) {
+        rqShowError('Сейчас нет активных боёв для просмотра');
+        return;
+      }
+      const code = candidates[Math.floor(Math.random() * candidates.length)];
+      showRoomAsSpectator(code, all[code]);
+    } catch (err) {
+      window.showDebugError?.('Смотреть бой', err);
+      rqShowError('Не удалось найти бой для просмотра, попробуй ещё раз');
+    }
+  }
+  document.getElementById('btn-start-watch-queue').addEventListener('click', startWatchQueue);
 
   // ===== Голос через LiveKit — вместо самодельного WebRTC =====
   // LiveKit сам разруливает ICE/TURN/переподключения — то, с чем мы мучились
@@ -2693,8 +2969,15 @@
       });
 
       await room.connect(serverUrl, participantToken);
-      await room.localParticipant.setMicrophoneEnabled(true);
-      window.showDebugError?.('Голос (LiveKit)', 'подключено и микрофон включён');
+      // зритель только слушает бой — публиковать его микрофон в комнату
+      // нельзя, иначе любой из потенциально многих зрителей мог бы говорить
+      // поверх боя вместо бойцов/рефери
+      if (role !== 'spectator') {
+        await room.localParticipant.setMicrophoneEnabled(true);
+        window.showDebugError?.('Голос (LiveKit)', 'подключено и микрофон включён');
+      } else {
+        window.showDebugError?.('Голос (LiveKit)', 'подключено (зритель, без микрофона)');
+      }
 
       lkRoom = room;
     } catch (err) {
