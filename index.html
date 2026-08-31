@@ -2674,6 +2674,22 @@
     document.getElementById('rq-waiting').style.display = 'none';
   }
 
+  // тот, кто "застолбил" соперника/рефери через matchedRoom, пишет
+  // battles/<code> вторым отдельным запросом сразу вслед за этим — между
+  // двумя write'ами есть реальный сетевой зазор, и слушатель на другой
+  // стороне иногда успевает сработать раньше, чем battles/<code> появится
+  // в базе (см. репорт "matchedRoom=..., но battles/... не найден" с двух
+  // одновременно тестировавших устройств). Несколько попыток с паузой
+  // почти всегда успевают дождаться записи, вместо немедленного отказа.
+  async function waitForBattleData(code, attempts = 5, delayMs = 300) {
+    for (let i = 0; i < attempts; i++) {
+      const snap = await db.ref('battles/' + code).once('value');
+      if (snap.exists()) return snap.val();
+      if (i < attempts - 1) await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+    return null;
+  }
+
   async function startRatingQueue() {
     document.getElementById('rq-error').style.display = 'none';
     const me = window.currentPlayer || { firstName: 'Игрок', playerId: 'guest' };
@@ -2730,31 +2746,45 @@
           showRoom(code, battleData, true);
         });
       } else {
-        // свободных нет — встаём в очередь сами и ждём, пока кто-то нас найдёт
-        myQueueRef = db.ref('queue/' + myKey);
-        await myQueueRef.set({
+        // свободных нет — встаём в очередь сами и ждём, пока кто-то нас найдёт.
+        // Работаем через локальный queueRef, а не напрямую через общую
+        // переменную myQueueRef — пока идёт await set(), пользователь мог
+        // успеть нажать "Отменить поиск" (leaveRatingQueue обнуляет
+        // myQueueRef параллельно), и тогда myQueueRef.onDisconnect() ниже
+        // упал бы с "Cannot read properties of null" (см. репорт с двух
+        // реальных устройств — гонка воспроизводилась не в теории).
+        const queueRef = db.ref('queue/' + myKey);
+        myQueueRef = queueRef;
+        await queueRef.set({
           playerId: me.playerId,
           firstName: me.firstName,
           points: me.points || 0,
           matchedRoom: null,
           joinedAt: Date.now()
         });
+        if (myQueueRef !== queueRef) return; // поиск уже отменили, пока шла запись
+
         // если резко закрыть приложение (не нажав "Отменить поиск"), запись
         // должна исчезнуть сама — иначе следующий искатель матчится с
         // "призраком", который никогда не зайдёт в комнату
-        myQueueRef.onDisconnect().remove();
+        queueRef.onDisconnect().remove();
 
-        myQueueListener = myQueueRef.on('value', async (snap) => {
+        myQueueListener = queueRef.on('value', async (snap) => {
           const data = snap.val();
           if (data && data.matchedRoom) {
             const code = data.matchedRoom;
-            myQueueRef.off('value', myQueueListener);
+            queueRef.off('value', myQueueListener);
             myQueueListener = null;
-            myQueueRef.onDisconnect().cancel();
-            await myQueueRef.remove();
-            myQueueRef = null;
-            const battleSnap = await db.ref('battles/' + code).once('value');
-            const battleData = battleSnap.val();
+            queueRef.onDisconnect().cancel();
+            await queueRef.remove();
+            if (myQueueRef === queueRef) myQueueRef = null;
+            // тот, кто нас "застолбил", пишет battles/<code> ВТОРЫМ шагом,
+            // уже после того как matchedRoom (который мы тут слушаем) ушёл
+            // в базу первым — между этими двумя write'ами есть реальный
+            // сетевой зазор, и наш слушатель иногда успевает сработать
+            // раньше, чем battles/<code> появится. Несколько попыток с
+            // паузой почти всегда успевают его дождаться.
+            const battleData = await waitForBattleData(code);
             if (battleData) {
               warpAnnounceFound(() => {
                 document.getElementById('rq-idle').style.display = 'block';
@@ -2765,7 +2795,7 @@
             } else {
               stopWarpAnimation();
               warpOverlayEl.classList.remove('open');
-              window.showDebugError?.('Рейтинговый бой', `matchedRoom=${code}, но battles/${code} не найден`);
+              window.showDebugError?.('Рейтинговый бой', `matchedRoom=${code}, но battles/${code} так и не появился`);
               rqShowError('Не удалось подключиться, попробуй ещё раз');
               document.getElementById('rq-idle').style.display = 'block';
               document.getElementById('rq-waiting').style.display = 'none';
@@ -2856,27 +2886,33 @@
         return;
       }
 
-      // свободных боёв нет (или кто-то опередил) — встаём в очередь судей
-      myRefQueueRef = db.ref('refereeQueue/' + myKey);
-      await myRefQueueRef.set({
+      // свободных боёв нет (или кто-то опередил) — встаём в очередь судей.
+      // Тот же локальный refQueueRef, что и в startRatingQueue — иначе
+      // конкурентная отмена (leaveRatingQueue обнуляет myRefQueueRef, пока
+      // здесь ещё идёт await set()) роняет .onDisconnect() на null.
+      const refQueueRef = db.ref('refereeQueue/' + myKey);
+      myRefQueueRef = refQueueRef;
+      await refQueueRef.set({
         playerId: me.playerId,
         firstName: me.firstName,
         matchedRoom: null,
         joinedAt: Date.now()
       });
-      myRefQueueRef.onDisconnect().remove();
+      if (myRefQueueRef !== refQueueRef) return; // поиск уже отменили, пока шла запись
+      refQueueRef.onDisconnect().remove();
 
-      myRefQueueListener = myRefQueueRef.on('value', async (snap) => {
+      myRefQueueListener = refQueueRef.on('value', async (snap) => {
         const data = snap.val();
         if (data && data.matchedRoom) {
           const code = data.matchedRoom;
-          myRefQueueRef.off('value', myRefQueueListener);
+          refQueueRef.off('value', myRefQueueListener);
           myRefQueueListener = null;
-          myRefQueueRef.onDisconnect().cancel();
-          await myRefQueueRef.remove();
-          myRefQueueRef = null;
-          const battleSnap = await db.ref('battles/' + code).once('value');
-          const battleData = battleSnap.val();
+          refQueueRef.onDisconnect().cancel();
+          await refQueueRef.remove();
+          if (myRefQueueRef === refQueueRef) myRefQueueRef = null;
+          // та же гонка "matchedRoom пришёл раньше battles/<code>", что и в
+          // startRatingQueue — см. waitForBattleData
+          const battleData = await waitForBattleData(code);
           if (battleData) {
             warpAnnounceFound(() => {
               document.getElementById('rq-idle').style.display = 'block';
