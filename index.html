@@ -2852,6 +2852,35 @@
     return false;
   }
 
+  // Бой считается "зависшим", если он всё ещё status:'active' спустя долгое
+  // время после создания — 30 минут заведомо больше максимума таймера боя
+  // (10 минут) с запасом на само судейство. Так бывает, когда боец/рефери
+  // захлопнул приложение или потерял связь, не дойдя до нормального
+  // завершения (finishMatch выставляет status:'finished' только когда
+  // рефери явно объявляет победителя) — сервера/крона для уборки таких
+  // "хвостов" нет, поэтому battles/<code> так и остаётся активным навсегда,
+  // и следующий, кто ищет бой для судейства/просмотра, попадает именно на
+  // него, даже если сам бой был много дней/недель назад.
+  const BATTLE_ACTIVE_STALE_MS = 30 * 60 * 1000;
+  function isBattleStale(b) {
+    return !b || b.status !== 'active' || Date.now() - (b.createdAt || 0) > BATTLE_ACTIVE_STALE_MS;
+  }
+  // раз уж всё равно читаем весь battles при поиске — заодно лениво
+  // переводим найденные зависшие бои в status:'finished' (в историю), а не
+  // просто исключаем их из ЭТОГО поиска и оставляем висеть для следующего
+  function sweepStaleBattles(all) {
+    const update = {};
+    const now = Date.now();
+    for (const code of Object.keys(all)) {
+      const b = all[code];
+      if (b && b.status === 'active' && now - (b.createdAt || 0) > BATTLE_ACTIVE_STALE_MS) {
+        update['battles/' + code + '/status'] = 'finished';
+        update['battles/' + code + '/abandoned'] = true;
+      }
+    }
+    if (Object.keys(update).length) db.ref().update(update).catch(() => {});
+  }
+
   async function startRefereeQueue() {
     document.getElementById('rq-error').style.display = 'none';
     const me = window.currentPlayer || { firstName: 'Игрок', playerId: 'guest' };
@@ -2870,9 +2899,10 @@
     try {
       const battlesSnap = await db.ref('battles').once('value');
       const all = battlesSnap.val() || {};
+      sweepStaleBattles(all);
       const openCode = Object.keys(all).find((code) => {
         const b = all[code];
-        return b && b.status === 'active' && b.rated === true && !b.refereeId &&
+        return b && !isBattleStale(b) && b.rated === true && !b.refereeId &&
           b.hostId !== me.playerId && b.guestId !== me.playerId;
       });
 
@@ -2961,9 +2991,10 @@
     try {
       const battlesSnap = await db.ref('battles').once('value');
       const all = battlesSnap.val() || {};
+      sweepStaleBattles(all);
       const candidates = Object.keys(all).filter((code) => {
         const b = all[code];
-        return b && b.status === 'active' &&
+        return b && !isBattleStale(b) &&
           b.hostId !== me.playerId && b.guestId !== me.playerId && b.refereeId !== me.playerId;
       });
       if (!candidates.length) {
