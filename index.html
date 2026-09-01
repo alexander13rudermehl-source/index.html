@@ -1749,6 +1749,21 @@
   </div>
 </div>
 
+<!-- ===== итог боя — рефери объявил победителя =====
+     Бойцы/зрители узнают об этом через attachFinishListener (battles/<code>
+     стал status:'finished'), рефери — сразу после своего же клика на
+     "Победил X". Комната к этому моменту уже закрыта (closeRoom вызывается
+     ДО показа этого экрана — он же гасит голос/микрофон), а сам результат
+     висит на экране, пока игрок сам не нажмёт "Понятно" — раньше комната
+     просто исчезала без обратной связи, кто выиграл и сколько начислено. -->
+<div class="overlay" id="battle-result-overlay">
+  <div class="sheet" style="text-align:center; padding:32px 20px;">
+    <div id="battle-result-title" style="font-family:'Bebas Neue',sans-serif; font-size:26px; letter-spacing:1px; margin-bottom:14px;">Бой завершён</div>
+    <div id="battle-result-points" style="font-family:'Bebas Neue',sans-serif; font-size:40px; letter-spacing:1px; margin-bottom:24px;"></div>
+    <button class="sheet-cta" id="battle-result-close-btn" style="margin-top:0;">Понятно</button>
+  </div>
+</div>
+
 <script>
   const overlay = document.getElementById('overlay');
   const sheet = document.getElementById('sheet');
@@ -2007,7 +2022,13 @@
     finishListener = finishRef.on('value', (snap) => {
       const battle = snap.val();
       if (!battle) return;
-      if (battle.status === 'finished' && roomOverlay.classList.contains('open')) { closeRoom(); return; }
+      if (battle.status === 'finished' && roomOverlay.classList.contains('open')) {
+        const myRole = myRoomRole;
+        const myPlayerId = window.currentPlayer?.playerId;
+        closeRoom(); // сразу гасит голос/микрофон — не ждём, пока нажмут "Понятно"
+        showBattleResult(myRole, battle, myPlayerId);
+        return;
+      }
       updateRefIndicator(battle.refereeId, battle.refereeName);
     });
   }
@@ -2028,6 +2049,38 @@
     myRoomCode = null;
     myRoomRole = null;
   }
+
+  // показывается и бойцам/зрителям (через attachFinishListener, после уже
+  // выполненного closeRoom), и самому рефери (сразу после клика "Победил
+  // X") — единая точка, откуда видно, кто выиграл и сколько начислено,
+  // вместо того чтобы комната просто молча исчезала
+  function showBattleResult(myRole, battle, myPlayerId) {
+    const titleEl = document.getElementById('battle-result-title');
+    const pointsEl = document.getElementById('battle-result-points');
+    if (myRole === 'referee' || myRole === 'spectator') {
+      titleEl.textContent = 'Бой завершён';
+      pointsEl.style.display = 'none';
+    } else {
+      const delta = battle.pointsAwarded?.[myPlayerId];
+      if (myPlayerId && myPlayerId === battle.winnerId) titleEl.textContent = '🏆 Победа!';
+      else if (myPlayerId && myPlayerId === battle.loserId) titleEl.textContent = 'Поражение';
+      else titleEl.textContent = 'Бой завершён';
+      if (typeof delta === 'number' && delta !== 0) {
+        pointsEl.style.display = 'block';
+        pointsEl.style.color = delta > 0 ? 'var(--gold)' : 'var(--live)';
+        pointsEl.textContent = (delta > 0 ? '+' : '') + delta + ' pts';
+      } else {
+        pointsEl.style.display = 'none';
+      }
+    }
+    document.getElementById('battle-result-overlay').classList.add('open');
+  }
+  document.getElementById('battle-result-close-btn').addEventListener('click', () => {
+    document.getElementById('battle-result-overlay').classList.remove('open');
+  });
+  document.getElementById('battle-result-overlay').addEventListener('click', (e) => {
+    if (e.target.id === 'battle-result-overlay') e.currentTarget.classList.remove('open');
+  });
 
   // battles/<code> хранит только имена (hostName/guestName) — сама
   // картинка аватара за это время могла ещё и смениться, поэтому не
@@ -2308,11 +2361,16 @@
         refereeId: battle.refereeId || window.currentPlayer?.playerId,
         pointsAwarded, audienceVotes
       });
-      await db.ref('battles/' + code).update({ status: 'finished' });
+      // winnerId/loserId/pointsAwarded дублируем прямо в battles/<code> (а не
+      // только в matches/<code>, куда их пишет finishMatch) — их слушает
+      // attachFinishListener у бойцов/зрителей, чтобы показать тот же экран
+      // итога боя (см. showBattleResult) без лишнего похода за matches
+      await db.ref('battles/' + code).update({ status: 'finished', winnerId, loserId, pointsAwarded });
     } catch (err) {
       window.showDebugError?.('Судейство: объявление победителя', err);
     }
-    closeRoom();
+    closeRoom(); // сразу гасит голос/микрофон
+    showBattleResult('referee', { winnerId, loserId, pointsAwarded }, window.currentPlayer?.playerId);
   }
   document.getElementById('ref-declare-host').addEventListener('click', () => refereeDeclareWinner('host'));
   document.getElementById('ref-declare-guest').addEventListener('click', () => refereeDeclareWinner('guest'));
@@ -3813,13 +3871,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.3.0 · pre-alpha (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.3.1 · pre-alpha (LiveKit-ветка)</div>
         Внутренний тест · обновлено 30.08.2026<br>
-        <span style="font-size:11px;">Лиги по очкам (ранговые тиры в профиле). Зрители и таймер боя в судейском экране. Друзья теперь по заявкам (вкладка "Запросы" в "Сообществе"). Устранены гонки состояний в поиске соперника/рефери — зависшие годами бои больше не подворачиваются судьям и зрителям. Полноэкранный экран загрузки при старте приложения вместо заглушки с "??" и "Игрок".</span>
+        <span style="font-size:11px;">Экран итога боя — после того как рефери объявляет победителя, бойцы/зрители видят результат и начисленные очки (кнопка "Понятно"), а не просто молча вылетают из комнаты; голос/микрофон при этом гасится сразу, не дожидаясь закрытия экрана.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.3.0 — лиги по очкам, зрители и таймер боя, друзья по заявкам, устранены гонки состояний в поиске соперника/рефери, экран загрузки при старте приложения<br>
           v0.2.5–0.2.6 — "Играть с другом" объединяет создание/вход по коду; добавлен "Рейтинговый бой" — очередь случайных соперников через Firebase; роли (admin/superadmin) теперь выдаются только вручную через Firebase Console<br>
           v0.1.8 — убран глючивший transaction() при входе в комнату → read-then-write; вернулась автоочистка гостевых аккаунтов (24ч)<br>
           v0.1.7 — TURN-сервер (Open Relay) + очередь ICE-кандидатов + диагностика voice-ошибок<br>
