@@ -1188,6 +1188,21 @@
     const cx = w / 2, cy = h / 2;
     const maxR = Math.hypot(cx, cy);
     const gold = getComputedStyle(document.documentElement).getPropertyValue('--gold').trim() || '#F2B705';
+    // "краска" звёзд — в начале анимации они белые (цвета совсем нет), и по
+    // мере ожидания постепенно окрашиваются в золотой, одновременно с тем
+    // же разгоном скорости (defaultBoost ниже) — оба эффекта работают на
+    // одном и том же прогрессе elapsed/20000, поэтому усиливаются вместе
+    const STAR_COLOR_START = { r: 255, g: 255, b: 255 };
+    const goldMatch = /^#?([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(gold);
+    const STAR_COLOR_END = goldMatch
+      ? { r: parseInt(goldMatch[1], 16), g: parseInt(goldMatch[2], 16), b: parseInt(goldMatch[3], 16) }
+      : { r: 242, g: 183, b: 5 };
+    function mixStarColor(t) {
+      const r = Math.round(STAR_COLOR_START.r + (STAR_COLOR_END.r - STAR_COLOR_START.r) * t);
+      const g = Math.round(STAR_COLOR_START.g + (STAR_COLOR_END.g - STAR_COLOR_START.g) * t);
+      const b = Math.round(STAR_COLOR_START.b + (STAR_COLOR_END.b - STAR_COLOR_START.b) * t);
+      return `rgb(${r},${g},${b})`;
+    }
     const STAR_COUNT = starCount || 500;
     const STAR_GROWTH_START = 3;
     const STAR_GROWTH_DOUBLE_MS = 2000;
@@ -1206,10 +1221,12 @@
       const elapsed = now - startTime;
       // чем дольше идёт анимация — тем быстрее летят звёзды, разгон плавно
       // тянется первые ~20 секунд
-      const defaultBoost = 1 + Math.min(elapsed / 20000, 1) * 3;
+      const speedProgress = Math.min(elapsed / 20000, 1);
+      const defaultBoost = 1 + speedProgress * 3;
       const boost = getBoost ? getBoost(elapsed, now, defaultBoost) : defaultBoost;
       const activeCount = Math.min(STAR_COUNT, Math.round(STAR_GROWTH_START * Math.pow(2, elapsed / STAR_GROWTH_DOUBLE_MS)));
       const brightness = 0.75 + 0.35 * (activeCount / STAR_COUNT);
+      const starColor = mixStarColor(speedProgress);
       // не стираем кадр полностью — лёгкое затемнение поверх старого
       // содержимого оставляет короткий светящийся след за каждой звездой
       ctx.fillStyle = 'rgba(0,0,0,0.35)';
@@ -1228,7 +1245,7 @@
         }
         const x1 = cx + Math.cos(s.angle) * prevR, y1 = cy + Math.sin(s.angle) * prevR;
         const x2 = cx + Math.cos(s.angle) * s.radius, y2 = cy + Math.sin(s.angle) * s.radius;
-        ctx.strokeStyle = gold;
+        ctx.strokeStyle = starColor;
         ctx.globalAlpha = Math.min(1, (s.radius / 50) * brightness);
         ctx.lineWidth = Math.max(0.6, (s.radius / maxR) * 2.4);
         ctx.beginPath();
@@ -4434,13 +4451,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.3.6 · pre-alpha (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.3.7 · pre-alpha (LiveKit-ветка)</div>
         Внутренний тест · обновлено 03.09.2026<br>
-        <span style="font-size:11px;">Выдача ролей (moderator/admin/superadmin) возвращена в админ-панель (battle-admin-bot) — доступно только Супердоступу. Для этого поле role в database.rules.json перестало быть защищённым от изменения; подробности и цена этого решения — в README battle-admin-bot.</span>
+        <span style="font-size:11px;">Звёзды на экранах загрузки/поиска соперника теперь белые в начале и постепенно окрашиваются в золотой вместе с разгоном скорости — чем дольше ждёшь, тем ярче и быстрее.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.3.6 — выдача ролей возвращена в админ-панель (только Супердоступ)<br>
           v0.3.5 — вкладка «Кланы» разбита на отдельные кнопки: Мой клан/Создать, Таблица, Список<br>
           v0.3.4 — код клана в формате PLRK-XXXXXX, «Список кланов» независимо от очков<br>
           v0.3.3 — модерация создания кланов и ссылок на их Telegram-чаты<br>
