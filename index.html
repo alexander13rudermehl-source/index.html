@@ -1191,6 +1191,74 @@
     document.getElementById('platform-lock-overlay').classList.add('open');
   };
 </script>
+
+<!-- ===== закрытый бета-тест: заявка вместо мгновенного создания аккаунта
+     =====
+     Пока config/closedBeta включён (см. "Правила платформы" в
+     battle-admin-bot), у НОВЫХ визитёров (нет users/<id>) аккаунт не
+     создаётся автоматически — вместо этого узел betaApplications/<id> и
+     этот экран. Одобрение/отклонение — из админ-панели (вкладка
+     "Заявки"), она же создаёт настоящий users/<id> при одобрении. У кого
+     аккаунт уже есть — эта проверка их не касается вообще (см.
+     resolveIdentity().then(...) ниже). -->
+<div class="overlay" id="beta-application-overlay" style="background:#000; z-index:1001;">
+  <div style="text-align:center; max-width:320px;">
+    <div style="font-size:40px; margin-bottom:16px;">🔒</div>
+    <div style="font-family:'Bebas Neue',sans-serif; font-size:24px; letter-spacing:1px; margin-bottom:10px;" id="beta-app-title">Закрытый бета-тест</div>
+    <div style="color:var(--muted); font-size:14px; line-height:1.5; margin-bottom:20px; white-space:pre-line;" id="beta-app-message">—</div>
+    <button class="sheet-cta" id="btn-beta-apply" style="display:none; margin-top:0;">Подать заявку</button>
+  </div>
+</div>
+<script>
+  window.showBetaApplicationScreen = function (telegramId, firstName, username) {
+    const appRef = db.ref('betaApplications/' + telegramId);
+    const overlay = document.getElementById('beta-application-overlay');
+    const titleEl = document.getElementById('beta-app-title');
+    const messageEl = document.getElementById('beta-app-message');
+    const btnEl = document.getElementById('btn-beta-apply');
+
+    function submitApplication() {
+      btnEl.disabled = true;
+      appRef.set({
+        firstName: firstName || 'Игрок',
+        username: username ? '@' + username : null,
+        requestedAt: Date.now(),
+        status: 'pending'
+      }).then(() => render()).catch((err) => {
+        window.showDebugError?.('Заявка на бета-тест', err);
+        btnEl.disabled = false;
+      });
+    }
+
+    function render() {
+      appRef.once('value').then((snap) => {
+        const app = snap.val();
+        if (!app) {
+          titleEl.textContent = 'Закрытый бета-тест';
+          messageEl.textContent = 'Сейчас доступ только по заявке — админ рассматривает их вручную. Оставь заявку, и как только её одобрят, просто открой приложение заново.';
+          btnEl.textContent = 'Подать заявку';
+          btnEl.style.display = 'block';
+          btnEl.disabled = false;
+          btnEl.onclick = submitApplication;
+        } else if (app.status === 'rejected') {
+          titleEl.textContent = 'Заявка отклонена';
+          messageEl.textContent = (app.rejectionReason || 'Причина не указана.') + '\n\nМожешь подать заявку ещё раз.';
+          btnEl.textContent = 'Подать заявку заново';
+          btnEl.style.display = 'block';
+          btnEl.disabled = false;
+          btnEl.onclick = submitApplication;
+        } else {
+          titleEl.textContent = 'Заявка на рассмотрении';
+          messageEl.textContent = 'Админ ещё не рассмотрел заявку. Как только её одобрят, просто открой приложение заново.';
+          btnEl.style.display = 'none';
+        }
+        overlay.classList.add('open');
+      }).catch((err) => window.showDebugError?.('Проверка заявки на бета-тест', err));
+    }
+
+    render();
+  };
+</script>
 <script>
   // Общий движок звёздного поля для всех warp-анимаций в приложении (этот
   // экран загрузки и поиск боя/рефери/зрителя ниже по странице, см.
@@ -4484,13 +4552,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.3.9 · pre-alpha (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.4.0 · pre-alpha (LiveKit-ветка)</div>
         Внутренний тест · обновлено 03.09.2026<br>
-        <span style="font-size:11px;">Режим обслуживания (сайт закрыт для игроков, но открыт персоналу — для проверки обновлений) и аварийный режим (закрыт для всех, кроме Супердоступа) — включаются из админ-панели, «Правила платформы».</span>
+        <span style="font-size:11px;">Закрытый бета-тест: новые визитёры оставляют заявку вместо мгновенного создания аккаунта — доступ открывает админ вручную. У кого аккаунт уже был — ничего не меняется.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.3.9 — режим обслуживания и аварийный режим (обе стороны — index.html и панель)<br>
           v0.3.8 — баланс поинтов — настоящий внутренний ELO вместо плоского +30/-10<br>
           v0.3.7 — звёзды варпа окрашиваются в золотой по мере ожидания, не сразу<br>
           v0.3.6 — выдача ролей возвращена в админ-панель (только Супердоступ)<br>
@@ -5254,13 +5323,23 @@
 
   // return обязателен — иначе отказ этого промиса не долетал бы до
   // .catch() в конце всей цепочки resolveIdentity().then(...) ниже, и
-  // экран загрузки завис бы навсегда при сетевой ошибке здесь
-  return userRef.get().then((snap) => {
+  // экран загрузки завис бы навсегда при сетевой ошибке здесь.
+  // config/closedBeta читаем параллельно с самим аккаунтом (не отдельным
+  // .then() после) — важен только для НОВЫХ визитёров (см. else ниже),
+  // у кого уже есть аккаунт, он всегда открывается как обычно.
+  return Promise.all([userRef.get(), db.ref('config/closedBeta').once('value')]).then(([snap, closedBetaSnap]) => {
     let userData;
 
     if (snap.exists()) {
       // такой Telegram-аккаунт уже заходил — просто достаём его данные, ID не трогаем
       userData = snap.val();
+    } else if (closedBetaSnap.val()) {
+      // закрытый бета-тест: новых аккаунтов без одобренной заявки не
+      // создаём вообще — вместо этого экран заявки, и на этом всё,
+      // дальше приложение не инициализируется (см. return ниже)
+      window.showBetaApplicationScreen?.(telegramId, displayFirstName, tgUser?.username);
+      window.hideBootLoading?.();
+      return;
     } else {
       // первый визит с этого Telegram-аккаунта — создаём запись намертво
       userData = {
