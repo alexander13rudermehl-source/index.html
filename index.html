@@ -3449,12 +3449,25 @@
            (users/<uid>/clanId), у клана свой код и настраиваемая политика
            вступления (open/code/request) — см. JS ниже -->
       <div id="community-view-clans" style="display:none;">
-        <div id="community-clan-my"><div class="admin-empty">Загрузка…</div></div>
-        <p style="color:var(--muted); font-size:12px; line-height:1.5; margin-bottom:12px;">Рейтинг кланов — сумма очков участников за текущий месяц.</p>
-        <div id="community-clans-rating-list"><div class="admin-empty">Загрузка…</div></div>
-        <div style="margin:18px 0 10px; font-size:13px; font-weight:600;">Список кланов</div>
-        <p style="color:var(--muted); font-size:12px; line-height:1.5; margin-bottom:12px;">Все одобренные кланы с правилами вступления — необязательно с очками.</p>
-        <div id="community-clans-directory-list"><div class="admin-empty">Загрузка…</div></div>
+        <div style="display:flex; gap:6px; margin-bottom:16px;">
+          <button type="button" class="sheet-cta" id="clans-subtab-my" style="flex:1; margin-top:0; padding:10px 4px; font-size:11.5px;">➕ Создать</button>
+          <button type="button" class="sheet-cta secondary" id="clans-subtab-rating" style="flex:1; margin-top:0; padding:10px 4px; font-size:11.5px;">🏆 Таблица</button>
+          <button type="button" class="sheet-cta secondary" id="clans-subtab-list" style="flex:1; margin-top:0; padding:10px 4px; font-size:11.5px;">📋 Список</button>
+        </div>
+
+        <div id="clans-subview-my">
+          <div id="community-clan-my"><div class="admin-empty">Загрузка…</div></div>
+        </div>
+
+        <div id="clans-subview-rating" style="display:none;">
+          <p style="color:var(--muted); font-size:12px; line-height:1.5; margin-bottom:12px;">Рейтинг кланов — сумма очков участников за текущий месяц.</p>
+          <div id="community-clans-rating-list"><div class="admin-empty">Загрузка…</div></div>
+        </div>
+
+        <div id="clans-subview-list" style="display:none;">
+          <p style="color:var(--muted); font-size:12px; line-height:1.5; margin-bottom:12px;">Все одобренные кланы с правилами вступления — необязательно с очками.</p>
+          <div id="community-clans-directory-list"><div class="admin-empty">Загрузка…</div></div>
+        </div>
       </div>
     </div>
   </div>
@@ -3724,6 +3737,24 @@
   // users/<uid>/clanId — код клана, в котором игрок сейчас состоит (один
   // клан одновременно: чтобы вступить в другой, нужно сперва выйти —
   // никакого автоматического переноса, во избежание гонок с ролью лидера).
+  // подвкладки внутри "Кланы": Мой клан/Создать клан, Таблица, Список —
+  // раньше все три шли одним длинным списком друг под другом
+  function showClansSubtab(tab) {
+    document.getElementById('clans-subview-my').style.display = tab === 'my' ? 'block' : 'none';
+    document.getElementById('clans-subview-rating').style.display = tab === 'rating' ? 'block' : 'none';
+    document.getElementById('clans-subview-list').style.display = tab === 'list' ? 'block' : 'none';
+    document.getElementById('clans-subtab-my').classList.toggle('secondary', tab !== 'my');
+    document.getElementById('clans-subtab-rating').classList.toggle('secondary', tab !== 'rating');
+    document.getElementById('clans-subtab-list').classList.toggle('secondary', tab !== 'list');
+  }
+  document.getElementById('clans-subtab-my').addEventListener('click', () => showClansSubtab('my'));
+  document.getElementById('clans-subtab-rating').addEventListener('click', () => showClansSubtab('rating'));
+  document.getElementById('clans-subtab-list').addEventListener('click', () => showClansSubtab('list'));
+
+  function setClansMyTabLabel(hasClan) {
+    document.getElementById('clans-subtab-my').textContent = hasClan ? '🛡 Мой клан' : '➕ Создать';
+  }
+
   // формат — как у playerId (PLR-XXXXXX), только с "K" на конце префикса,
   // чтобы отличать код клана от кода игрока на глаз
   function generateClanCode() {
@@ -4125,8 +4156,10 @@
     const myKey = window.currentTelegramId;
     const container = document.getElementById('community-clan-my');
     container.innerHTML = '<div class="admin-empty">Загрузка…</div>';
+    showClansSubtab('my');
     try {
       const clanId = myKey ? (await db.ref('users/' + myKey + '/clanId').once('value')).val() : null;
+      setClansMyTabLabel(!!clanId);
       if (clanId) {
         const clanSnap = await db.ref('clans/' + clanId).once('value');
         if (clanSnap.exists()) {
@@ -4140,6 +4173,7 @@
           // происходить при обычных сценариях disbandClan/kickClanMember, но
           // подчищаем на всякий случай, чтобы не залипнуть в вечной загрузке)
           await db.ref('users/' + myKey + '/clanId').remove();
+          setClansMyTabLabel(false);
           renderClanCreateJoinForm();
         }
       } else {
@@ -4400,13 +4434,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.3.4 · pre-alpha (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.3.5 · pre-alpha (LiveKit-ветка)</div>
         Внутренний тест · обновлено 03.09.2026<br>
-        <span style="font-size:11px;">У кланов теперь свой код в формате PLRK-XXXXXX (как PLR-XXXXXX у игроков); в «Кланах» появился «Список кланов» — все одобренные кланы с их правилами вступления, а не только те, кто уже набрал очков.</span>
+        <span style="font-size:11px;">Вкладка «Кланы» разбита на отдельные кнопки — Мой клан/Создать, Таблица, Список — вместо одного длинного списка друг под другом.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.3.4 — код клана в формате PLRK-XXXXXX, «Список кланов» независимо от очков<br>
           v0.3.3 — модерация создания кланов и ссылок на их Telegram-чаты<br>
           v0.3.2 — вкладка «Кланы» в Сообществе: создание/вступление, состав, рейтинг, управление лидером<br>
           v0.3.1 — экран итога боя с начисленными очками вместо молчаливого закрытия<br>
