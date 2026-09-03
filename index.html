@@ -1216,6 +1216,25 @@
     const titleEl = document.getElementById('beta-app-title');
     const messageEl = document.getElementById('beta-app-message');
     const btnEl = document.getElementById('btn-beta-apply');
+    let pollTimer = null;
+
+    function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+
+    // раньше на экране "на рассмотрении" не было вообще никакого способа
+    // узнать, что заявку одобрили, кроме как самому знать, что приложение
+    // нужно полностью закрыть и открыть заново (Telegram Mini App иначе
+    // просто не перечитывает данные) — отсюда и была жалоба "одобрил, а
+    // всё равно не пускает". Теперь пока висит "на рассмотрении", раз в
+    // 10 секунд сами проверяем аккаунт и перезагружаем страницу, как
+    // только он появится.
+    function startPolling() {
+      stopPolling();
+      pollTimer = setInterval(() => {
+        db.ref('users/' + telegramId).once('value').then((snap) => {
+          if (snap.exists()) { stopPolling(); location.reload(); }
+        }).catch(() => {});
+      }, 10000);
+    }
 
     function submitApplication() {
       btnEl.disabled = true;
@@ -1231,28 +1250,41 @@
     }
 
     function render() {
-      appRef.once('value').then((snap) => {
-        const app = snap.val();
-        if (!app) {
-          titleEl.textContent = 'Закрытый бета-тест';
-          messageEl.textContent = 'Сейчас доступ только по заявке — админ рассматривает их вручную. Оставь заявку, и как только её одобрят, просто открой приложение заново.';
-          btnEl.textContent = 'Подать заявку';
-          btnEl.style.display = 'block';
-          btnEl.disabled = false;
-          btnEl.onclick = submitApplication;
-        } else if (app.status === 'rejected') {
-          titleEl.textContent = 'Заявка отклонена';
-          messageEl.textContent = (app.rejectionReason || 'Причина не указана.') + '\n\nМожешь подать заявку ещё раз.';
-          btnEl.textContent = 'Подать заявку заново';
-          btnEl.style.display = 'block';
-          btnEl.disabled = false;
-          btnEl.onclick = submitApplication;
-        } else {
-          titleEl.textContent = 'Заявка на рассмотрении';
-          messageEl.textContent = 'Админ ещё не рассмотрел заявку. Как только её одобрят, просто открой приложение заново.';
-          btnEl.style.display = 'none';
-        }
-        overlay.classList.add('open');
+      // сначала проверяем сам аккаунт напрямую, а не только статус заявки —
+      // на случай если админ создал users/<id>, но обновление статуса
+      // заявки на "approved" следующим шагом не долетело (сеть моргнула
+      // между двумя записями): аккаунт всё равно уже есть, значит пускаем
+      db.ref('users/' + telegramId).once('value').then((userSnap) => {
+        if (userSnap.exists()) { stopPolling(); location.reload(); return; }
+        return appRef.once('value').then((snap) => {
+          const app = snap.val();
+          if (!app) {
+            stopPolling();
+            titleEl.textContent = 'Закрытый бета-тест';
+            messageEl.textContent = 'Сейчас доступ только по заявке — админ рассматривает их вручную. Оставь заявку, и как только её одобрят, страница сама обновится.';
+            btnEl.textContent = 'Подать заявку';
+            btnEl.style.display = 'block';
+            btnEl.disabled = false;
+            btnEl.onclick = submitApplication;
+          } else if (app.status === 'rejected') {
+            stopPolling();
+            titleEl.textContent = 'Заявка отклонена';
+            messageEl.textContent = (app.rejectionReason || 'Причина не указана.') + '\n\nМожешь подать заявку ещё раз.';
+            btnEl.textContent = 'Подать заявку заново';
+            btnEl.style.display = 'block';
+            btnEl.disabled = false;
+            btnEl.onclick = submitApplication;
+          } else {
+            titleEl.textContent = 'Заявка на рассмотрении';
+            messageEl.textContent = 'Админ ещё не рассмотрел заявку. Эта страница сама обновится, как только её одобрят — можно просто подождать здесь.';
+            btnEl.textContent = 'Проверить статус';
+            btnEl.style.display = 'block';
+            btnEl.disabled = false;
+            btnEl.onclick = render;
+            startPolling();
+          }
+          overlay.classList.add('open');
+        });
       }).catch((err) => window.showDebugError?.('Проверка заявки на бета-тест', err));
     }
 
@@ -4552,13 +4584,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.4.0 · pre-alpha (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.4.1 · pre-alpha (LiveKit-ветка)</div>
         Внутренний тест · обновлено 03.09.2026<br>
-        <span style="font-size:11px;">Закрытый бета-тест: новые визитёры оставляют заявку вместо мгновенного создания аккаунта — доступ открывает админ вручную. У кого аккаунт уже был — ничего не меняется.</span>
+        <span style="font-size:11px;">Починил экран заявки на закрытый бета-тест — раньше на "заявка на рассмотрении" не было способа узнать, что её одобрили, кроме как знать, что приложение нужно полностью перезапустить. Теперь страница сама проверяет и обновляется, плюс кнопка "Проверить статус".</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.4.0 — закрытый бета-тест: заявка вместо мгновенного создания аккаунта<br>
           v0.3.9 — режим обслуживания и аварийный режим (обе стороны — index.html и панель)<br>
           v0.3.8 — баланс поинтов — настоящий внутренний ELO вместо плоского +30/-10<br>
           v0.3.7 — звёзды варпа окрашиваются в золотой по мере ожидания, не сразу<br>
