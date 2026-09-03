@@ -3764,6 +3764,7 @@
           </select>
         </div>
         <button type="button" class="sheet-cta" id="btn-clan-create" style="margin-top:0;">Создать клан</button>
+        <p style="color:var(--muted); font-size:11px; line-height:1.5; margin-top:8px;">Новый клан сначала проверяет администрация — пока идёт проверка, создать другой клан или вступить в другой нельзя.</p>
         <div style="text-align:center; color:var(--muted); font-size:11px; margin:14px 0 8px;">или вступи по коду</div>
         <div style="display:flex; gap:8px;">
           <input type="text" id="clan-join-code-input" placeholder="Код клана, напр. CLN-8X3F9K"
@@ -3797,6 +3798,7 @@
       if ((await db.ref('clans/' + code).once('value')).exists()) code = generateClanCode();
       await db.ref('clans/' + code).set({
         name, emoji, code, leaderId: myKey, joinPolicy, createdAt: Date.now(),
+        status: 'pending',
         members: { [myKey]: { firstName: me.firstName || 'Игрок', role: 'leader', joinedAt: Date.now() } }
       });
       await db.ref('users/' + myKey + '/clanId').set(code);
@@ -3811,6 +3813,7 @@
 
   async function joinClan(clan, myKey) {
     if (!myKey) { showClanActionError('Профиль ещё не загружен, попробуй ещё раз'); return; }
+    if ((clan.status || 'approved') !== 'approved') { showClanActionError('Этот клан ещё на рассмотрении администрации'); return; }
     try {
       const existingClanId = (await db.ref('users/' + myKey + '/clanId').once('value')).val();
       if (existingClanId) { showClanActionError('Ты уже в клане — сначала выйди из него'); return; }
@@ -3988,6 +3991,8 @@
       <button type="button" class="sheet-cta secondary" id="btn-clan-leave" style="width:100%; margin-top:12px;">Покинуть клан</button>
     `;
 
+    const chatLinkBlock = renderClanChatLinkBlock(clan, isLeader);
+
     document.getElementById('community-clan-my').innerHTML = `
       <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:18px;">
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
@@ -4000,6 +4005,7 @@
         ${memberRows}
         ${requestsBlock}
         ${leaderControls}
+        ${chatLinkBlock}
       </div>
     `;
 
@@ -4010,9 +4016,104 @@
       document.querySelectorAll('.clan-member-promote').forEach((b) => b.addEventListener('click', () => transferClanLeadership(clan, b.dataset.key)));
       document.querySelectorAll('.clan-request-accept').forEach((b) => b.addEventListener('click', () => respondClanRequest(clan, b.dataset.key, true)));
       document.querySelectorAll('.clan-request-decline').forEach((b) => b.addEventListener('click', () => respondClanRequest(clan, b.dataset.key, false)));
+      document.getElementById('btn-clan-chat-submit')?.addEventListener('click', () => submitClanChatLink(clan));
     } else {
       document.getElementById('btn-clan-leave').addEventListener('click', () => leaveClan(clan, myKey));
     }
+  }
+
+  // t.me-ссылка, безопасная для вставки в href — проверяется не только при
+  // отправке формой (см. submitClanChatLink), но и здесь, при рендере: базу
+  // можно записать напрямую мимо приложения (см. открытые .write-правила),
+  // и без этой проверки в chatLink могла бы прилететь javascript:-ссылка
+  function isSafeTelegramLink(url) {
+    return /^https:\/\/t\.me\/[A-Za-z0-9_+/-]+$/.test(String(url || ''));
+  }
+
+  function renderClanChatLinkBlock(clan, isLeader) {
+    const chatStatus = clan.chatLinkStatus || null;
+    if (isLeader) {
+      const currentLink = isSafeTelegramLink(clan.chatLink) ? clan.chatLink : '';
+      let statusNote = '';
+      if (chatStatus === 'pending') statusNote = '<div style="font-size:11px; color:var(--gold); margin-bottom:6px;">🕓 Ссылка на проверке у администрации</div>';
+      else if (chatStatus === 'approved') statusNote = '<div style="font-size:11px; color:var(--muted); margin-bottom:6px;">✓ Одобрена, видна участникам клана</div>';
+      else if (chatStatus === 'rejected') statusNote = `<div style="font-size:11px; color:var(--live); margin-bottom:6px;">Отклонена: ${escapeHtml(clan.chatLinkRejectionReason || 'причина не указана')}</div>`;
+      return `
+        <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--line);">
+          <div style="font-size:12px; font-weight:600; margin-bottom:6px;">Чат клана в Telegram</div>
+          ${statusNote}
+          <input type="text" id="clan-chat-link-input" value="${escapeHtml(currentLink)}" placeholder="https://t.me/..."
+            style="width:100%; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:11px; color:var(--text); font-size:12.5px; margin-bottom:8px; box-sizing:border-box;">
+          <p style="color:var(--muted); font-size:11px; line-height:1.5; margin-bottom:8px;">Ссылка должна вести в чат, куда можно зайти сразу — администрация проверяет её вручную, прежде чем показать участникам. Если в чат нельзя войти напрямую (нужна заявка на вступление, которую одобряет кто-то другой), администрация не сможет убедиться, что это за чат, и вправе отклонить ссылку или сам клан.</p>
+          <button type="button" class="sheet-cta secondary" id="btn-clan-chat-submit" style="width:100%; margin-top:0;">Отправить на проверку</button>
+        </div>
+      `;
+    }
+    if (chatStatus === 'approved' && isSafeTelegramLink(clan.chatLink)) {
+      return `
+        <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--line);">
+          <div style="font-size:12px; font-weight:600; margin-bottom:6px;">Чат клана в Telegram</div>
+          <a href="${escapeHtml(clan.chatLink)}" target="_blank" rel="noopener" style="color:var(--gold); font-size:12.5px; word-break:break-all;">${escapeHtml(clan.chatLink)}</a>
+        </div>
+      `;
+    }
+    return '';
+  }
+
+  function submitClanChatLink(clan) {
+    const input = document.getElementById('clan-chat-link-input');
+    const link = input.value.trim();
+    if (!link) return;
+    if (!isSafeTelegramLink(link)) { alert('Ссылка должна выглядеть как https://t.me/имя_чата — публичная ссылка Telegram, без пробелов и лишних символов'); return; }
+    const btn = document.getElementById('btn-clan-chat-submit');
+    btn.disabled = true;
+    db.ref('clans/' + clan.code).update({ chatLink: link, chatLinkStatus: 'pending', chatLinkRejectionReason: null })
+      .then(loadClansTab)
+      .catch((err) => {
+        window.showDebugError?.('Кланы: ссылка на чат', err);
+        alert('Не удалось отправить ссылку, попробуй ещё раз');
+        btn.disabled = false;
+      });
+  }
+
+  function renderClanPendingPanel(clan) {
+    document.getElementById('community-clan-my').innerHTML = `
+      <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:18px;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+          <div style="font-size:28px; flex-shrink:0;">${escapeHtml(clan.emoji || '🛡')}</div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:15px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(clan.name || 'Клан')}</div>
+            <div style="font-size:11px; color:var(--gold);">🕓 На рассмотрении администрации</div>
+          </div>
+        </div>
+        <p style="color:var(--muted); font-size:12px; line-height:1.5; margin-bottom:12px;">Клан проверяется вручную. Пока он не одобрен, в него нельзя вступить, а ты не можешь создать другой клан или вступить в другой.</p>
+        <button type="button" class="sheet-cta secondary" id="btn-clan-cancel-pending" style="width:100%; margin-top:0; color:var(--live);">Отменить создание</button>
+      </div>
+    `;
+    document.getElementById('btn-clan-cancel-pending').addEventListener('click', () => disbandClan(clan));
+  }
+
+  function renderClanRejectedPanel(clan, myKey) {
+    document.getElementById('community-clan-my').innerHTML = `
+      <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:18px;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+          <div style="font-size:28px; flex-shrink:0;">${escapeHtml(clan.emoji || '🛡')}</div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:15px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(clan.name || 'Клан')}</div>
+            <div style="font-size:11px; color:var(--live);">Отклонён администрацией</div>
+          </div>
+        </div>
+        <p style="color:var(--muted); font-size:12px; line-height:1.5; margin-bottom:12px;">${escapeHtml(clan.rejectionReason || 'Причина не указана')}</p>
+        <button type="button" class="sheet-cta" id="btn-clan-rejected-ok" style="width:100%; margin-top:0;">Понятно</button>
+      </div>
+    `;
+    document.getElementById('btn-clan-rejected-ok').addEventListener('click', async () => {
+      try {
+        await db.ref('clans/' + clan.code).remove();
+        await db.ref('users/' + myKey + '/clanId').remove();
+        loadClansTab();
+      } catch (err) { window.showDebugError?.('Кланы: закрыть отклонённый клан', err); }
+    });
   }
 
   async function loadClansTab() {
@@ -4024,7 +4125,11 @@
       if (clanId) {
         const clanSnap = await db.ref('clans/' + clanId).once('value');
         if (clanSnap.exists()) {
-          await renderMyClanPanel(clanSnap.val(), myKey);
+          const clan = clanSnap.val();
+          const status = clan.status || 'approved'; // клан создан до появления модерации
+          if (status === 'pending') renderClanPendingPanel(clan);
+          else if (status === 'rejected') renderClanRejectedPanel(clan, myKey);
+          else await renderMyClanPanel(clan, myKey);
         } else {
           // клан распустили/удалили, а ссылка у игрока не подчистилась (не должно
           // происходить при обычных сценариях disbandClan/kickClanMember, но
@@ -4079,7 +4184,7 @@
         const totalPoints = memberKeys.reduce((sum, k) => sum + clanEffectivePoints(users[k], currentMonth), 0);
         return { ...c, memberCount: memberKeys.length, totalPoints, myClanId };
       })
-        .filter((c) => c.totalPoints > 0)
+        .filter((c) => (c.status || 'approved') === 'approved' && c.totalPoints > 0)
         .sort((a, b) => b.totalPoints - a.totalPoints)
         .slice(0, 20);
       renderClansRating(arr);
@@ -4258,13 +4363,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.3.2 · pre-alpha (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.3.3 · pre-alpha (LiveKit-ветка)</div>
         Внутренний тест · обновлено 03.09.2026<br>
-        <span style="font-size:11px;">В «Сообществе» новая вкладка «Кланы» — создание клана (название, эмодзи, политика вступления: открытый/по коду/по заявке), состав с очками участников, рейтинг кланов по сумме очков за месяц, управление лидером (кик, передача лидерства, роспуск).</span>
+        <span style="font-size:11px;">Создание клана и ссылка на его Telegram-чат теперь проходят модерацию: клан ждёт одобрения (пока идёт проверка — нельзя создать другой или вступить в другой), ссылку на чат отдельно проверяет администрация, прежде чем показать её участникам.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.3.2 — вкладка «Кланы» в Сообществе: создание/вступление, состав, рейтинг, управление лидером<br>
           v0.3.1 — экран итога боя с начисленными очками вместо молчаливого закрытия<br>
           v0.3.0 — лиги по очкам, зрители и таймер боя, друзья по заявкам, устранены гонки состояний в поиске соперника/рефери, экран загрузки при старте приложения<br>
           v0.2.5–0.2.6 — "Играть с другом" объединяет создание/вход по коду; добавлен "Рейтинговый бой" — очередь случайных соперников через Firebase; роли (admin/superadmin) теперь выдаются только вручную через Firebase Console<br>
