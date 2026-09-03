@@ -5,7 +5,7 @@
     "users": {
       "$uid": {
         "role": {
-          ".validate": "(!data.exists() && newData.val() === 'user') || (data.exists() && newData.val() === data.val())"
+          ".validate": "newData.val() === 'user' || newData.val() === 'moderator' || newData.val() === 'admin' || newData.val() === 'superadmin'"
         }
       }
     },
