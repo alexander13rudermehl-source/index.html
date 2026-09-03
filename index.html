@@ -1163,6 +1163,34 @@
     </div>
   </div>
 </div>
+
+<!-- ===== режим обслуживания / аварийный режим =====
+     Оба флага задаются superadmin из battle-admin-bot ("Правила
+     платформы" → config/maintenanceMode, config/emergencyLockdown) и
+     проверяются один раз при загрузке (см. resolveIdentity().then(...)
+     ниже) — не мешая остальной инициализации, просто накрывая всё этим
+     непрозрачным оверлеем поверх, если нужно. Обслуживание пускает
+     персонал (moderator/admin/superadmin) — чтобы проверить обновление
+     до того, как открыть его всем; аварийный режим не пускает никого,
+     кроме superadmin. Закрыть этот экран самому нельзя — обновляется
+     сам, когда флаг снимут (см. showPlatformLock). -->
+<div class="overlay" id="platform-lock-overlay" style="background:#000; z-index:1001;">
+  <div style="text-align:center; max-width:320px;">
+    <div style="font-size:40px; margin-bottom:16px;" id="platform-lock-icon">🛠</div>
+    <div style="font-family:'Bebas Neue',sans-serif; font-size:24px; letter-spacing:1px; margin-bottom:10px;" id="platform-lock-title">Идут технические работы</div>
+    <div style="color:var(--muted); font-size:14px; line-height:1.5;" id="platform-lock-message">Скоро вернёмся — попробуй зайти чуть позже.</div>
+  </div>
+</div>
+<script>
+  window.showPlatformLock = function (kind, message) {
+    document.getElementById('platform-lock-icon').textContent = kind === 'emergency' ? '🚨' : '🛠';
+    document.getElementById('platform-lock-title').textContent = kind === 'emergency'
+      ? 'Платформа временно недоступна' : 'Идут технические работы';
+    document.getElementById('platform-lock-message').textContent = message
+      || (kind === 'emergency' ? 'Что-то пошло не так — мы уже разбираемся. Попробуй зайти позже.' : 'Скоро вернёмся — попробуй зайти чуть позже.');
+    document.getElementById('platform-lock-overlay').classList.add('open');
+  };
+</script>
 <script>
   // Общий движок звёздного поля для всех warp-анимаций в приложении (этот
   // экран загрузки и поиск боя/рефери/зрителя ниже по странице, см.
@@ -4456,13 +4484,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.3.8 · pre-alpha (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.3.9 · pre-alpha (LiveKit-ветка)</div>
         Внутренний тест · обновлено 03.09.2026<br>
-        <span style="font-size:11px;">Баланс поинтов теперь настоящий внутренний ELO, а не плоский +30/-10 за бой: победа над сильным соперником даёт больше очков, над слабым — меньше. Новый аккаунт стартует с 1000 (лиги пересчитаны под новую точку отсчёта).</span>
+        <span style="font-size:11px;">Режим обслуживания (сайт закрыт для игроков, но открыт персоналу — для проверки обновлений) и аварийный режим (закрыт для всех, кроме Супердоступа) — включаются из админ-панели, «Правила платформы».</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.3.8 — баланс поинтов — настоящий внутренний ELO вместо плоского +30/-10<br>
           v0.3.7 — звёзды варпа окрашиваются в золотой по мере ожидания, не сразу<br>
           v0.3.6 — выдача ролей возвращена в админ-панель (только Супердоступ)<br>
           v0.3.5 — вкладка «Кланы» разбита на отдельные кнопки: Мой клан/Создать, Таблица, Список<br>
@@ -5249,6 +5278,21 @@
       };
       userRef.set(userData);
     }
+
+    // режим обслуживания/аварийный режим (config/maintenanceMode,
+    // config/emergencyLockdown) — не блокирует остальную инициализацию,
+    // просто накрывает всё оверлеем поверх, если понадобится
+    db.ref('config').once('value').then((configSnap) => {
+      const config = configSnap.val() || {};
+      const role = userData.role || (userData.isAdmin ? 'admin' : 'user');
+      const isSuperadmin = role === 'superadmin';
+      const isStaff = role === 'moderator' || role === 'admin' || role === 'superadmin';
+      if (config.emergencyLockdown && !isSuperadmin) {
+        window.showPlatformLock?.('emergency', config.emergencyMessage);
+      } else if (config.maintenanceMode && !isStaff) {
+        window.showPlatformLock?.('maintenance', config.maintenanceMessage);
+      }
+    }).catch((err) => window.showDebugError?.('Проверка режима платформы', err));
 
     // подставляем в профиль; статистика будет пересчитываться из матчей
     applyProfileUser(userData);
