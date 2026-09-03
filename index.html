@@ -3452,6 +3452,9 @@
         <div id="community-clan-my"><div class="admin-empty">Загрузка…</div></div>
         <p style="color:var(--muted); font-size:12px; line-height:1.5; margin-bottom:12px;">Рейтинг кланов — сумма очков участников за текущий месяц.</p>
         <div id="community-clans-rating-list"><div class="admin-empty">Загрузка…</div></div>
+        <div style="margin:18px 0 10px; font-size:13px; font-weight:600;">Список кланов</div>
+        <p style="color:var(--muted); font-size:12px; line-height:1.5; margin-bottom:12px;">Все одобренные кланы с правилами вступления — необязательно с очками.</p>
+        <div id="community-clans-directory-list"><div class="admin-empty">Загрузка…</div></div>
       </div>
     </div>
   </div>
@@ -3721,11 +3724,13 @@
   // users/<uid>/clanId — код клана, в котором игрок сейчас состоит (один
   // клан одновременно: чтобы вступить в другой, нужно сперва выйти —
   // никакого автоматического переноса, во избежание гонок с ролью лидера).
+  // формат — как у playerId (PLR-XXXXXX), только с "K" на конце префикса,
+  // чтобы отличать код клана от кода игрока на глаз
   function generateClanCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let code = '';
     for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-    return 'CLN-' + code;
+    return 'PLRK-' + code;
   }
 
   const CLAN_POLICY_LABELS = { open: 'Открытый', code: 'По коду', request: 'По заявке' };
@@ -3767,7 +3772,7 @@
         <p style="color:var(--muted); font-size:11px; line-height:1.5; margin-top:8px;">Новый клан сначала проверяет администрация — пока идёт проверка, создать другой клан или вступить в другой нельзя.</p>
         <div style="text-align:center; color:var(--muted); font-size:11px; margin:14px 0 8px;">или вступи по коду</div>
         <div style="display:flex; gap:8px;">
-          <input type="text" id="clan-join-code-input" placeholder="Код клана, напр. CLN-8X3F9K"
+          <input type="text" id="clan-join-code-input" placeholder="Код клана, напр. PLRK-8X3F9K"
             style="flex:1; min-width:0; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:11px; color:var(--text); font-size:13px; text-transform:uppercase; box-sizing:border-box;">
           <button type="button" class="sheet-cta" id="btn-clan-join-code" style="margin-top:0; padding:0 16px; font-size:12.5px; width:auto; flex-shrink:0;">Вступить</button>
         </div>
@@ -4144,7 +4149,23 @@
       window.showDebugError?.('Кланы: загрузка', err);
       container.innerHTML = '<div class="admin-empty">Не удалось загрузить</div>';
     }
-    loadClansRating();
+    loadClansLists();
+  }
+
+  // общий "Вступить" для строки клана — и в рейтинге, и в списке всех кланов
+  function wireClanJoinButtons(container) {
+    container.querySelectorAll('.clan-rating-join').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const snap = await db.ref('clans/' + btn.dataset.code).once('value');
+        if (snap.exists()) await joinClan(snap.val(), window.currentTelegramId);
+      });
+    });
+  }
+
+  function clanJoinButtonHtml(c) {
+    return (c.joinPolicy === 'open' && !c.myClanId)
+      ? `<button type="button" class="clan-rating-join" data-code="${c.code}" style="background:var(--gold); border:none; color:#0B0B0D; border-radius:100px; padding:6px 10px; font-size:11px; font-weight:700; cursor:pointer; flex-shrink:0;">Вступить</button>`
+      : '';
   }
 
   function renderClansRating(entries) {
@@ -4159,36 +4180,52 @@
           <div style="font-size:11px; color:var(--muted);">${c.memberCount} уч.</div>
         </div>
         <div style="font-family:'Bebas Neue',sans-serif; font-size:15px; color:var(--gold);">${Number(c.totalPoints || 0).toLocaleString('ru-RU')}</div>
-        ${(c.joinPolicy === 'open' && !c.myClanId) ? `<button type="button" class="clan-rating-join" data-code="${c.code}" style="background:var(--gold); border:none; color:#0B0B0D; border-radius:100px; padding:6px 10px; font-size:11px; font-weight:700; cursor:pointer; flex-shrink:0;">Вступить</button>` : ''}
+        ${clanJoinButtonHtml(c)}
       </div>
     `).join('');
-    el.querySelectorAll('.clan-rating-join').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const snap = await db.ref('clans/' + btn.dataset.code).once('value');
-        if (snap.exists()) await joinClan(snap.val(), window.currentTelegramId);
-      });
-    });
+    wireClanJoinButtons(el);
   }
 
-  function loadClansRating() {
-    const el = document.getElementById('community-clans-rating-list');
-    el.innerHTML = '<div class="admin-empty">Загрузка…</div>';
+  // "Список кланов" — все одобренные (=активные, не на рассмотрении и не
+  // отклонённые) кланы с их кодом и правилами вступления, независимо от
+  // очков — иначе свежесозданный клан без очков нигде не найти
+  function renderClansDirectory(entries) {
+    const el = document.getElementById('community-clans-directory-list');
+    if (!entries.length) { el.innerHTML = '<div class="admin-empty">Активных кланов пока нет</div>'; return; }
+    el.innerHTML = entries.map((c) => `
+      <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+        <div style="font-size:20px; flex-shrink:0;">${escapeHtml(c.emoji || '🛡')}</div>
+        <div style="flex:1; min-width:0;">
+          <div style="font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(c.name || 'Клан')}</div>
+          <div style="font-size:11px; color:var(--muted);">${escapeHtml(c.code)} · ${c.memberCount} уч. · ${CLAN_POLICY_LABELS[c.joinPolicy] || 'Открытый'}</div>
+        </div>
+        ${clanJoinButtonHtml(c)}
+      </div>
+    `).join('');
+    wireClanJoinButtons(el);
+  }
+
+  function loadClansLists() {
+    const ratingEl = document.getElementById('community-clans-rating-list');
+    const dirEl = document.getElementById('community-clans-directory-list');
+    ratingEl.innerHTML = '<div class="admin-empty">Загрузка…</div>';
+    dirEl.innerHTML = '<div class="admin-empty">Загрузка…</div>';
     const currentMonth = window.getMonthKey();
     const myKey = window.currentTelegramId;
     Promise.all([db.ref('clans').once('value'), db.ref('users').once('value')]).then(([clansSnap, usersSnap]) => {
       const clans = clansSnap.val() || {};
       const users = usersSnap.val() || {};
       const myClanId = myKey ? (users[myKey] || {}).clanId : null;
-      const arr = Object.values(clans).map((c) => {
-        const memberKeys = Object.keys(c.members || {});
-        const totalPoints = memberKeys.reduce((sum, k) => sum + clanEffectivePoints(users[k], currentMonth), 0);
-        return { ...c, memberCount: memberKeys.length, totalPoints, myClanId };
-      })
-        .filter((c) => (c.status || 'approved') === 'approved' && c.totalPoints > 0)
-        .sort((a, b) => b.totalPoints - a.totalPoints)
-        .slice(0, 20);
-      renderClansRating(arr);
-    }).catch((err) => window.showDebugError?.('Кланы: рейтинг', err));
+      const approved = Object.values(clans)
+        .filter((c) => (c.status || 'approved') === 'approved')
+        .map((c) => {
+          const memberKeys = Object.keys(c.members || {});
+          const totalPoints = memberKeys.reduce((sum, k) => sum + clanEffectivePoints(users[k], currentMonth), 0);
+          return { ...c, memberCount: memberKeys.length, totalPoints, myClanId };
+        });
+      renderClansRating(approved.filter((c) => c.totalPoints > 0).sort((a, b) => b.totalPoints - a.totalPoints).slice(0, 20));
+      renderClansDirectory(approved.sort((a, b) => b.memberCount - a.memberCount || (a.name || '').localeCompare(b.name || '')).slice(0, 40));
+    }).catch((err) => window.showDebugError?.('Кланы: списки', err));
   }
 </script>
 
@@ -4363,13 +4400,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.3.3 · pre-alpha (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.3.4 · pre-alpha (LiveKit-ветка)</div>
         Внутренний тест · обновлено 03.09.2026<br>
-        <span style="font-size:11px;">Создание клана и ссылка на его Telegram-чат теперь проходят модерацию: клан ждёт одобрения (пока идёт проверка — нельзя создать другой или вступить в другой), ссылку на чат отдельно проверяет администрация, прежде чем показать её участникам.</span>
+        <span style="font-size:11px;">У кланов теперь свой код в формате PLRK-XXXXXX (как PLR-XXXXXX у игроков); в «Кланах» появился «Список кланов» — все одобренные кланы с их правилами вступления, а не только те, кто уже набрал очков.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.3.3 — модерация создания кланов и ссылок на их Telegram-чаты<br>
           v0.3.2 — вкладка «Кланы» в Сообществе: создание/вступление, состав, рейтинг, управление лидером<br>
           v0.3.1 — экран итога боя с начисленными очками вместо молчаливого закрытия<br>
           v0.3.0 — лиги по очкам, зрители и таймер боя, друзья по заявкам, устранены гонки состояний в поиске соперника/рефери, экран загрузки при старте приложения<br>
