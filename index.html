@@ -2367,8 +2367,13 @@
     const likesSnap = await db.ref('battles/' + code + '/audienceLikes').once('value');
     const likes = likesSnap.val() || {};
     const pointsAwarded = {};
-    if (winnerId) pointsAwarded[winnerId] = 30;
-    if (loserId) pointsAwarded[loserId] = -10;
+    if (winnerId && loserId) {
+      const delta = await computeEloDelta(winnerId, loserId);
+      pointsAwarded[winnerId] = delta;
+      pointsAwarded[loserId] = -delta;
+    } else if (winnerId) {
+      pointsAwarded[winnerId] = ELO_K / 2; // соперник не определён — крайний случай, не должен встречаться в норме
+    }
     const audienceVotes = {};
     if (battle.hostId) audienceVotes[battle.hostId] = likes.host || 0;
     if (battle.guestId) audienceVotes[battle.guestId] = likes.guest || 0;
@@ -4451,13 +4456,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.3.7 · pre-alpha (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.3.8 · pre-alpha (LiveKit-ветка)</div>
         Внутренний тест · обновлено 03.09.2026<br>
-        <span style="font-size:11px;">Звёзды на экранах загрузки/поиска соперника теперь белые в начале и постепенно окрашиваются в золотой вместе с разгоном скорости — чем дольше ждёшь, тем ярче и быстрее.</span>
+        <span style="font-size:11px;">Баланс поинтов теперь настоящий внутренний ELO, а не плоский +30/-10 за бой: победа над сильным соперником даёт больше очков, над слабым — меньше. Новый аккаунт стартует с 1000 (лиги пересчитаны под новую точку отсчёта).</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.3.7 — звёзды варпа окрашиваются в золотой по мере ожидания, не сразу<br>
           v0.3.6 — выдача ролей возвращена в админ-панель (только Супердоступ)<br>
           v0.3.5 — вкладка «Кланы» разбита на отдельные кнопки: Мой клан/Создать, Таблица, Список<br>
           v0.3.4 — код клана в формате PLRK-XXXXXX, «Список кланов» независимо от очков<br>
@@ -5233,7 +5239,7 @@
         firstName: displayFirstName,
         username: tgUser?.username ? '@' + tgUser.username : null,
         role: 'user', // 'user' | 'moderator' | 'admin' | 'superadmin'
-        points: 0,
+        points: ELO_BASELINE, // стартовый ELO — см. computeEloDelta/LEAGUES ниже
         starsBalance: 0,
         stats: { battles: 0, wins: 0, losses: 0, draws: 0, refereeBattles: 0, audienceLikes: 0 },
         avatarData: null,
@@ -5647,21 +5653,44 @@
     });
   };
 
-  // Лиги — чисто визуальные ранговые тиры поверх того же самого поля
-  // points (никакой отдельной ELO-формулы нет, очки как считались плоско
-  // +30/-10 за бой в finishMatch, так и считаются). Названия — в духе
-  // самого Тролль-баттла: чем ниже лига, тем грязнее оскорбление в
-  // названии, а после середины таблицы тон разворачивается в уважительный
-  // и на самых верхних лигах становится откровенно комплементарным
-  // ("Батя троллей", "Рабовладелец" — высшая лига).
+  // points теперь настоящий внутренний ELO (раньше был плоский +30/-10 за
+  // бой, независимо от того, кто с кем дрался — см. историю в git). Новый
+  // аккаунт стартует с ELO_BASELINE, а победа/поражение считаются друг
+  // относительно друга: чем сильнее фаворит, тем меньше он получает за
+  // ожидаемую победу и тем больше теряет за неожиданное поражение — и
+  // наоборот для андердога. Строго симметрично (сколько один игрок
+  // получил — ровно столько второй потерял), см. computeEloDelta ниже,
+  // используется в refereeDeclareWinner.
+  const ELO_BASELINE = 1000;
+  const ELO_K = 32;
+  async function computeEloDelta(winnerId, loserId) {
+    async function ratingOf(playerId) {
+      if (!playerId) return ELO_BASELINE;
+      const snap = await db.ref('users').orderByChild('playerId').equalTo(playerId).once('value');
+      if (!snap.exists()) return ELO_BASELINE;
+      const u = Object.values(snap.val())[0];
+      return Number(u.points ?? ELO_BASELINE);
+    }
+    const [winnerRating, loserRating] = await Promise.all([ratingOf(winnerId), ratingOf(loserId)]);
+    const expectedWinner = 1 / (1 + Math.pow(10, (loserRating - winnerRating) / 400));
+    return Math.round(ELO_K * (1 - expectedWinner));
+  }
+
+  // Лиги — визуальные ранговые тиры поверх поля points/ELO. Пороги сдвинуты
+  // на ELO_BASELINE (было 0/500/1500/..., стало 1000/1500/2500/...) — те же
+  // промежутки между лигами, просто относительно новой стартовой точки.
+  // Названия — в духе самого Тролль-баттла: чем ниже лига, тем грязнее
+  // оскорбление в названии, а после середины таблицы тон разворачивается в
+  // уважительный и на самых верхних лигах становится откровенно
+  // комплементарным ("Батя троллей", "Рабовладелец" — высшая лига).
   const LEAGUES = [
-    { name: 'Сын шлюхи',        minPoints: 0,     emoji: '💀',  color: '#6B4226',    borderColor: 'rgba(107,66,38,0.35)',   bgColor: 'rgba(107,66,38,0.08)' },
-    { name: 'Говно из-под коня',minPoints: 500,   emoji: '💩',  color: '#8B7355',    borderColor: 'rgba(139,115,85,0.35)',  bgColor: 'rgba(139,115,85,0.08)' },
-    { name: 'Отброс общества',  minPoints: 1500,  emoji: '🗑️', color: '#B08D57',    borderColor: 'rgba(176,141,87,0.35)',  bgColor: 'rgba(176,141,87,0.08)' },
-    { name: 'Шавка подзаборная',minPoints: 3000,  emoji: '🐕',  color: '#C9C9CE',    borderColor: 'rgba(201,201,206,0.35)', bgColor: 'rgba(201,201,206,0.08)' },
-    { name: 'Уважаемый тролль', minPoints: 6000,  emoji: '😏',  color: '#F2B705',    borderColor: 'rgba(242,183,5,0.35)',   bgColor: 'rgba(242,183,5,0.08)' },
-    { name: 'Батя троллей',     minPoints: 10000, emoji: '👑',  color: '#5CC8FF',    borderColor: 'rgba(92,200,255,0.35)',  bgColor: 'rgba(92,200,255,0.08)' },
-    { name: 'Рабовладелец',     minPoints: 15000, emoji: '⛓️', color: 'var(--live)', borderColor: 'rgba(var(--live-rgb),0.35)', bgColor: 'rgba(var(--live-rgb),0.1)' }
+    { name: 'Сын шлюхи',        minPoints: ELO_BASELINE,        emoji: '💀',  color: '#6B4226',    borderColor: 'rgba(107,66,38,0.35)',   bgColor: 'rgba(107,66,38,0.08)' },
+    { name: 'Говно из-под коня',minPoints: ELO_BASELINE + 500,  emoji: '💩',  color: '#8B7355',    borderColor: 'rgba(139,115,85,0.35)',  bgColor: 'rgba(139,115,85,0.08)' },
+    { name: 'Отброс общества',  minPoints: ELO_BASELINE + 1500, emoji: '🗑️', color: '#B08D57',    borderColor: 'rgba(176,141,87,0.35)',  bgColor: 'rgba(176,141,87,0.08)' },
+    { name: 'Шавка подзаборная',minPoints: ELO_BASELINE + 3000, emoji: '🐕',  color: '#C9C9CE',    borderColor: 'rgba(201,201,206,0.35)', bgColor: 'rgba(201,201,206,0.08)' },
+    { name: 'Уважаемый тролль', minPoints: ELO_BASELINE + 6000, emoji: '😏',  color: '#F2B705',    borderColor: 'rgba(242,183,5,0.35)',   bgColor: 'rgba(242,183,5,0.08)' },
+    { name: 'Батя троллей',     minPoints: ELO_BASELINE + 10000,emoji: '👑',  color: '#5CC8FF',    borderColor: 'rgba(92,200,255,0.35)',  bgColor: 'rgba(92,200,255,0.08)' },
+    { name: 'Рабовладелец',     minPoints: ELO_BASELINE + 15000,emoji: '⛓️', color: 'var(--live)', borderColor: 'rgba(var(--live-rgb),0.35)', bgColor: 'rgba(var(--live-rgb),0.1)' }
   ];
   window.getLeague = function(points) {
     const p = Number(points || 0);
