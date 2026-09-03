@@ -3420,6 +3420,7 @@
           📨 Запросы
           <span id="community-requests-count" style="display:none; position:absolute; top:-6px; right:-6px; background:var(--live); color:#fff; font-size:10px; font-weight:700; min-width:16px; height:16px; border-radius:100px; align-items:center; justify-content:center; padding:0 3px;"></span>
         </button>
+        <button type="button" class="sheet-cta secondary" id="community-tab-clans" style="flex:1; margin-top:0; padding:10px 4px; font-size:11.5px;">🛡 Кланы</button>
       </div>
 
       <div id="community-view-top">
@@ -3442,6 +3443,15 @@
       <div id="community-view-requests" style="display:none;">
         <p style="color:var(--muted); font-size:12px; line-height:1.5; margin-bottom:12px;">Заявки в друзья от других игроков — прими, чтобы попасть друг другу в друзья.</p>
         <div id="community-requests-list"><div class="admin-empty">Нет новых заявок в друзья</div></div>
+      </div>
+
+      <!-- клан: один игрок состоит максимум в одном клане одновременно
+           (users/<uid>/clanId), у клана свой код и настраиваемая политика
+           вступления (open/code/request) — см. JS ниже -->
+      <div id="community-view-clans" style="display:none;">
+        <div id="community-clan-my"><div class="admin-empty">Загрузка…</div></div>
+        <p style="color:var(--muted); font-size:12px; line-height:1.5; margin-bottom:12px;">Рейтинг кланов — сумма очков участников за текущий месяц.</p>
+        <div id="community-clans-rating-list"><div class="admin-empty">Загрузка…</div></div>
       </div>
     </div>
   </div>
@@ -3514,6 +3524,7 @@
   const communityTabTop = document.getElementById('community-tab-top');
   const communityTabFriends = document.getElementById('community-tab-friends');
   const communityTabRequests = document.getElementById('community-tab-requests');
+  const communityTabClans = document.getElementById('community-tab-clans');
 
   // firstName игрока приходит из Telegram как есть, без экранирования —
   // вставлять его в innerHTML напрямую небезопасно (см. соответствующую
@@ -3683,6 +3694,7 @@
     loadCommunityTop();
     loadCommunityFriends();
     loadCommunityRequests();
+    loadClansTab();
   });
   document.getElementById('community-close-btn').addEventListener('click', () => communityOverlay.classList.remove('open'));
   communityOverlay.addEventListener('click', (e) => { if (e.target === communityOverlay) communityOverlay.classList.remove('open'); });
@@ -3691,13 +3703,388 @@
     document.getElementById('community-view-top').style.display = tab === 'top' ? 'block' : 'none';
     document.getElementById('community-view-friends').style.display = tab === 'friends' ? 'block' : 'none';
     document.getElementById('community-view-requests').style.display = tab === 'requests' ? 'block' : 'none';
+    document.getElementById('community-view-clans').style.display = tab === 'clans' ? 'block' : 'none';
     communityTabTop.classList.toggle('secondary', tab !== 'top');
     communityTabFriends.classList.toggle('secondary', tab !== 'friends');
     communityTabRequests.classList.toggle('secondary', tab !== 'requests');
+    communityTabClans.classList.toggle('secondary', tab !== 'clans');
   }
   communityTabTop.addEventListener('click', () => showCommunityTab('top'));
   communityTabFriends.addEventListener('click', () => showCommunityTab('friends'));
   communityTabRequests.addEventListener('click', () => { showCommunityTab('requests'); loadCommunityRequests(); });
+  communityTabClans.addEventListener('click', () => { showCommunityTab('clans'); loadClansTab(); });
+
+  // ===== Кланы =====
+  // clans/<code>: { name, emoji, code, leaderId, joinPolicy: 'open'|'code'|'request',
+  //   createdAt, members: { <uid>: { firstName, role: 'leader'|'member', joinedAt } },
+  //   joinRequests: { <uid>: { firstName, requestedAt } } (только пока joinPolicy==='request') }
+  // users/<uid>/clanId — код клана, в котором игрок сейчас состоит (один
+  // клан одновременно: чтобы вступить в другой, нужно сперва выйти —
+  // никакого автоматического переноса, во избежание гонок с ролью лидера).
+  function generateClanCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    return 'CLN-' + code;
+  }
+
+  const CLAN_POLICY_LABELS = { open: 'Открытый', code: 'По коду', request: 'По заявке' };
+
+  function clanEffectivePoints(u, currentMonth) {
+    return u && u.monthlyPeriod === currentMonth ? Number(u.monthlyPoints || 0) : 0;
+  }
+
+  function fetchClanMembers(clan) {
+    const keys = Object.keys(clan.members || {});
+    return Promise.all(keys.map((k) => db.ref('users/' + k).once('value')))
+      .then((snaps) => keys.map((k, i) => ({ key: k, ...(snaps[i].val() || {}) })));
+  }
+
+  function showClanActionError(text) {
+    const el = document.getElementById('clan-action-error');
+    if (!el) { alert(text); return; }
+    el.textContent = text;
+    el.style.display = 'block';
+  }
+
+  function renderClanCreateJoinForm() {
+    document.getElementById('community-clan-my').innerHTML = `
+      <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:18px;">
+        <div style="font-size:13px; font-weight:600; margin-bottom:10px;">Ты пока не в клане</div>
+        <input type="text" id="clan-create-name-input" placeholder="Название клана" maxlength="24"
+          style="width:100%; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:11px; color:var(--text); font-size:13px; margin-bottom:8px; box-sizing:border-box;">
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <input type="text" id="clan-create-emoji-input" placeholder="🛡" maxlength="4"
+            style="width:56px; flex-shrink:0; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:11px; color:var(--text); font-size:15px; text-align:center; box-sizing:border-box;">
+          <select id="clan-create-policy-select"
+            style="flex:1; min-width:0; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:0 8px; color:var(--text); font-size:12px;">
+            <option value="open">Открытый — вступают в один клик</option>
+            <option value="code">По коду — только с кодом</option>
+            <option value="request">По заявке — одобряет лидер</option>
+          </select>
+        </div>
+        <button type="button" class="sheet-cta" id="btn-clan-create" style="margin-top:0;">Создать клан</button>
+        <div style="text-align:center; color:var(--muted); font-size:11px; margin:14px 0 8px;">или вступи по коду</div>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="clan-join-code-input" placeholder="Код клана, напр. CLN-8X3F9K"
+            style="flex:1; min-width:0; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:11px; color:var(--text); font-size:13px; text-transform:uppercase; box-sizing:border-box;">
+          <button type="button" class="sheet-cta" id="btn-clan-join-code" style="margin-top:0; padding:0 16px; font-size:12.5px; width:auto; flex-shrink:0;">Вступить</button>
+        </div>
+        <div id="clan-action-error" style="display:none; font-size:12.5px; margin-top:10px; color:var(--live);"></div>
+      </div>
+    `;
+    document.getElementById('btn-clan-create').addEventListener('click', createClan);
+    document.getElementById('btn-clan-join-code').addEventListener('click', () => joinClanByCode());
+  }
+
+  async function createClan() {
+    const myKey = window.currentTelegramId;
+    if (!myKey) { showClanActionError('Профиль ещё не загружен, попробуй ещё раз'); return; }
+    const nameInput = document.getElementById('clan-create-name-input');
+    const name = nameInput.value.trim();
+    if (!name) { nameInput.focus(); return; }
+    const emoji = document.getElementById('clan-create-emoji-input').value.trim() || '🛡';
+    const joinPolicy = document.getElementById('clan-create-policy-select').value;
+    const btn = document.getElementById('btn-clan-create');
+    btn.disabled = true;
+    try {
+      const existingClanId = (await db.ref('users/' + myKey + '/clanId').once('value')).val();
+      if (existingClanId) { showClanActionError('Ты уже в клане — сначала выйди из него'); return; }
+      const me = window.currentPlayer || {};
+      let code = generateClanCode();
+      // на случай маловероятного совпадения кода — как и с playerId, просто
+      // перегенерируем разок и не усложняем это в retry-цикл
+      if ((await db.ref('clans/' + code).once('value')).exists()) code = generateClanCode();
+      await db.ref('clans/' + code).set({
+        name, emoji, code, leaderId: myKey, joinPolicy, createdAt: Date.now(),
+        members: { [myKey]: { firstName: me.firstName || 'Игрок', role: 'leader', joinedAt: Date.now() } }
+      });
+      await db.ref('users/' + myKey + '/clanId').set(code);
+      loadClansTab();
+    } catch (err) {
+      window.showDebugError?.('Кланы: создать клан', err);
+      showClanActionError('Не удалось создать клан, попробуй ещё раз');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function joinClan(clan, myKey) {
+    if (!myKey) { showClanActionError('Профиль ещё не загружен, попробуй ещё раз'); return; }
+    try {
+      const existingClanId = (await db.ref('users/' + myKey + '/clanId').once('value')).val();
+      if (existingClanId) { showClanActionError('Ты уже в клане — сначала выйди из него'); return; }
+      const me = window.currentPlayer || {};
+      if (clan.joinPolicy === 'request') {
+        const already = await db.ref('clans/' + clan.code + '/joinRequests/' + myKey).once('value');
+        if (already.exists()) { showClanActionError('Заявка уже отправлена, жди одобрения'); return; }
+        await db.ref('clans/' + clan.code + '/joinRequests/' + myKey).set({ firstName: me.firstName || 'Игрок', requestedAt: Date.now() });
+        showClanActionError('Заявка отправлена лидеру клана — жди одобрения');
+        return;
+      }
+      await db.ref('clans/' + clan.code + '/members/' + myKey).set({ firstName: me.firstName || 'Игрок', role: 'member', joinedAt: Date.now() });
+      await db.ref('users/' + myKey + '/clanId').set(clan.code);
+      loadClansTab();
+    } catch (err) {
+      window.showDebugError?.('Кланы: вступить в клан', err);
+      showClanActionError('Не удалось вступить в клан, попробуй ещё раз');
+    }
+  }
+
+  async function joinClanByCode() {
+    const myKey = window.currentTelegramId;
+    const input = document.getElementById('clan-join-code-input');
+    const code = (input?.value || '').trim().toUpperCase();
+    if (!code) return;
+    try {
+      const snap = await db.ref('clans/' + code).once('value');
+      if (!snap.exists()) { showClanActionError('Клан с таким кодом не найден'); return; }
+      await joinClan(snap.val(), myKey);
+    } catch (err) {
+      window.showDebugError?.('Кланы: вступить по коду', err);
+      showClanActionError('Не удалось вступить в клан, попробуй ещё раз');
+    }
+  }
+
+  function renderClanEditForm(clan) {
+    document.getElementById('community-clan-my').innerHTML = `
+      <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:18px;">
+        <div style="font-size:13px; font-weight:600; margin-bottom:10px;">Изменить клан</div>
+        <input type="text" id="clan-edit-name-input" value="${escapeHtml(clan.name || '')}" maxlength="24"
+          style="width:100%; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:11px; color:var(--text); font-size:13px; margin-bottom:8px; box-sizing:border-box;">
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <input type="text" id="clan-edit-emoji-input" value="${escapeHtml(clan.emoji || '🛡')}" maxlength="4"
+            style="width:56px; flex-shrink:0; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:11px; color:var(--text); font-size:15px; text-align:center; box-sizing:border-box;">
+          <select id="clan-edit-policy-select"
+            style="flex:1; min-width:0; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:0 8px; color:var(--text); font-size:12px;">
+            <option value="open" ${clan.joinPolicy === 'open' ? 'selected' : ''}>Открытый — вступают в один клик</option>
+            <option value="code" ${clan.joinPolicy === 'code' ? 'selected' : ''}>По коду — только с кодом</option>
+            <option value="request" ${clan.joinPolicy === 'request' ? 'selected' : ''}>По заявке — одобряет лидер</option>
+          </select>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <button type="button" class="sheet-cta" id="btn-clan-edit-save" style="flex:1; margin-top:0;">Сохранить</button>
+          <button type="button" class="sheet-cta secondary" id="btn-clan-edit-cancel" style="flex:1; margin-top:0;">Отмена</button>
+        </div>
+        <div id="clan-action-error" style="display:none; font-size:12.5px; margin-top:10px; color:var(--live);"></div>
+      </div>
+    `;
+    document.getElementById('btn-clan-edit-save').addEventListener('click', async () => {
+      const name = document.getElementById('clan-edit-name-input').value.trim();
+      if (!name) return;
+      const emoji = document.getElementById('clan-edit-emoji-input').value.trim() || '🛡';
+      const joinPolicy = document.getElementById('clan-edit-policy-select').value;
+      try {
+        await db.ref('clans/' + clan.code).update({ name, emoji, joinPolicy });
+        loadClansTab();
+      } catch (err) {
+        window.showDebugError?.('Кланы: изменить клан', err);
+        showClanActionError('Не удалось сохранить изменения');
+      }
+    });
+    document.getElementById('btn-clan-edit-cancel').addEventListener('click', loadClansTab);
+  }
+
+  async function kickClanMember(clan, key) {
+    if (!confirm('Исключить участника из клана?')) return;
+    try {
+      await db.ref('clans/' + clan.code + '/members/' + key).remove();
+      await db.ref('users/' + key + '/clanId').remove();
+      loadClansTab();
+    } catch (err) { window.showDebugError?.('Кланы: исключить участника', err); }
+  }
+
+  async function transferClanLeadership(clan, newLeaderKey) {
+    if (!confirm('Передать лидерство этому участнику? Ты станешь обычным участником клана.')) return;
+    try {
+      const update = {};
+      update['leaderId'] = newLeaderKey;
+      update['members/' + newLeaderKey + '/role'] = 'leader';
+      update['members/' + clan.leaderId + '/role'] = 'member';
+      await db.ref('clans/' + clan.code).update(update);
+      loadClansTab();
+    } catch (err) { window.showDebugError?.('Кланы: передать лидерство', err); }
+  }
+
+  async function respondClanRequest(clan, key, accept) {
+    try {
+      if (accept) {
+        const req = (clan.joinRequests || {})[key];
+        await db.ref('clans/' + clan.code + '/members/' + key).set({ firstName: req?.firstName || 'Игрок', role: 'member', joinedAt: Date.now() });
+        await db.ref('users/' + key + '/clanId').set(clan.code);
+      }
+      await db.ref('clans/' + clan.code + '/joinRequests/' + key).remove();
+      loadClansTab();
+    } catch (err) { window.showDebugError?.('Кланы: заявка в клан', err); }
+  }
+
+  async function leaveClan(clan, myKey) {
+    if (!confirm('Покинуть клан «' + clan.name + '»?')) return;
+    try {
+      await db.ref('clans/' + clan.code + '/members/' + myKey).remove();
+      await db.ref('users/' + myKey + '/clanId').remove();
+      loadClansTab();
+    } catch (err) { window.showDebugError?.('Кланы: покинуть клан', err); }
+  }
+
+  async function disbandClan(clan) {
+    if (!confirm('Распустить клан «' + clan.name + '»? Это необратимо, все участники будут исключены.')) return;
+    try {
+      const memberKeys = Object.keys(clan.members || {});
+      const update = {};
+      memberKeys.forEach((k) => { update['users/' + k + '/clanId'] = null; });
+      await db.ref().update(update);
+      await db.ref('clans/' + clan.code).remove();
+      loadClansTab();
+    } catch (err) { window.showDebugError?.('Кланы: распустить клан', err); }
+  }
+
+  async function renderMyClanPanel(clan, myKey) {
+    const isLeader = clan.leaderId === myKey;
+    const currentMonth = window.getMonthKey();
+    const members = await fetchClanMembers(clan);
+    members.sort((a, b) => clanEffectivePoints(b, currentMonth) - clanEffectivePoints(a, currentMonth));
+    const memberRows = members.map((m) => {
+      const role = (clan.members[m.key] || {}).role || 'member';
+      const pts = clanEffectivePoints(m, currentMonth);
+      const isSelf = m.key === myKey;
+      const actions = (isLeader && !isSelf) ? `
+          <button type="button" class="clan-member-promote" data-key="${m.key}" title="Передать лидерство" style="background:none; border:none; color:var(--muted); font-size:15px; cursor:pointer; padding:4px 6px;">👑</button>
+          <button type="button" class="clan-member-kick" data-key="${m.key}" title="Исключить" style="background:none; border:none; color:var(--muted); font-size:16px; cursor:pointer; padding:4px 6px;">✕</button>
+        ` : '';
+      return `
+        <div style="background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:9px 10px; display:flex; align-items:center; gap:9px; margin-bottom:6px;">
+          <div class="profile-avatar" style="width:30px; height:30px; font-size:11px; flex-shrink:0;${m.avatarData ? ` background-image:url(${m.avatarData}); background-size:cover; background-position:center; color:transparent;` : ''}">${escapeHtml((m.firstName || '??').slice(0, 2).toUpperCase())}</div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:12.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(m.firstName || 'Игрок')}${role === 'leader' ? ' 👑' : ''}</div>
+            <div style="font-size:11px; color:var(--muted);">${pts.toLocaleString('ru-RU')} очков</div>
+          </div>
+          ${actions}
+        </div>
+      `;
+    }).join('');
+
+    let requestsBlock = '';
+    if (isLeader && clan.joinPolicy === 'request') {
+      const requests = Object.entries(clan.joinRequests || {});
+      requestsBlock = `
+        <div style="margin:14px 0 8px; font-size:12px; font-weight:600; color:var(--text);">Заявки на вступление${requests.length ? ' (' + requests.length + ')' : ''}</div>
+        ${requests.length ? requests.map(([key, req]) => `
+          <div style="background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:9px 10px; display:flex; align-items:center; gap:9px; margin-bottom:6px;">
+            <div style="flex:1; min-width:0; font-size:12.5px;">${escapeHtml(req.firstName || 'Игрок')}</div>
+            <button type="button" class="clan-request-accept" data-key="${key}" style="background:var(--gold); border:none; color:#0B0B0D; border-radius:100px; padding:6px 10px; font-size:11.5px; font-weight:700; cursor:pointer; flex-shrink:0;">✓</button>
+            <button type="button" class="clan-request-decline" data-key="${key}" style="background:none; border:1px solid var(--line); color:var(--muted); border-radius:100px; width:26px; height:26px; font-size:12px; cursor:pointer; flex-shrink:0;">✕</button>
+          </div>
+        `).join('') : '<div class="admin-empty">Пока нет заявок</div>'}
+      `;
+    }
+
+    const leaderControls = isLeader ? `
+      <div style="display:flex; gap:6px; margin-top:12px;">
+        <button type="button" class="sheet-cta secondary" id="btn-clan-edit" style="flex:1; margin-top:0; padding:9px 4px; font-size:11.5px;">✎ Изменить</button>
+        <button type="button" class="sheet-cta secondary" id="btn-clan-disband" style="flex:1; margin-top:0; padding:9px 4px; font-size:11.5px; color:var(--live);">Распустить</button>
+      </div>
+    ` : `
+      <button type="button" class="sheet-cta secondary" id="btn-clan-leave" style="width:100%; margin-top:12px;">Покинуть клан</button>
+    `;
+
+    document.getElementById('community-clan-my').innerHTML = `
+      <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:18px;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+          <div style="font-size:28px; flex-shrink:0;">${escapeHtml(clan.emoji || '🛡')}</div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:15px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(clan.name || 'Клан')}</div>
+            <div style="font-size:11px; color:var(--muted);">${clan.code} · ${members.length} уч. · ${CLAN_POLICY_LABELS[clan.joinPolicy] || 'Открытый'}</div>
+          </div>
+        </div>
+        ${memberRows}
+        ${requestsBlock}
+        ${leaderControls}
+      </div>
+    `;
+
+    if (isLeader) {
+      document.getElementById('btn-clan-edit').addEventListener('click', () => renderClanEditForm(clan));
+      document.getElementById('btn-clan-disband').addEventListener('click', () => disbandClan(clan));
+      document.querySelectorAll('.clan-member-kick').forEach((b) => b.addEventListener('click', () => kickClanMember(clan, b.dataset.key)));
+      document.querySelectorAll('.clan-member-promote').forEach((b) => b.addEventListener('click', () => transferClanLeadership(clan, b.dataset.key)));
+      document.querySelectorAll('.clan-request-accept').forEach((b) => b.addEventListener('click', () => respondClanRequest(clan, b.dataset.key, true)));
+      document.querySelectorAll('.clan-request-decline').forEach((b) => b.addEventListener('click', () => respondClanRequest(clan, b.dataset.key, false)));
+    } else {
+      document.getElementById('btn-clan-leave').addEventListener('click', () => leaveClan(clan, myKey));
+    }
+  }
+
+  async function loadClansTab() {
+    const myKey = window.currentTelegramId;
+    const container = document.getElementById('community-clan-my');
+    container.innerHTML = '<div class="admin-empty">Загрузка…</div>';
+    try {
+      const clanId = myKey ? (await db.ref('users/' + myKey + '/clanId').once('value')).val() : null;
+      if (clanId) {
+        const clanSnap = await db.ref('clans/' + clanId).once('value');
+        if (clanSnap.exists()) {
+          await renderMyClanPanel(clanSnap.val(), myKey);
+        } else {
+          // клан распустили/удалили, а ссылка у игрока не подчистилась (не должно
+          // происходить при обычных сценариях disbandClan/kickClanMember, но
+          // подчищаем на всякий случай, чтобы не залипнуть в вечной загрузке)
+          await db.ref('users/' + myKey + '/clanId').remove();
+          renderClanCreateJoinForm();
+        }
+      } else {
+        renderClanCreateJoinForm();
+      }
+    } catch (err) {
+      window.showDebugError?.('Кланы: загрузка', err);
+      container.innerHTML = '<div class="admin-empty">Не удалось загрузить</div>';
+    }
+    loadClansRating();
+  }
+
+  function renderClansRating(entries) {
+    const el = document.getElementById('community-clans-rating-list');
+    if (!entries.length) { el.innerHTML = '<div class="admin-empty">Пока ни один клан не набрал очков в этом месяце</div>'; return; }
+    el.innerHTML = entries.map((c, i) => `
+      <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+        <div style="font-family:'Bebas Neue',sans-serif; font-size:16px; color:var(--muted); width:22px; text-align:center; flex-shrink:0;">${i + 1}</div>
+        <div style="font-size:20px; flex-shrink:0;">${escapeHtml(c.emoji || '🛡')}</div>
+        <div style="flex:1; min-width:0;">
+          <div style="font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(c.name || 'Клан')}</div>
+          <div style="font-size:11px; color:var(--muted);">${c.memberCount} уч.</div>
+        </div>
+        <div style="font-family:'Bebas Neue',sans-serif; font-size:15px; color:var(--gold);">${Number(c.totalPoints || 0).toLocaleString('ru-RU')}</div>
+        ${(c.joinPolicy === 'open' && !c.myClanId) ? `<button type="button" class="clan-rating-join" data-code="${c.code}" style="background:var(--gold); border:none; color:#0B0B0D; border-radius:100px; padding:6px 10px; font-size:11px; font-weight:700; cursor:pointer; flex-shrink:0;">Вступить</button>` : ''}
+      </div>
+    `).join('');
+    el.querySelectorAll('.clan-rating-join').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const snap = await db.ref('clans/' + btn.dataset.code).once('value');
+        if (snap.exists()) await joinClan(snap.val(), window.currentTelegramId);
+      });
+    });
+  }
+
+  function loadClansRating() {
+    const el = document.getElementById('community-clans-rating-list');
+    el.innerHTML = '<div class="admin-empty">Загрузка…</div>';
+    const currentMonth = window.getMonthKey();
+    const myKey = window.currentTelegramId;
+    Promise.all([db.ref('clans').once('value'), db.ref('users').once('value')]).then(([clansSnap, usersSnap]) => {
+      const clans = clansSnap.val() || {};
+      const users = usersSnap.val() || {};
+      const myClanId = myKey ? (users[myKey] || {}).clanId : null;
+      const arr = Object.values(clans).map((c) => {
+        const memberKeys = Object.keys(c.members || {});
+        const totalPoints = memberKeys.reduce((sum, k) => sum + clanEffectivePoints(users[k], currentMonth), 0);
+        return { ...c, memberCount: memberKeys.length, totalPoints, myClanId };
+      })
+        .filter((c) => c.totalPoints > 0)
+        .sort((a, b) => b.totalPoints - a.totalPoints)
+        .slice(0, 20);
+      renderClansRating(arr);
+    }).catch((err) => window.showDebugError?.('Кланы: рейтинг', err));
+  }
 </script>
 
 <script>
@@ -3871,13 +4258,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.3.1 · pre-alpha (LiveKit-ветка)</div>
-        Внутренний тест · обновлено 30.08.2026<br>
-        <span style="font-size:11px;">Экран итога боя — после того как рефери объявляет победителя, бойцы/зрители видят результат и начисленные очки (кнопка "Понятно"), а не просто молча вылетают из комнаты; голос/микрофон при этом гасится сразу, не дожидаясь закрытия экрана.</span>
+        <div class="v-num">MICBATTLE v0.3.2 · pre-alpha (LiveKit-ветка)</div>
+        Внутренний тест · обновлено 03.09.2026<br>
+        <span style="font-size:11px;">В «Сообществе» новая вкладка «Кланы» — создание клана (название, эмодзи, политика вступления: открытый/по коду/по заявке), состав с очками участников, рейтинг кланов по сумме очков за месяц, управление лидером (кик, передача лидерства, роспуск).</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.3.1 — экран итога боя с начисленными очками вместо молчаливого закрытия<br>
           v0.3.0 — лиги по очкам, зрители и таймер боя, друзья по заявкам, устранены гонки состояний в поиске соперника/рефери, экран загрузки при старте приложения<br>
           v0.2.5–0.2.6 — "Играть с другом" объединяет создание/вход по коду; добавлен "Рейтинговый бой" — очередь случайных соперников через Firebase; роли (admin/superadmin) теперь выдаются только вручную через Firebase Console<br>
           v0.1.8 — убран глючивший transaction() при входе в комнату → read-then-write; вернулась автоочистка гостевых аккаунтов (24ч)<br>
