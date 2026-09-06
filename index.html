@@ -3844,6 +3844,15 @@
         </div>
       </div>
 
+      <!-- билеты-множители видны только здесь, отдельным списком — раньше
+           единственным местом, где игрок вообще видел, что билет у него
+           есть, была плашка в выборе лиги перед боем, и то только "лучший"
+           из них одной строкой, без остальных -->
+      <div class="section-label">Билеты-множители</div>
+      <div id="profile-tickets-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+        <div class="admin-empty">Билетов пока нет — заберёшь на активном ивенте</div>
+      </div>
+
       <div class="section-label">Статистика</div>
       <div class="stats-grid">
         <div class="stat-card win"><div class="num" id="stat-wins">0</div><div class="cap">Побед</div></div>
@@ -4600,6 +4609,14 @@
   document.getElementById('profile-btn').addEventListener('click', () => {
     profileOverlay.classList.add('open');
     if (typeof renderProfileFromMatches === 'function') renderProfileFromMatches();
+    // билеты могли появиться после claim-кнопки на ивенте уже после
+    // последней синхронизации userData — досвежаем живым запросом, а не
+    // полагаемся на возможно устаревший window.currentPlayer
+    if (window.currentTelegramId) {
+      db.ref('users/' + window.currentTelegramId + '/multiplierTickets').once('value')
+        .then((snap) => renderMyTickets(snap.val()))
+        .catch(() => {});
+    }
   });
   document.getElementById('profile-close-btn').addEventListener('click', () => profileOverlay.classList.remove('open'));
   profileOverlay.addEventListener('click', (e) => { if(e.target === profileOverlay) profileOverlay.classList.remove('open'); });
@@ -4787,13 +4804,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.4.9 · бета (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.4.10 · бета (LiveKit-ветка)</div>
         Бета-тест · обновлено 06.09.2026<br>
-        <span style="font-size:11px;">Проект переведён из альфа- в бета-тестирование. Обрати внимание: билет с множителем трофеев привязан к конкретному ивенту (админ выбирает его в поле "Множитель трофеев за участие" в форме ивента) — у ивентов, созданных до этой функции, поля ещё нет, поэтому кнопка "Забрать множитель" на них не появится, пока их не пересохранить с выбранным значением.</span>
+        <span style="font-size:11px;">В Профиле появился раздел "Билеты-множители" — раньше их можно было увидеть только мельком, плашкой в выборе лиги перед боем, а весь список нигде не показывался. Заодно то же самое видно и в админ-панели, в карточке игрока.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.4.9 — проект переведён из альфа- в бета-тестирование<br>
           v0.4.8 — debug-панель заменена на маленькую карточку с кнопкой "Отправить" → вкладка "Ошибки" в админке<br>
           v0.4.7 — множители трофеев переделаны в одноразовые билеты с кнопкой "Забрать" на ивенте<br>
           v0.4.6 — множители трофеев (x2–x10) как отдельный ивент на даты (заменено в v0.4.7 на билеты)<br>
@@ -5629,6 +5647,26 @@
       userData.role = userData.isAdmin ? 'admin' : 'user';
     }
 
+    // билеты-множители (см. renderEventMultiplierClaimButton выше) — тут
+    // просто отрисовка списка, ничего не тратит; applyProfileUser вызывает
+    // её со слепком userData на момент последней синхронизации, а сам клик
+    // по "Профиль" (см. ниже) ещё и досвежает список живым запросом — между
+    // claim-кнопкой на ивенте и открытием профиля userData мог не обновиться
+    function renderMyTickets(ticketsObj) {
+      const el = document.getElementById('profile-tickets-list');
+      if (!el) return;
+      const tickets = Object.values(ticketsObj || {});
+      if (!tickets.length) {
+        el.innerHTML = '<div class="admin-empty">Билетов пока нет — заберёшь на активном ивенте</div>';
+        return;
+      }
+      el.innerHTML = tickets
+        .sort((a, b) => (Number(b?.value) || 0) - (Number(a?.value) || 0))
+        .map((t) => `<div style="background:var(--panel); border:1px solid rgba(var(--gold-rgb),0.4); border-radius:100px; padding:6px 14px; font-family:'Bebas Neue',sans-serif; font-size:15px; color:var(--gold);">🎫 x${Number(t?.value) || 1}</div>`)
+        .join('');
+    }
+    window.renderMyTickets = renderMyTickets;
+
     function applyProfileUser(userData) {
       const name = userData.firstName || 'Игрок';
       document.getElementById('profile-name').textContent = name;
@@ -5647,6 +5685,7 @@
       }
       document.getElementById('profile-stars').innerHTML = `${Number(userData.starsBalance || 0).toLocaleString('ru-RU')} <span class="unit">⭐</span>`;
       document.getElementById('profile-points').innerHTML = `${Number(userData.points || 0).toLocaleString('ru-RU')} <span class="unit">🏆</span>`;
+      renderMyTickets(userData.multiplierTickets);
 
       const myLeague = window.getLeague(userData.points || 0);
       const leagueTag = document.querySelector('.profile-league-tag');
