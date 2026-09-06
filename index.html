@@ -4787,13 +4787,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.4.7 · pre-alpha (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.4.8 · pre-alpha (LiveKit-ветка)</div>
         Внутренний тест · обновлено 06.09.2026<br>
-        <span style="font-size:11px;">Переделал множители трофеев (x2–x10) в билеты: теперь их видно кнопкой "🎫 Забрать множитель" прямо на ивенте (там же, где значок за участие), билет одноразовый — следующая победа в рейтинговом бою сжигает его и множит награду, на поражение не влияет. Прошлая версия (общий множитель на даты без кнопки) убрана.</span>
+        <span style="font-size:11px;">Debug-панель вместо полосы во весь экран теперь маленькая карточка в углу с одной кнопкой "Отправить" — жмёшь, и весь лог за сессию улетает мне в новую вкладку "Ошибки" админ-панели, вместе с твоим PLR-кодом, чтобы было понятно, у кого именно что-то сломалось.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.4.7 — множители трофеев переделаны в одноразовые билеты с кнопкой "Забрать" на ивенте<br>
           v0.4.6 — множители трофеев (x2–x10) как отдельный ивент на даты (заменено в v0.4.7 на билеты)<br>
           v0.4.5 — пороги лиг синхронизированы с пресс-релизом Тролль-Бота (0/500/1500/3000/6000/10000/15000)<br>
           v0.4.4 — первая лига всегда открыта и бесплатна, иначе при 0 трофеев играть не с чего<br>
@@ -6234,33 +6235,35 @@
     return true;
   };
 </script>
-<!-- ===== debug-панель: показывает реальный текст ошибки внизу экрана =====
+<!-- ===== debug-окошко: маленькая карточка вместо полосы на весь экран =====
      Нужна, чтобы можно было увидеть техническую причину сбоя прямо на
-     телефоне, без доступа к консоли разработчика на компьютере.
-     По умолчанию свёрнута в узкую полоску с последней строкой — не должна
-     закрывать остальной интерфейс (статус связи, кнопки и т.д.). Тап по
-     полоске разворачивает полный список, тап ещё раз — сворачивает обратно. -->
-<div id="debug-panel" style="display:none; position:fixed; left:0; right:0; bottom:0; z-index:99999; background:#1a0000; border-top:2px solid var(--live); font-family:monospace; font-size:11px; color:#ff8a80; line-height:1.5; box-shadow:0 -6px 20px rgba(0,0,0,0.5);">
-  <div id="debug-panel-bar" style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px 14px; cursor:pointer;">
-    <span style="color:var(--live); font-weight:bold; letter-spacing:1px; flex-shrink:0;">DEBUG</span>
-    <span id="debug-panel-last" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#ff8a80;"></span>
-    <span id="debug-panel-close" style="color:var(--muted); padding:2px 8px; border:1px solid var(--line); border-radius:6px; flex-shrink:0;">×</span>
+     телефоне, без доступа к консоли разработчика на компьютере, и чтобы
+     игрок мог одним тапом переслать её мне — единственная кнопка внизу
+     карточки, никакого разворачиваемого списка на весь экран. Отправка
+     пишет в errorReports/<id> общей базы весь накопленный за сессию лог
+     (не только последнюю строку) — battle-admin-bot читает его во вкладке
+     "Ошибки" (см. renderErrorReports там). -->
+<div id="debug-panel" style="display:none; position:fixed; right:12px; bottom:12px; z-index:99999; width:240px; max-width:calc(100vw - 24px); background:#1a0000; border:1px solid var(--live); border-radius:14px; font-family:monospace; font-size:11px; color:#ff8a80; box-shadow:0 6px 20px rgba(0,0,0,0.5); overflow:hidden;">
+  <div style="padding:10px 12px 8px;">
+    <div style="color:var(--live); font-weight:bold; letter-spacing:1px; margin-bottom:5px;">DEBUG</div>
+    <div id="debug-panel-last" style="line-height:1.4; word-break:break-word; max-height:70px; overflow:hidden;"></div>
   </div>
-  <div id="debug-panel-body" style="display:none; max-height:35vh; overflow-y:auto; padding:0 14px 10px;"></div>
+  <button id="debug-panel-send" type="button" style="display:block; width:100%; border:none; border-top:1px solid rgba(255,255,255,0.15); background:var(--live); color:#fff; font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; padding:9px; cursor:pointer;">Отправить</button>
 </div>
 
 <script>
   // Простой лог для отладки на устройстве без доступа к DevTools.
-  // Показывает: 1) любые непойманные JS-ошибки и отклонённые промисы,
+  // Копит: 1) любые непойманные JS-ошибки и отклонённые промисы,
   // 2) ошибки, которые явно передаются через window.showDebugError(...)
   // из конкретных мест кода (например, из логики подключения к комнате).
+  // Карточка показывает только последнюю строку, но кнопка "Отправить"
+  // уходит со всем логом за сессию — так на месте видно, что происходило
+  // до сбоя, а не только сам момент.
   (function(){
     const panel = document.getElementById('debug-panel');
-    const bar = document.getElementById('debug-panel-bar');
     const lastLine = document.getElementById('debug-panel-last');
-    const body = document.getElementById('debug-panel-body');
-    const closeBtn = document.getElementById('debug-panel-close');
-    let expanded = false;
+    const sendBtn = document.getElementById('debug-panel-send');
+    let logLines = [];
 
     window.showDebugError = function(label, err) {
       const time = new Date().toLocaleTimeString('ru-RU');
@@ -6273,23 +6276,32 @@
         details = String(err);
       }
       const text = `[${time}] ${label}: ${details}`;
-      const line = document.createElement('div');
-      line.style.cssText = 'padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.08); word-break:break-word;';
-      line.textContent = text;
-      body.prepend(line);
+      logLines.push(text);
+      if (logLines.length > 200) logLines.shift(); // не даём логу расти бесконечно за долгую сессию
       lastLine.textContent = text;
+      sendBtn.textContent = 'Отправить';
+      sendBtn.disabled = false;
       panel.style.display = 'block';
     };
 
-    bar.addEventListener('click', (e) => {
-      if (e.target === closeBtn) return;
-      expanded = !expanded;
-      body.style.display = expanded ? 'block' : 'none';
-    });
-
-    closeBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      panel.style.display = 'none';
+    sendBtn.addEventListener('click', () => {
+      sendBtn.disabled = true;
+      sendBtn.textContent = 'Отправка…';
+      const report = {
+        log: logLines.join('\n'),
+        playerId: window.currentPlayer?.playerId || null,
+        telegramId: window.currentTelegramId || null,
+        firstName: window.currentPlayer?.firstName || null,
+        userAgent: navigator.userAgent,
+        createdAt: Date.now()
+      };
+      db.ref('errorReports').push(report).then(() => {
+        sendBtn.textContent = 'Отправлено ✓';
+        setTimeout(() => { panel.style.display = 'none'; }, 1500);
+      }).catch(() => {
+        sendBtn.textContent = 'Не вышло, ещё раз?';
+        sendBtn.disabled = false;
+      });
     });
 
     window.addEventListener('error', (e) => {
