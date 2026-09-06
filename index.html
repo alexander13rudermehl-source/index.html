@@ -3844,6 +3844,8 @@
         </div>
       </div>
 
+      <button type="button" class="sheet-cta secondary" id="btn-open-shop" style="margin-top:0; margin-bottom:16px;">🛒 Магазин — рамки и билеты за Stars</button>
+
       <!-- билеты-множители видны только здесь, отдельным списком — раньше
            единственным местом, где игрок вообще видел, что билет у него
            есть, была плашка в выборе лиги перед боем, и то только "лучший"
@@ -3867,6 +3869,35 @@
       <div id="profile-match-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;">
         <div class="admin-empty">Матчей пока нет</div>
       </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ===== магазин: рамки для аватара и билеты-множители за Stars ===== -->
+<div class="overlay" id="shop-overlay">
+  <div class="sheet">
+    <div class="sheet-grabber"></div>
+    <div class="sheet-head">
+      <div class="back hidden"></div>
+      <div class="sheet-title">Магазин</div>
+      <div class="sheet-close" id="shop-close-btn">
+        <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+    <div class="sheet-body">
+
+      <div class="balance-card stars" style="margin-bottom:18px;">
+        <div class="balance-label">Баланс Stars</div>
+        <div class="balance-value" id="shop-stars">0 <span class="unit">⭐</span></div>
+      </div>
+
+      <div class="section-label" style="margin-top:0;">Рамки для аватара</div>
+      <div id="shop-frames-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px;"></div>
+
+      <div class="section-label">Билеты-множители</div>
+      <p style="color:var(--muted); font-size:12px; line-height:1.5; margin-bottom:12px;">Можно купить билет за Stars, не дожидаясь ивента — следующая победа в рейтинговом бою сожжёт его и умножит награду.</p>
+      <div id="shop-tickets-list" style="display:flex; flex-direction:column; gap:8px;"></div>
 
     </div>
   </div>
@@ -4621,6 +4652,14 @@
   document.getElementById('profile-close-btn').addEventListener('click', () => profileOverlay.classList.remove('open'));
   profileOverlay.addEventListener('click', (e) => { if(e.target === profileOverlay) profileOverlay.classList.remove('open'); });
 
+  const shopOverlay = document.getElementById('shop-overlay');
+  document.getElementById('btn-open-shop')?.addEventListener('click', () => {
+    shopOverlay.classList.add('open');
+    refreshShopAndProfile?.();
+  });
+  document.getElementById('shop-close-btn')?.addEventListener('click', () => shopOverlay.classList.remove('open'));
+  shopOverlay?.addEventListener('click', (e) => { if (e.target === shopOverlay) shopOverlay.classList.remove('open'); });
+
   const avatarBtn = document.getElementById('profile-avatar-btn');
   const avatarInput = document.getElementById('profile-avatar-input');
   avatarBtn?.addEventListener('click', () => avatarInput?.click());
@@ -4804,13 +4843,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.4.10 · бета (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.4.11 · бета (LiveKit-ветка)</div>
         Бета-тест · обновлено 06.09.2026<br>
-        <span style="font-size:11px;">В Профиле появился раздел "Билеты-множители" — раньше их можно было увидеть только мельком, плашкой в выборе лиги перед боем, а весь список нигде не показывался. Заодно то же самое видно и в админ-панели, в карточке игрока.</span>
+        <span style="font-size:11px;">Stars ожили — раньше баланс существовал только на экране, менял его лишь админ вручную. Теперь судейство боя приносит 5 ⭐, а в новом Магазине (кнопка в Профиле) их можно потратить на рамки для аватара (навсегда, можно переключать) или на билеты-множители напрямую, не дожидаясь ивента.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.4.10 — раздел "Билеты-множители" в Профиле и в карточке игрока в админке<br>
           v0.4.9 — проект переведён из альфа- в бета-тестирование<br>
           v0.4.8 — debug-панель заменена на маленькую карточку с кнопкой "Отправить" → вкладка "Ошибки" в админке<br>
           v0.4.7 — множители трофеев переделаны в одноразовые билеты с кнопкой "Забрать" на ивенте<br>
@@ -5667,6 +5707,109 @@
     }
     window.renderMyTickets = renderMyTickets;
 
+    // ===== Магазин: рамки (AVATAR_FRAMES) и билеты за Stars =====
+    // Обе секции читают/пишут users/<id> напрямую живыми запросами вместо
+    // window.currentPlayer — баланс должен быть точным прямо перед покупкой,
+    // а не тем, что было закешировано на момент последней синхронизации.
+    function renderShopFrames(userData) {
+      const el = document.getElementById('shop-frames-list');
+      if (!el) return;
+      const owned = userData?.ownedFrames || {};
+      const equipped = userData?.avatarFrame || null;
+      el.innerHTML = AVATAR_FRAMES.map((f) => {
+        const isOwned = !!owned[f.id];
+        const isEquipped = equipped === f.id;
+        const actionText = isEquipped ? '✅ Надета' : isOwned ? 'Надеть' : `${f.price} ⭐`;
+        return `
+          <div class="league-row" style="cursor:default;">
+            <div class="league-dot" style="background:${f.color};"></div>
+            <div style="flex:1; min-width:0;">
+              <div class="league-name">${f.name}</div>
+              <div class="league-range">${isOwned ? 'Куплена' : f.price + ' ⭐'}</div>
+            </div>
+            <button type="button" class="shop-frame-btn" data-frame-id="${f.id}" ${isEquipped ? 'disabled' : ''} style="flex-shrink:0; padding:8px 14px; border-radius:100px; border:none; background:${isEquipped ? 'var(--panel-2)' : 'var(--gold)'}; color:${isEquipped ? 'var(--muted)' : '#0B0B0D'}; font-size:11.5px; font-weight:700; cursor:${isEquipped ? 'default' : 'pointer'};">${actionText}</button>
+          </div>
+        `;
+      }).join('');
+      el.querySelectorAll('.shop-frame-btn:not([disabled])').forEach((btn) => {
+        btn.addEventListener('click', () => handleFrameAction(btn.dataset.frameId));
+      });
+    }
+
+    async function handleFrameAction(frameId) {
+      const frame = AVATAR_FRAMES.find((f) => f.id === frameId);
+      if (!frame || !window.currentTelegramId) return;
+      const snap = await db.ref('users/' + window.currentTelegramId).once('value');
+      const u = snap.val() || {};
+      const owned = u.ownedFrames || {};
+      try {
+        if (owned[frameId]) {
+          await db.ref('users/' + window.currentTelegramId + '/avatarFrame').set(frameId);
+        } else {
+          const balance = Number(u.starsBalance || 0);
+          if (balance < frame.price) { alert('Не хватает Stars'); return; }
+          await db.ref('users/' + window.currentTelegramId).update({
+            starsBalance: balance - frame.price,
+            ['ownedFrames/' + frameId]: true,
+            avatarFrame: frameId
+          });
+        }
+        refreshShopAndProfile();
+      } catch (err) { window.showDebugError?.('Магазин: рамка', err); }
+    }
+
+    function renderShopTickets() {
+      const el = document.getElementById('shop-tickets-list');
+      if (!el) return;
+      el.innerHTML = Array.from({ length: 9 }, (_, i) => i + 2).map((n) => {
+        const price = window.ticketShopPrice(n);
+        return `
+          <div class="league-row" style="cursor:default;">
+            <div class="league-dot" style="background:var(--gold);"></div>
+            <div style="flex:1; min-width:0;">
+              <div class="league-name">🎫 Билет x${n}</div>
+              <div class="league-range">${price} ⭐</div>
+            </div>
+            <button type="button" class="shop-ticket-btn" data-value="${n}" style="flex-shrink:0; padding:8px 14px; border-radius:100px; border:none; background:var(--gold); color:#0B0B0D; font-size:11.5px; font-weight:700; cursor:pointer;">Купить</button>
+          </div>
+        `;
+      }).join('');
+      el.querySelectorAll('.shop-ticket-btn').forEach((btn) => {
+        btn.addEventListener('click', () => handleBuyTicket(Number(btn.dataset.value)));
+      });
+    }
+
+    async function handleBuyTicket(value) {
+      if (!window.currentTelegramId) return;
+      const price = window.ticketShopPrice(value);
+      try {
+        const snap = await db.ref('users/' + window.currentTelegramId).once('value');
+        const u = snap.val() || {};
+        const balance = Number(u.starsBalance || 0);
+        if (balance < price) { alert('Не хватает Stars'); return; }
+        const ticketRef = db.ref('users/' + window.currentTelegramId + '/multiplierTickets').push();
+        await db.ref('users/' + window.currentTelegramId).update({
+          starsBalance: balance - price,
+          ['multiplierTickets/' + ticketRef.key]: { value, source: 'shop', claimedAt: Date.now() }
+        });
+        refreshShopAndProfile();
+      } catch (err) { window.showDebugError?.('Магазин: билет', err); }
+    }
+
+    function refreshShopAndProfile() {
+      if (!window.currentTelegramId) return;
+      db.ref('users/' + window.currentTelegramId).once('value').then((snap) => {
+        const fresh = snap.val();
+        if (!fresh) return;
+        window.currentPlayer = fresh;
+        applyProfileUser(fresh);
+        const starsEl = document.getElementById('shop-stars');
+        if (starsEl) starsEl.innerHTML = `${Number(fresh.starsBalance || 0).toLocaleString('ru-RU')} <span class="unit">⭐</span>`;
+        renderShopFrames(fresh);
+        renderShopTickets();
+      }).catch((err) => window.showDebugError?.('Магазин: обновление', err));
+    }
+
     function applyProfileUser(userData) {
       const name = userData.firstName || 'Игрок';
       document.getElementById('profile-name').textContent = name;
@@ -5674,6 +5817,10 @@
       const avatar = document.getElementById('profile-avatar');
       if (userData.avatarData) { avatar.style.backgroundImage = `url(${userData.avatarData})`; avatar.classList.add('has-image'); avatar.textContent=''; }
       else { avatar.style.backgroundImage=''; avatar.classList.remove('has-image'); avatar.textContent=name.slice(0,2).toUpperCase(); }
+      // рамка из Магазина — просто цветная обводка потолще поверх обычной
+      const equippedFrame = AVATAR_FRAMES.find((f) => f.id === userData.avatarFrame);
+      avatar.style.borderColor = equippedFrame ? equippedFrame.color : '';
+      avatar.style.borderWidth = equippedFrame ? '3px' : '';
 
       // тот же аватар/имя дублируем на главный экран (вместо иконки микрофона)
       const homeAvatar = document.getElementById('home-avatar');
@@ -6115,6 +6262,14 @@
   // используется в refereeDeclareWinner.
   const ELO_BASELINE = 1000;
   const ELO_K = 32;
+
+  // Stars — внутриигровая валюта (не настоящие Telegram Stars, это
+  // осознанно отложено до монетизации — см. README/обсуждение). Единственный
+  // источник заработка пока — судейство: реферский труд раньше вообще
+  // ничем не поощрялся материально, кроме счётчика "как рефери" в
+  // статистике. Тратится в Магазине (см. openShop) — рамки для аватара и
+  // покупка билетов-множителей без ожидания ивента.
+  const REFEREE_STARS_REWARD = 5;
   async function computeEloDelta(winnerId, loserId) {
     async function ratingOf(playerId) {
       if (!playerId) return ELO_BASELINE;
@@ -6171,6 +6326,21 @@
   window.isLeagueUnlocked = function(points, league) {
     return Number(points || 0) >= league.minPoints;
   };
+
+  // ===== Магазин: рамки для аватара и билеты-множители за Stars =====
+  // Рамки — чисто косметика (просто цветная обводка вокруг аватара),
+  // куплена раз — остаётся навсегда в ownedFrames, а avatarFrame хранит,
+  // какая из уже купленных надета сейчас (можно переключать бесплатно).
+  const AVATAR_FRAMES = [
+    { id: 'bronze', name: 'Бронзовая', price: 30,  color: '#B08D57' },
+    { id: 'silver', name: 'Серебряная', price: 60,  color: '#C9C9CE' },
+    { id: 'gold',   name: 'Золотая',   price: 120, color: '#F2B705' },
+    { id: 'live',   name: 'Огненная',  price: 200, color: 'var(--live)' }
+  ];
+  window.AVATAR_FRAMES = AVATAR_FRAMES;
+  // цена билета в Магазине — альтернатива ожиданию ивента, поэтому дороже
+  // самой ставки этой лиги (иначе не было бы смысла вообще ждать ивенты)
+  window.ticketShopPrice = function(multiplier) { return multiplier * 15; };
 
   // Множители трофеев ("билеты") — забираются кнопкой на ивенте (см.
   // renderEventMultiplierClaimButton), одноразовые: следующая победа в
@@ -6265,7 +6435,12 @@
     }
     if(refereeId){
       const q=await db.ref('users').orderByChild('playerId').equalTo(refereeId).once('value');
-      if(q.exists()){ const key=Object.keys(q.val())[0]; const u=q.val()[key]||{}; const refUpdate={}; refUpdate['users/'+key+'/stats/refereeBattles']=Number(u.stats?.refereeBattles||0)+1; await db.ref().update(refUpdate); }
+      if(q.exists()){
+        const key=Object.keys(q.val())[0]; const u=q.val()[key]||{}; const refUpdate={};
+        refUpdate['users/'+key+'/stats/refereeBattles']=Number(u.stats?.refereeBattles||0)+1;
+        refUpdate['users/'+key+'/starsBalance']=Number(u.starsBalance||0)+REFEREE_STARS_REWARD;
+        await db.ref().update(refUpdate);
+      }
     }
     if(window.currentPlayer) {
       const q=await db.ref('users').orderByChild('playerId').equalTo(window.currentPlayer.playerId).once('value');
