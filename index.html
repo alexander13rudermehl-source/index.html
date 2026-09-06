@@ -1674,6 +1674,8 @@
             <button type="button" class="sheet-cta secondary" id="btn-demo-bot-config" style="margin-top:0; padding:10px; font-size:12.5px;">⚙️ Настроить тренировочного бота</button>
           </div>
 
+          <div id="rq-multiplier-banner" style="display:none; background:linear-gradient(135deg, rgba(var(--gold-rgb),0.18), rgba(var(--gold-rgb),0.06)); border:1px solid rgba(var(--gold-rgb),0.4); border-radius:12px; padding:10px 12px; margin-bottom:14px; font-size:13px; font-weight:600; color:var(--gold); text-align:center;"></div>
+
           <div class="section-label" style="margin-top:0;">Выбери лигу — ставка на бой</div>
           <div id="rq-league-list" style="margin-bottom:6px;"></div>
           <div id="rq-league-error" style="display:none; color:var(--live); font-size:12.5px; margin-bottom:10px;"></div>
@@ -2280,7 +2282,8 @@
       if (typeof delta === 'number' && delta !== 0) {
         pointsEl.style.display = 'block';
         pointsEl.style.color = delta > 0 ? 'var(--gold)' : 'var(--live)';
-        pointsEl.textContent = (delta > 0 ? '+' : '') + delta + ' 🏆';
+        const boostNote = delta > 0 && battle.trophyMultiplier > 1 ? ` (буст x${battle.trophyMultiplier}!)` : '';
+        pointsEl.textContent = (delta > 0 ? '+' : '') + delta + ' 🏆' + boostNote;
       } else {
         pointsEl.style.display = 'none';
       }
@@ -2570,9 +2573,12 @@
     // как-то попал в судейство не через рейтинговую очередь) — прежний
     // ELO-обмен, как страховка.
     const league = battle.league ? LEAGUES.find((l) => l.name === battle.league) : null;
+    // множитель применяется только к выигрышу — иначе "буст" в дни ивента
+    // заодно бил бы и по проигравшим, что превращает праздник в наказание
+    const trophyMultiplier = league ? await window.computeActiveTrophyMultiplier() : 1;
     if (winnerId && loserId) {
       if (league) {
-        pointsAwarded[winnerId] = league.stake;
+        pointsAwarded[winnerId] = league.stake * trophyMultiplier;
         pointsAwarded[loserId] = -league.penalty;
       } else {
         const delta = await computeEloDelta(winnerId, loserId);
@@ -2580,7 +2586,7 @@
         pointsAwarded[loserId] = -delta;
       }
     } else if (winnerId) {
-      pointsAwarded[winnerId] = league ? league.stake : ELO_K / 2; // соперник не определён — крайний случай, не должен встречаться в норме
+      pointsAwarded[winnerId] = league ? league.stake * trophyMultiplier : ELO_K / 2; // соперник не определён — крайний случай, не должен встречаться в норме
     }
     const audienceVotes = {};
     if (battle.hostId) audienceVotes[battle.hostId] = likes.host || 0;
@@ -2595,12 +2601,12 @@
       // только в matches/<code>, куда их пишет finishMatch) — их слушает
       // attachFinishListener у бойцов/зрителей, чтобы показать тот же экран
       // итога боя (см. showBattleResult) без лишнего похода за matches
-      await db.ref('battles/' + code).update({ status: 'finished', winnerId, loserId, pointsAwarded });
+      await db.ref('battles/' + code).update({ status: 'finished', winnerId, loserId, pointsAwarded, trophyMultiplier });
     } catch (err) {
       window.showDebugError?.('Судейство: объявление победителя', err);
     }
     closeRoom(); // сразу гасит голос/микрофон
-    showBattleResult('referee', { winnerId, loserId, pointsAwarded }, window.currentPlayer?.playerId);
+    showBattleResult('referee', { winnerId, loserId, pointsAwarded, trophyMultiplier }, window.currentPlayer?.playerId);
   }
   document.getElementById('ref-declare-host').addEventListener('click', () => refereeDeclareWinner('host'));
   document.getElementById('ref-declare-guest').addEventListener('click', () => refereeDeclareWinner('guest'));
@@ -3046,22 +3052,41 @@
     el.textContent = msg;
     el.style.display = 'block';
   }
-  function renderLeaguePicker() {
+  async function renderLeaguePicker() {
     const myPoints = Number(window.currentPlayer?.points || 0);
     const listEl = document.getElementById('rq-league-list');
     const startBtn = document.getElementById('btn-start-rating-queue');
     const errorEl = document.getElementById('rq-league-error');
+    const bannerEl = document.getElementById('rq-multiplier-banner');
     if (!listEl || !startBtn) return;
     selectedLeague = null;
     startBtn.disabled = true;
     if (errorEl) errorEl.style.display = 'none';
+    const trophyMultiplier = await window.computeActiveTrophyMultiplier();
+    if (bannerEl) {
+      if (trophyMultiplier > 1) {
+        bannerEl.textContent = `🔥 Сейчас идёт множитель x${trophyMultiplier} — трофеи за победу начисляются в ${trophyMultiplier} раз больше!`;
+        bannerEl.style.display = 'block';
+      } else {
+        bannerEl.style.display = 'none';
+      }
+    }
     listEl.innerHTML = LEAGUES.map((league) => {
       const unlocked = window.isLeagueUnlocked(myPoints, league);
       const isFree = league.penalty === 0;
+      const reward = league.stake * trophyMultiplier;
       const rangeText = !unlocked
         ? `Нужно ${league.minPoints.toLocaleString('ru-RU')} 🏆, чтобы открыть`
         : isFree ? 'Бесплатно, без риска' : `От ${league.minPoints.toLocaleString('ru-RU')} 🏆`;
-      const stakeText = !unlocked ? '🔒' : isFree ? `Победа<br>+${league.stake} 🏆` : `Ставка<br>${league.stake} 🏆`;
+      // множитель поднимает только награду за победу, а не то, что теряешь
+      // при поражении (см. refereeDeclareWinner) — при активном бусте эти
+      // две цифры расходятся, и в обычную "Ставка: N" их одним числом уже
+      // не уместить, приходится показывать оба явно
+      let stakeText;
+      if (!unlocked) stakeText = '🔒';
+      else if (isFree) stakeText = `Победа<br>+${reward} 🏆`;
+      else if (trophyMultiplier > 1) stakeText = `+${reward} 🏆 / -${league.penalty} 🏆`;
+      else stakeText = `Ставка<br>${league.stake} 🏆`;
       return `
         <div class="league-row${unlocked ? '' : ' locked'}" data-name="${escapeHtml(league.name)}">
           <div class="league-dot" style="background:${league.color};"></div>
@@ -4758,13 +4783,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.4.5 · pre-alpha (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.4.6 · pre-alpha (LiveKit-ветка)</div>
         Внутренний тест · обновлено 06.09.2026<br>
-        <span style="font-size:11px;">Пороги лиг в выборе перед рейтинговым боем не совпадали с пресс-релизом Тролль-Бота (были со сдвигом на 1000) — поправил на ровно 0/500/1500/3000/6000/10000/15000, как и заявлено.</span>
+        <span style="font-size:11px;">Множители трофеев (x2–x10): админ заводит их на определённые даты/месяцы из панели "Ивент" → "Множитель трофеев", можно сразу несколько на разные периоды. Пока хоть один активен — победа в рейтинговом бою даёт трофеев в N раз больше (на поражение не влияет), в выборе лиги перед боем появляется плашка и уже умноженные цифры наград.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.4.5 — пороги лиг синхронизированы с пресс-релизом Тролль-Бота (0/500/1500/3000/6000/10000/15000)<br>
           v0.4.4 — первая лига всегда открыта и бесплатна, иначе при 0 трофеев играть не с чего<br>
           v0.4.3 — "Баланс поинтов" → "Трофеи" (🏆), лиги выбираются вручную перед боем, у каждой своя ставка<br>
           v0.4.2 — интерфейс подтянут к паттернам Telegram: карточки в Настройках, шапка-баннер в Профиле, пилюли-вкладки со счётчиком<br>
@@ -6056,6 +6082,31 @@
   // на её порог (у первой лиги порог 0 — она открыта всегда).
   window.isLeagueUnlocked = function(points, league) {
     return Number(points || 0) >= league.minPoints;
+  };
+
+  // Множители трофеев ("иксы") — заводятся из админ-панели (вкладка
+  // "Ивент" → "Множитель трофеев", multiplierEvents/<id> в базе) на
+  // конкретные даты вперёд, чтобы игроки в эти дни/месяцы получали за
+  // победы в N раз больше трофеев и быстрее продвигались по лигам.
+  // Можно завести сразу несколько на разные периоды — если попадает
+  // сразу несколько активных, берём наибольший, а не перемножаем их
+  // (иначе x5 и x3 разом дали бы нелепый x15).
+  window.computeActiveTrophyMultiplier = async function() {
+    try {
+      const snap = await db.ref('multiplierEvents').once('value');
+      const all = snap.val() || {};
+      const now = Date.now();
+      let best = 1;
+      Object.values(all).forEach((m) => {
+        if (m && m.startAt && m.endAt && now >= m.startAt && now <= m.endAt && Number(m.multiplier) > best) {
+          best = Number(m.multiplier);
+        }
+      });
+      return best;
+    } catch (err) {
+      window.showDebugError?.('Множитель трофеев', err);
+      return 1;
+    }
   };
 
   // "2026-08" и т.п. — ключ текущего месяца для сезонного топа игроков.
