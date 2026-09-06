@@ -858,26 +858,43 @@
     border: 1px solid var(--line);
   }
 
-  /* live tabs */
+  /* пилюли-вкладки со счётчиком — как фильтры чатов "Все 5 / Новые 61" в
+     Telegram: не поровну растянутые сегменты, а ряд пилюль по ширине
+     контента, прокручиваемый вбок, если не помещается */
   .tabs{
     display:flex;
-    gap: 6px;
-    background: var(--panel-2);
-    padding: 4px;
-    border-radius: 12px;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 2px 2px 4px;
     margin-bottom: 14px;
+    scrollbar-width: none;
   }
+  .tabs::-webkit-scrollbar{ display:none; }
   .tab{
-    flex:1;
-    text-align:center;
-    padding: 8px 0;
+    flex-shrink:0;
+    display:flex;
+    align-items:center;
+    gap: 6px;
+    padding: 9px 15px;
     font-size: 13px;
     font-weight:600;
-    border-radius: 9px;
+    border-radius: 100px;
     cursor:pointer;
     color: var(--muted);
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    white-space:nowrap;
   }
-  .tab.active{ background: var(--panel); color: var(--text); }
+  .tab.active{ background: linear-gradient(135deg, var(--live), var(--live-dark)); color:#fff; border-color:transparent; }
+  .tab-count{
+    font-size: 11px;
+    font-weight:700;
+    padding: 1px 6px;
+    border-radius: 100px;
+    background: var(--panel);
+    color: var(--muted);
+  }
+  .tab.active .tab-count{ background: rgba(255,255,255,0.2); color:#fff; }
 
   .stream-row{
     display:flex;
@@ -914,13 +931,37 @@
   .dl-btn svg{ width:15px; height:15px; stroke:var(--text); stroke-width:1.8; fill:none; }
 
   /* ===== profile sheet ===== */
-  .profile-head{
-    display:flex;
-    align-items:center;
-    gap: 14px;
-    padding: 18px 0 20px;
+  /* шапка-баннер вместо обычной строки с аватаркой — как профиль в
+     Telegram: крупный аватар на цветной подложке во всю ширину, а не
+     маленький кружок в один ряд с именем. Отрицательные отступы съедают
+     padding шторки (.sheet-body), чтобы подложка доходила до самых краёв. */
+  .profile-banner{
+    margin: -14px -18px 20px;
+    padding: 30px 18px 22px;
+    background: linear-gradient(155deg, rgba(var(--live-rgb),0.35), rgba(var(--gold-rgb),0.12) 65%, var(--bg));
     border-bottom: 1px solid var(--line);
-    margin-bottom: 18px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    text-align:center;
+  }
+  .profile-banner-avatar-wrap{ position:relative; flex-shrink:0; margin-bottom:12px; }
+  .profile-banner .profile-avatar{ width:84px; height:84px; font-size:30px; }
+  .profile-banner .profile-username{ cursor:pointer; }
+  .profile-banner .profile-league-tag{ margin-left:auto; margin-right:auto; }
+  .profile-copy-code{
+    margin-top:14px;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:8px 16px;
+    border-radius:100px;
+    background: var(--panel);
+    border:1px solid var(--line);
+    color:var(--text);
+    font-size:12.5px;
+    font-weight:600;
+    cursor:pointer;
   }
   .profile-avatar{
     width: 62px; height: 62px;
@@ -935,6 +976,7 @@
   }
   .profile-name{ font-size: 17px; font-weight: 700; margin-bottom: 2px; }
   .profile-username{ font-size: 13px; color: var(--muted); }
+  .profile-banner .profile-name{ font-size: 19px; }
   .profile-league-tag{
     display:inline-flex;
     align-items:center;
@@ -1059,6 +1101,19 @@
   .toggle-row:last-child{ border-bottom:none; }
   .toggle-row .t-label{ font-size: 14px; font-weight: 500; }
   .toggle-row .t-desc{ font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+
+  /* группировка нескольких строк настроек в один блок вместо того, чтобы
+     каждая строка просто плавала на фоне шторки — так делают Настройки
+     в Telegram: несколько связанных пунктов в одной карточке с тонкими
+     разделителями внутри, а не разбросанные по экрану */
+  .list-group{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 0 12px;
+    margin-bottom: 16px;
+  }
+  .list-group .toggle-row, .list-group .plain-row{ padding: 13px 0; }
 
   .switch{
     width: 42px; height: 24px;
@@ -3563,14 +3618,14 @@
       </div>
     </div>
     <div class="sheet-body">
-      <div style="display:flex; gap:6px; margin-bottom:16px;">
-        <button type="button" class="sheet-cta" id="community-tab-top" style="flex:1; margin-top:0; padding:10px 4px; font-size:11.5px;">🏆 Топ</button>
-        <button type="button" class="sheet-cta secondary" id="community-tab-friends" style="flex:1; margin-top:0; padding:10px 4px; font-size:11.5px;">👥 Друзья</button>
-        <button type="button" class="sheet-cta secondary" id="community-tab-requests" style="flex:1; margin-top:0; padding:10px 4px; font-size:11.5px; position:relative;">
+      <div class="tabs">
+        <div class="tab active" id="community-tab-top">🏆 Топ</div>
+        <div class="tab" id="community-tab-friends">👥 Друзья</div>
+        <div class="tab" id="community-tab-requests">
           📨 Запросы
-          <span id="community-requests-count" style="display:none; position:absolute; top:-6px; right:-6px; background:var(--live); color:#fff; font-size:10px; font-weight:700; min-width:16px; height:16px; border-radius:100px; align-items:center; justify-content:center; padding:0 3px;"></span>
-        </button>
-        <button type="button" class="sheet-cta secondary" id="community-tab-clans" style="flex:1; margin-top:0; padding:10px 4px; font-size:11.5px;">🛡 Кланы</button>
+          <span class="tab-count" id="community-requests-count" style="display:none;"></span>
+        </div>
+        <div class="tab" id="community-tab-clans">🛡 Кланы</div>
       </div>
 
       <div id="community-view-top">
@@ -3599,10 +3654,10 @@
            (users/<uid>/clanId), у клана свой код и настраиваемая политика
            вступления (open/code/request) — см. JS ниже -->
       <div id="community-view-clans" style="display:none;">
-        <div style="display:flex; gap:6px; margin-bottom:16px;">
-          <button type="button" class="sheet-cta" id="clans-subtab-my" style="flex:1; margin-top:0; padding:10px 4px; font-size:11.5px;">➕ Создать</button>
-          <button type="button" class="sheet-cta secondary" id="clans-subtab-rating" style="flex:1; margin-top:0; padding:10px 4px; font-size:11.5px;">🏆 Таблица</button>
-          <button type="button" class="sheet-cta secondary" id="clans-subtab-list" style="flex:1; margin-top:0; padding:10px 4px; font-size:11.5px;">📋 Список</button>
+        <div class="tabs">
+          <div class="tab active" id="clans-subtab-my">➕ Создать</div>
+          <div class="tab" id="clans-subtab-rating">🏆 Таблица</div>
+          <div class="tab" id="clans-subtab-list">📋 Список</div>
         </div>
 
         <div id="clans-subview-my">
@@ -3637,18 +3692,17 @@
 
     <div class="sheet-body">
 
-      <div class="profile-head">
-        <div style="position:relative;flex-shrink:0;">
+      <div class="profile-banner">
+        <div class="profile-banner-avatar-wrap">
           <div class="profile-avatar" id="profile-avatar">ОК</div>
           <button id="profile-avatar-btn" type="button" style="position:absolute;right:-4px;bottom:-4px;width:28px;height:28px;border-radius:50%;border:2px solid var(--bg);background:var(--gold);color:#0B0B0D;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;">+</button>
           <input id="profile-avatar-input" type="file" accept="image/*" style="display:none">
         </div>
-        <div style="min-width:0;">
-          <div class="profile-name" id="profile-name">Олег</div>
-          <div class="profile-username" id="profile-username">PLR-XXXXXX</div>
-          <div class="profile-league-tag" style="display:none"><span class="dot"></span></div>
-          <div id="profile-badges" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;"></div>
-        </div>
+        <div class="profile-name" id="profile-name">Олег</div>
+        <div class="profile-username" id="profile-username" title="Скопировать код">PLR-XXXXXX</div>
+        <div class="profile-league-tag" style="display:none"><span class="dot"></span></div>
+        <div id="profile-badges" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;justify-content:center;"></div>
+        <button type="button" class="profile-copy-code" id="profile-copy-code-btn">📋 Скопировать код</button>
       </div>
 
       <div class="balance-grid">
@@ -3870,10 +3924,10 @@
     document.getElementById('community-view-friends').style.display = tab === 'friends' ? 'block' : 'none';
     document.getElementById('community-view-requests').style.display = tab === 'requests' ? 'block' : 'none';
     document.getElementById('community-view-clans').style.display = tab === 'clans' ? 'block' : 'none';
-    communityTabTop.classList.toggle('secondary', tab !== 'top');
-    communityTabFriends.classList.toggle('secondary', tab !== 'friends');
-    communityTabRequests.classList.toggle('secondary', tab !== 'requests');
-    communityTabClans.classList.toggle('secondary', tab !== 'clans');
+    communityTabTop.classList.toggle('active', tab === 'top');
+    communityTabFriends.classList.toggle('active', tab === 'friends');
+    communityTabRequests.classList.toggle('active', tab === 'requests');
+    communityTabClans.classList.toggle('active', tab === 'clans');
   }
   communityTabTop.addEventListener('click', () => showCommunityTab('top'));
   communityTabFriends.addEventListener('click', () => showCommunityTab('friends'));
@@ -3893,9 +3947,9 @@
     document.getElementById('clans-subview-my').style.display = tab === 'my' ? 'block' : 'none';
     document.getElementById('clans-subview-rating').style.display = tab === 'rating' ? 'block' : 'none';
     document.getElementById('clans-subview-list').style.display = tab === 'list' ? 'block' : 'none';
-    document.getElementById('clans-subtab-my').classList.toggle('secondary', tab !== 'my');
-    document.getElementById('clans-subtab-rating').classList.toggle('secondary', tab !== 'rating');
-    document.getElementById('clans-subtab-list').classList.toggle('secondary', tab !== 'list');
+    document.getElementById('clans-subtab-my').classList.toggle('active', tab === 'my');
+    document.getElementById('clans-subtab-rating').classList.toggle('active', tab === 'rating');
+    document.getElementById('clans-subtab-list').classList.toggle('active', tab === 'list');
   }
   document.getElementById('clans-subtab-my').addEventListener('click', () => showClansSubtab('my'));
   document.getElementById('clans-subtab-rating').addEventListener('click', () => showClansSubtab('rating'));
@@ -4425,6 +4479,22 @@
   const avatarBtn = document.getElementById('profile-avatar-btn');
   const avatarInput = document.getElementById('profile-avatar-input');
   avatarBtn?.addEventListener('click', () => avatarInput?.click());
+
+  // код игрока (PLR-XXXXXX) нужен, чтобы тебя добавили в друзья — раньше
+  // его приходилось перепечатывать вручную из профиля, теперь копируется
+  // в один тап, как username/номер в Настройках Telegram
+  function copyPlayerCode() {
+    const code = document.getElementById('profile-username')?.textContent;
+    if (!code) return;
+    navigator.clipboard?.writeText(code);
+    const btn = document.getElementById('profile-copy-code-btn');
+    if (!btn) return;
+    const original = btn.textContent;
+    btn.textContent = '✅ Скопировано';
+    setTimeout(() => { btn.textContent = original; }, 1500);
+  }
+  document.getElementById('profile-copy-code-btn')?.addEventListener('click', copyPlayerCode);
+  document.getElementById('profile-username')?.addEventListener('click', copyPlayerCode);
   avatarInput?.addEventListener('change', async (e) => {
     const file = e.target.files?.[0];
     const me = window.currentPlayer;
@@ -4531,43 +4601,53 @@
         <button id="btn-request-mic" style="width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:11px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer;">Запросить доступ</button>
       </div>
 
-      <div class="toggle-row">
-        <div>
-          <div class="t-label">Автоусиление громкости</div>
-          <div class="t-desc">Компенсация тихого голоса</div>
+      <div class="list-group">
+        <div class="toggle-row">
+          <div>
+            <div class="t-label">Автоусиление громкости</div>
+            <div class="t-desc">Компенсация тихого голоса</div>
+          </div>
+          <div class="switch on" data-toggle></div>
         </div>
-        <div class="switch on" data-toggle></div>
-      </div>
-      <div class="toggle-row">
-        <div>
-          <div class="t-label">Шумоподавление</div>
-          <div class="t-desc">Фильтр фонового шума</div>
+        <div class="toggle-row">
+          <div>
+            <div class="t-label">Шумоподавление</div>
+            <div class="t-desc">Фильтр фонового шума</div>
+          </div>
+          <div class="switch on" data-toggle></div>
         </div>
-        <div class="switch on" data-toggle></div>
       </div>
 
       <div class="section-label">Уведомления</div>
-      <div class="toggle-row">
-        <div>
-          <div class="t-label">Начало баттла</div>
-          <div class="t-desc">Когда найден соперник</div>
+      <div class="list-group">
+        <div class="toggle-row">
+          <div>
+            <div class="t-label">Начало баттла</div>
+            <div class="t-desc">Когда найден соперник</div>
+          </div>
+          <div class="switch on" data-toggle></div>
         </div>
-        <div class="switch on" data-toggle></div>
-      </div>
-      <div class="toggle-row">
-        <div>
-          <div class="t-label">Приглашения от друзей</div>
+        <div class="toggle-row">
+          <div>
+            <div class="t-label">Приглашения от друзей</div>
+          </div>
+          <div class="switch" data-toggle></div>
         </div>
-        <div class="switch" data-toggle></div>
       </div>
 
       <div class="section-label">Аккаунт</div>
-      <div class="plain-row" onclick="alert('→ Управление привязкой Telegram-аккаунта')">
-        <div class="t-label">Telegram-аккаунт</div>
-        <div class="t-val" id="settings-account-val">@oleg_leipzig</div>
+      <div class="list-group">
+        <div class="plain-row" onclick="alert('→ Управление привязкой Telegram-аккаунта')">
+          <div class="t-label">Telegram-аккаунт</div>
+          <div class="t-val" id="settings-account-val">@oleg_leipzig</div>
+        </div>
+        <div class="plain-row" onclick="alert('→ Язык интерфейса')">
+          <div class="t-label">Язык</div>
+          <div class="t-val">Русский</div>
+        </div>
       </div>
 
-      <div id="google-account-block" style="background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; margin:10px 0 14px;">
+      <div id="google-account-block" style="background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; margin:0 0 16px;">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
           <div>
             <div class="t-label">Google-аккаунт</div>
@@ -4578,19 +4658,15 @@
         <div class="t-desc" style="margin-top:8px; line-height:1.4;">Позволяет открыть тот же профиль на компьютере, зайдя на сайт напрямую в браузере и войдя через Google.</div>
       </div>
 
-      <div class="plain-row" onclick="alert('→ Язык интерфейса')">
-        <div class="t-label">Язык</div>
-        <div class="t-val">Русский</div>
-      </div>
-
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.4.1 · pre-alpha (LiveKit-ветка)</div>
-        Внутренний тест · обновлено 03.09.2026<br>
-        <span style="font-size:11px;">Починил экран заявки на закрытый бета-тест — раньше на "заявка на рассмотрении" не было способа узнать, что её одобрили, кроме как знать, что приложение нужно полностью перезапустить. Теперь страница сама проверяет и обновляется, плюс кнопка "Проверить статус".</span>
+        <div class="v-num">MICBATTLE v0.4.2 · pre-alpha (LiveKit-ветка)</div>
+        Внутренний тест · обновлено 06.09.2026<br>
+        <span style="font-size:11px;">Интерфейс подтянут к паттернам Telegram (свои цвета оставлены): Настройки сгруппированы в карточки вместо разрозненных строк, у Профиля крупная шапка-баннер с копированием кода в один тап, вкладки Сообщества и Кланов — пилюли со счётчиком вместо кнопок в ряд.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.4.1 — чинит "одобрил заявку, а всё равно не пускает" на закрытом бета-тесте<br>
           v0.4.0 — закрытый бета-тест: заявка вместо мгновенного создания аккаунта<br>
           v0.3.9 — режим обслуживания и аварийный режим (обе стороны — index.html и панель)<br>
           v0.3.8 — баланс поинтов — настоящий внутренний ELO вместо плоского +30/-10<br>
