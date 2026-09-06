@@ -2564,16 +2564,23 @@
     const pointsAwarded = {};
     // рейтинговый бой с выбранной лигой (см. startRatingQueue) — трофеи
     // считаются не через ELO, а фиксированной ставкой этой лиги: победа
-    // +ставка, поражение -ставка, симметрично. Без лиги (старые бои в
-    // процессе на момент обновления, либо кто-то как-то попал в судейство
-    // не через рейтинговую очередь) — прежний ELO-обмен, как страховка.
-    const leagueStake = battle.league ? LEAGUES.find((l) => l.name === battle.league)?.stake : null;
+    // даёт +stake, поражение забирает -penalty (для большинства лиг они
+    // равны, но у бесплатной первой лиги penalty=0 — см. LEAGUES). Без
+    // лиги (старые бои в процессе на момент обновления, либо кто-то
+    // как-то попал в судейство не через рейтинговую очередь) — прежний
+    // ELO-обмен, как страховка.
+    const league = battle.league ? LEAGUES.find((l) => l.name === battle.league) : null;
     if (winnerId && loserId) {
-      const delta = leagueStake != null ? leagueStake : await computeEloDelta(winnerId, loserId);
-      pointsAwarded[winnerId] = delta;
-      pointsAwarded[loserId] = -delta;
+      if (league) {
+        pointsAwarded[winnerId] = league.stake;
+        pointsAwarded[loserId] = -league.penalty;
+      } else {
+        const delta = await computeEloDelta(winnerId, loserId);
+        pointsAwarded[winnerId] = delta;
+        pointsAwarded[loserId] = -delta;
+      }
     } else if (winnerId) {
-      pointsAwarded[winnerId] = leagueStake != null ? leagueStake : ELO_K / 2; // соперник не определён — крайний случай, не должен встречаться в норме
+      pointsAwarded[winnerId] = league ? league.stake : ELO_K / 2; // соперник не определён — крайний случай, не должен встречаться в норме
     }
     const audienceVotes = {};
     if (battle.hostId) audienceVotes[battle.hostId] = likes.host || 0;
@@ -3050,10 +3057,11 @@
     if (errorEl) errorEl.style.display = 'none';
     listEl.innerHTML = LEAGUES.map((league) => {
       const unlocked = window.isLeagueUnlocked(myPoints, league);
-      const rangeText = unlocked
-        ? `От ${league.minPoints.toLocaleString('ru-RU')} 🏆`
-        : `Нужно ${league.minPoints.toLocaleString('ru-RU')} 🏆, чтобы открыть`;
-      const stakeText = unlocked ? `Ставка<br>${league.stake} 🏆` : '🔒';
+      const isFree = league.penalty === 0;
+      const rangeText = !unlocked
+        ? `Нужно ${league.minPoints.toLocaleString('ru-RU')} 🏆, чтобы открыть`
+        : isFree ? 'Бесплатно, без риска' : `От ${league.minPoints.toLocaleString('ru-RU')} 🏆`;
+      const stakeText = !unlocked ? '🔒' : isFree ? `Победа<br>+${league.stake} 🏆` : `Ставка<br>${league.stake} 🏆`;
       return `
         <div class="league-row${unlocked ? '' : ' locked'}" data-name="${escapeHtml(league.name)}">
           <div class="league-dot" style="background:${league.color};"></div>
@@ -3069,7 +3077,7 @@
       row.addEventListener('click', () => {
         const league = LEAGUES.find((l) => l.name === row.dataset.name);
         if (!league) return;
-        if (myPoints < league.stake) {
+        if (myPoints < league.penalty) {
           rqLeagueShowError('Не хватает трофеев на ставку в этой лиге');
           return;
         }
@@ -4750,13 +4758,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.4.3 · pre-alpha (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.4.4 · pre-alpha (LiveKit-ветка)</div>
         Внутренний тест · обновлено 06.09.2026<br>
-        <span style="font-size:11px;">"Баланс поинтов" переименован в "Трофеи" (🏆). Лиги теперь выбираются вручную перед рейтинговым боем — у каждой своя ставка трофеями, лиги открываются по мере накопления трофеев, при 0 трофеев недоступна ни одна. Победа приносит ставку выбранной лиги, поражение её списывает; соперник ищется среди тех, кто выбрал ту же лигу.</span>
+        <span style="font-size:11px;">Чинит тупик "0 трофеев — все лиги закрыты, играть не с чего": первая лига ("Сын шлюхи") теперь всегда открыта и бесплатна — без риска потерять трофеи, но с наградой за победу, чтобы было с чего начинать путь по лигам.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.4.3 — "Баланс поинтов" → "Трофеи" (🏆), лиги выбираются вручную перед боем, у каждой своя ставка<br>
           v0.4.2 — интерфейс подтянут к паттернам Telegram: карточки в Настройках, шапка-баннер в Профиле, пилюли-вкладки со счётчиком<br>
           v0.4.1 — чинит "одобрил заявку, а всё равно не пускает" на закрытом бета-тесте<br>
           v0.4.0 — закрытый бета-тест: заявка вместо мгновенного создания аккаунта<br>
@@ -6012,21 +6021,26 @@
   // уважительный и на самых верхних лигах становится откровенно
   // комплементарным ("Батя троллей", "Рабовладелец" — высшая лига).
   // stake — ставка трофеями за один рейтинговый бой в этой лиге: сколько
-  // теряешь при поражении, столько же получаешь при победе (симметрично,
-  // как и сам ELO-обмен выше). Выбирается игроком вручную перед поиском
-  // соперника (см. renderLeaguePicker) — лига открыта на выбор, только
-  // если общих трофеев (points) уже хватает на её minPoints; 0 трофеев
-  // не хватает даже на первую лигу (её minPoints — тот же ELO_BASELINE,
-  // с которого стартует новый аккаунт, см. createUser ниже), поэтому
-  // "нет трофеев вообще" = ни одна лига не доступна.
+  // получаешь при победе (поле stake) и сколько теряешь при поражении
+  // (поле penalty, обычно равно stake — симметрично, как и сам ELO-обмен
+  // выше). Выбирается игроком вручную перед поиском соперника (см.
+  // renderLeaguePicker) — лига открыта на выбор, только если общих
+  // трофеев (points) уже хватает на её minPoints.
+  //
+  // Первая лига — исключение и всегда открыта (minPoints: 0), а её
+  // penalty: 0 — вход и сама игра в ней бесплатны, поражение ничего не
+  // списывает. Без этого при 0 трофеев (а именно с них все и начинают)
+  // не открывалась бы ни одна лига и играть было бы вообще не с чего —
+  // "Сын шлюхи" тут работает как бесплатный стартовый уровень, на
+  // котором нарабатываются самые первые трофеи для следующих лиг.
   const LEAGUES = [
-    { name: 'Сын шлюхи',        minPoints: ELO_BASELINE,        stake: 10,  emoji: '💀',  color: '#6B4226',    borderColor: 'rgba(107,66,38,0.35)',   bgColor: 'rgba(107,66,38,0.08)' },
-    { name: 'Говно из-под коня',minPoints: ELO_BASELINE + 500,  stake: 25,  emoji: '💩',  color: '#8B7355',    borderColor: 'rgba(139,115,85,0.35)',  bgColor: 'rgba(139,115,85,0.08)' },
-    { name: 'Отброс общества',  minPoints: ELO_BASELINE + 1500, stake: 50,  emoji: '🗑️', color: '#B08D57',    borderColor: 'rgba(176,141,87,0.35)',  bgColor: 'rgba(176,141,87,0.08)' },
-    { name: 'Шавка подзаборная',minPoints: ELO_BASELINE + 3000, stake: 100, emoji: '🐕',  color: '#C9C9CE',    borderColor: 'rgba(201,201,206,0.35)', bgColor: 'rgba(201,201,206,0.08)' },
-    { name: 'Уважаемый тролль', minPoints: ELO_BASELINE + 6000, stake: 200, emoji: '😏',  color: '#F2B705',    borderColor: 'rgba(242,183,5,0.35)',   bgColor: 'rgba(242,183,5,0.08)' },
-    { name: 'Батя троллей',     minPoints: ELO_BASELINE + 10000,stake: 400, emoji: '👑',  color: '#5CC8FF',    borderColor: 'rgba(92,200,255,0.35)',  bgColor: 'rgba(92,200,255,0.08)' },
-    { name: 'Рабовладелец',     minPoints: ELO_BASELINE + 15000,stake: 800, emoji: '⛓️', color: 'var(--live)', borderColor: 'rgba(var(--live-rgb),0.35)', bgColor: 'rgba(var(--live-rgb),0.1)' }
+    { name: 'Сын шлюхи',        minPoints: 0,                    stake: 10,  penalty: 0,   emoji: '💀',  color: '#6B4226',    borderColor: 'rgba(107,66,38,0.35)',   bgColor: 'rgba(107,66,38,0.08)' },
+    { name: 'Говно из-под коня',minPoints: ELO_BASELINE + 500,  stake: 25,  penalty: 25,  emoji: '💩',  color: '#8B7355',    borderColor: 'rgba(139,115,85,0.35)',  bgColor: 'rgba(139,115,85,0.08)' },
+    { name: 'Отброс общества',  minPoints: ELO_BASELINE + 1500, stake: 50,  penalty: 50,  emoji: '🗑️', color: '#B08D57',    borderColor: 'rgba(176,141,87,0.35)',  bgColor: 'rgba(176,141,87,0.08)' },
+    { name: 'Шавка подзаборная',minPoints: ELO_BASELINE + 3000, stake: 100, penalty: 100, emoji: '🐕',  color: '#C9C9CE',    borderColor: 'rgba(201,201,206,0.35)', bgColor: 'rgba(201,201,206,0.08)' },
+    { name: 'Уважаемый тролль', minPoints: ELO_BASELINE + 6000, stake: 200, penalty: 200, emoji: '😏',  color: '#F2B705',    borderColor: 'rgba(242,183,5,0.35)',   bgColor: 'rgba(242,183,5,0.08)' },
+    { name: 'Батя троллей',     minPoints: ELO_BASELINE + 10000,stake: 400, penalty: 400, emoji: '👑',  color: '#5CC8FF',    borderColor: 'rgba(92,200,255,0.35)',  bgColor: 'rgba(92,200,255,0.08)' },
+    { name: 'Рабовладелец',     minPoints: ELO_BASELINE + 15000,stake: 800, penalty: 800, emoji: '⛓️', color: 'var(--live)', borderColor: 'rgba(var(--live-rgb),0.35)', bgColor: 'rgba(var(--live-rgb),0.1)' }
   ];
   window.LEAGUES = LEAGUES;
   window.getLeague = function(points) {
@@ -6038,7 +6052,7 @@
   // в отличие от getLeague (всегда возвращает хотя бы первую лигу — это
   // просто косметический тег "твой лучший ранг") здесь строгая проверка:
   // лига открыта на выбор для конкретного боя только если трофеев хватает
-  // на её порог — при 0 трофеях не хватает даже на первую лигу.
+  // на её порог (у первой лиги порог 0 — она открыта всегда).
   window.isLeagueUnlocked = function(points, league) {
     return Number(points || 0) >= league.minPoints;
   };
