@@ -806,7 +806,9 @@
   }
   .section-label:first-child{ margin-top:0; }
 
-  /* league ladder */
+  /* league ladder — выбор лиги перед рейтинговым боем: чем выше лига, тем
+     больше нужно уже накопленных трофеев, чтобы её открыть, и тем больше
+     ставка на бой в ней (см. рендер в renderLeaguePicker) */
   .league-row{
     display:flex;
     align-items:center;
@@ -816,9 +818,11 @@
     border: 1px solid var(--line);
     border-radius: 12px;
     margin-bottom: 8px;
+    cursor:pointer;
   }
   .league-row.current{ border-color: var(--gold); background: linear-gradient(155deg, rgba(var(--gold-rgb),0.08), var(--panel)); }
   .league-row.major{ border-color: var(--live); background: linear-gradient(155deg, rgba(var(--live-rgb),0.1), var(--panel)); }
+  .league-row.locked{ opacity:0.5; cursor:not-allowed; }
   .league-dot{ width:10px; height:10px; border-radius:50%; flex-shrink:0; }
   .league-row:nth-child(1) .league-dot{ background:#B08D57; }
   .league-row:nth-child(2) .league-dot{ background:#C9C9CE; }
@@ -826,6 +830,8 @@
   .league-row.major .league-dot{ background: var(--live); }
   .league-name{ font-size:14px; font-weight:600; flex:1; }
   .league-range{ font-size:11.5px; color:var(--muted); }
+  .league-stake{ font-size:11.5px; color:var(--gold); font-weight:600; text-align:right; white-space:nowrap; }
+  .league-row.locked .league-stake{ color:var(--muted); }
 
   .stat-line{
     display:flex;
@@ -852,6 +858,7 @@
     cursor:pointer;
     margin-top: 6px;
   }
+  .sheet-cta:disabled{ opacity:0.4; cursor:not-allowed; }
   .sheet-cta.secondary{
     background: var(--panel);
     color: var(--text);
@@ -1616,7 +1623,7 @@
           </div>
           <div class="body">
             <div class="title">Рейтинговый бой</div>
-            <div class="desc">Случайный соперник онлайн — победа и поражение влияют на рейтинг</div>
+            <div class="desc">Случайный соперник онлайн — выбери лигу и сыграй на ставку трофеями</div>
           </div>
           <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
         </div>
@@ -1651,7 +1658,7 @@
       <div class="sheet-view" data-view="rating-queue">
         <div id="rq-idle">
           <p style="color:var(--muted); font-size:13.5px; line-height:1.5; margin-bottom:16px;">
-            Встанешь в очередь — как только рядом окажется ещё один игрок в поиске, баттл начнётся автоматически. Победа и поражение изменят твой рейтинг.
+            Выбери лигу — у каждой своя ставка трофеями на бой. Дальше встанешь в очередь и найдёшь соперника, который выбрал ту же лигу: победа приносит ставку, поражение её списывает.
           </p>
 
           <!-- видно только admin/moderator/superadmin — фейковый мгновенный
@@ -1667,7 +1674,11 @@
             <button type="button" class="sheet-cta secondary" id="btn-demo-bot-config" style="margin-top:0; padding:10px; font-size:12.5px;">⚙️ Настроить тренировочного бота</button>
           </div>
 
-          <button class="sheet-cta" id="btn-start-rating-queue">Искать соперника</button>
+          <div class="section-label" style="margin-top:0;">Выбери лигу — ставка на бой</div>
+          <div id="rq-league-list" style="margin-bottom:6px;"></div>
+          <div id="rq-league-error" style="display:none; color:var(--live); font-size:12.5px; margin-bottom:10px;"></div>
+
+          <button class="sheet-cta" id="btn-start-rating-queue" disabled>Искать соперника</button>
 
           <p style="color:var(--muted); font-size:12.5px; line-height:1.5; margin:14px 0 10px;">
             Или посуди уже идущий бой — послушаешь баттл и в конце выберешь победителя.
@@ -2028,6 +2039,7 @@
     el.addEventListener('click', () => showView(el.dataset.goto));
   });
   document.querySelector('[data-goto="friend-mode"]')?.addEventListener('click', loadFriendModeList);
+  document.querySelector('[data-goto="rating-queue"]')?.addEventListener('click', () => renderLeaguePicker());
 
   // ===== баттл с другом — реальная логика через Firebase =====
   function generateRoomCode() {
@@ -2268,7 +2280,7 @@
       if (typeof delta === 'number' && delta !== 0) {
         pointsEl.style.display = 'block';
         pointsEl.style.color = delta > 0 ? 'var(--gold)' : 'var(--live)';
-        pointsEl.textContent = (delta > 0 ? '+' : '') + delta + ' pts';
+        pointsEl.textContent = (delta > 0 ? '+' : '') + delta + ' 🏆';
       } else {
         pointsEl.style.display = 'none';
       }
@@ -2550,12 +2562,18 @@
     const likesSnap = await db.ref('battles/' + code + '/audienceLikes').once('value');
     const likes = likesSnap.val() || {};
     const pointsAwarded = {};
+    // рейтинговый бой с выбранной лигой (см. startRatingQueue) — трофеи
+    // считаются не через ELO, а фиксированной ставкой этой лиги: победа
+    // +ставка, поражение -ставка, симметрично. Без лиги (старые бои в
+    // процессе на момент обновления, либо кто-то как-то попал в судейство
+    // не через рейтинговую очередь) — прежний ELO-обмен, как страховка.
+    const leagueStake = battle.league ? LEAGUES.find((l) => l.name === battle.league)?.stake : null;
     if (winnerId && loserId) {
-      const delta = await computeEloDelta(winnerId, loserId);
+      const delta = leagueStake != null ? leagueStake : await computeEloDelta(winnerId, loserId);
       pointsAwarded[winnerId] = delta;
       pointsAwarded[loserId] = -delta;
     } else if (winnerId) {
-      pointsAwarded[winnerId] = ELO_K / 2; // соперник не определён — крайний случай, не должен встречаться в норме
+      pointsAwarded[winnerId] = leagueStake != null ? leagueStake : ELO_K / 2; // соперник не определён — крайний случай, не должен встречаться в норме
     }
     const audienceVotes = {};
     if (battle.hostId) audienceVotes[battle.hostId] = likes.host || 0;
@@ -3007,6 +3025,63 @@
     document.getElementById('rq-waiting').style.display = 'none';
   }
 
+  // ===== выбор лиги перед рейтинговым боем =====
+  // Лига — не просто косметический тег, а конкретная ставка трофеями
+  // (LEAGUES[i].stake, см. ниже) на этот бой: победа даёт +ставку,
+  // поражение — -ставку. Открыта на выбор только та лига, чьих трофеев
+  // (points) у игрока уже хватает — на 0 трофеях недоступна ни одна,
+  // даже первая (см. window.isLeagueUnlocked). Выбор хранится тут же,
+  // startRatingQueue() читает selectedLeague при постановке в очередь.
+  let selectedLeague = null;
+  function rqLeagueShowError(msg) {
+    const el = document.getElementById('rq-league-error');
+    if (!el) return;
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+  function renderLeaguePicker() {
+    const myPoints = Number(window.currentPlayer?.points || 0);
+    const listEl = document.getElementById('rq-league-list');
+    const startBtn = document.getElementById('btn-start-rating-queue');
+    const errorEl = document.getElementById('rq-league-error');
+    if (!listEl || !startBtn) return;
+    selectedLeague = null;
+    startBtn.disabled = true;
+    if (errorEl) errorEl.style.display = 'none';
+    listEl.innerHTML = LEAGUES.map((league) => {
+      const unlocked = window.isLeagueUnlocked(myPoints, league);
+      const rangeText = unlocked
+        ? `От ${league.minPoints.toLocaleString('ru-RU')} 🏆`
+        : `Нужно ${league.minPoints.toLocaleString('ru-RU')} 🏆, чтобы открыть`;
+      const stakeText = unlocked ? `Ставка<br>${league.stake} 🏆` : '🔒';
+      return `
+        <div class="league-row${unlocked ? '' : ' locked'}" data-name="${escapeHtml(league.name)}">
+          <div class="league-dot" style="background:${league.color};"></div>
+          <div style="flex:1; min-width:0;">
+            <div class="league-name">${league.emoji} ${escapeHtml(league.name)}</div>
+            <div class="league-range">${rangeText}</div>
+          </div>
+          <div class="league-stake">${stakeText}</div>
+        </div>
+      `;
+    }).join('');
+    listEl.querySelectorAll('.league-row:not(.locked)').forEach((row) => {
+      row.addEventListener('click', () => {
+        const league = LEAGUES.find((l) => l.name === row.dataset.name);
+        if (!league) return;
+        if (myPoints < league.stake) {
+          rqLeagueShowError('Не хватает трофеев на ставку в этой лиге');
+          return;
+        }
+        selectedLeague = league;
+        listEl.querySelectorAll('.league-row').forEach((r) => r.classList.remove('current'));
+        row.classList.add('current');
+        startBtn.disabled = false;
+        if (errorEl) errorEl.style.display = 'none';
+      });
+    });
+  }
+
   // тот, кто "застолбил" соперника/рефери через matchedRoom, пишет
   // battles/<code> вторым отдельным запросом сразу вслед за этим — между
   // двумя write'ами есть реальный сетевой зазор, и слушатель на другой
@@ -3028,13 +3103,23 @@
     const me = window.currentPlayer || { firstName: 'Игрок', playerId: 'guest' };
     const myKey = window.currentTelegramId || me.playerId;
 
+    // выбор лиги обязателен для настоящего рейтингового боя (демо-режим —
+    // тестовый инструмент для admin/moderator, ставок не касается вообще,
+    // см. startDemoMatch) — без него непонятно, какую ставку и на каких
+    // соперников матчить
+    const isDemo = isDemoModeEligible() && rqDemoToggle.classList.contains('on');
+    if (!isDemo && !selectedLeague) {
+      rqLeagueShowError('Выбери лигу, чтобы встать в очередь');
+      return;
+    }
+
     document.getElementById('rq-idle').style.display = 'none';
     document.getElementById('rq-waiting').style.display = 'block';
     document.getElementById('rq-waiting-label').textContent = 'Ищем соперника…';
     warpOverlayEl.classList.add('open');
     startWarpAnimation();
 
-    if (isDemoModeEligible() && rqDemoToggle.classList.contains('on')) {
+    if (isDemo) {
       return startDemoMatch(me);
     }
 
@@ -3042,8 +3127,11 @@
       const QUEUE_STALE_MS = 2 * 60 * 1000; // подстраховка на случай, если onDisconnect не сработал
       const queueSnap = await db.ref('queue').once('value');
       const all = queueSnap.val() || {};
+      // матчим только внутри той же лиги — иначе ставка на бой была бы
+      // непонятно чья (у каждой лиги своя сумма, см. LEAGUES[i].stake)
       const opponentKey = Object.keys(all).find(k =>
-        k !== myKey && all[k] && !all[k].matchedRoom && (Date.now() - (all[k].joinedAt || 0)) < QUEUE_STALE_MS);
+        k !== myKey && all[k] && !all[k].matchedRoom && all[k].league === selectedLeague.name &&
+        (Date.now() - (all[k].joinedAt || 0)) < QUEUE_STALE_MS);
 
       if (opponentKey) {
         // нашли свободного соперника — сразу создаём комнату на двоих
@@ -3066,6 +3154,8 @@
           guestName: opponent.firstName,
           status: 'active',
           rated: true,
+          league: selectedLeague.name,
+          stake: selectedLeague.stake,
           createdAt: Date.now()
         };
         await db.ref('battles/' + code).set(battleData);
@@ -3092,6 +3182,7 @@
           playerId: me.playerId,
           firstName: me.firstName,
           points: me.points || 0,
+          league: selectedLeague.name,
           matchedRoom: null,
           joinedAt: Date.now()
         });
@@ -3711,8 +3802,8 @@
           <div class="balance-value" id="profile-stars">0 <span class="unit">⭐</span></div>
         </div>
         <div class="balance-card points">
-          <div class="balance-label">Баланс поинтов</div>
-          <div class="balance-value" id="profile-points">0 <span class="unit">pts</span></div>
+          <div class="balance-label">Трофеи</div>
+          <div class="balance-value" id="profile-points">0 <span class="unit">🏆</span></div>
         </div>
       </div>
 
@@ -3793,7 +3884,7 @@
         <div class="profile-avatar" style="width:34px; height:34px; font-size:13px; flex-shrink:0;${user.avatarData ? ` background-image:url(${user.avatarData}); background-size:cover; background-position:center; color:transparent;` : ''}">${escapeHtml((user.firstName || '??').slice(0, 2).toUpperCase())}</div>
         <div style="flex:1; min-width:0;">
           <div style="font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(user.firstName || 'Игрок')}</div>
-          <div style="font-size:11px; color:var(--muted);">${Number(user.points || 0).toLocaleString('ru-RU')} pts</div>
+          <div style="font-size:11px; color:var(--muted);">${Number(user.points || 0).toLocaleString('ru-RU')} 🏆</div>
         </div>
         <button type="button" class="community-remove-friend" data-key="${key}" style="background:none; border:none; color:var(--muted); font-size:18px; line-height:1; cursor:pointer; padding:4px 8px;">✕</button>
       </div>
@@ -4659,13 +4750,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.4.2 · pre-alpha (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.4.3 · pre-alpha (LiveKit-ветка)</div>
         Внутренний тест · обновлено 06.09.2026<br>
-        <span style="font-size:11px;">Интерфейс подтянут к паттернам Telegram (свои цвета оставлены): Настройки сгруппированы в карточки вместо разрозненных строк, у Профиля крупная шапка-баннер с копированием кода в один тап, вкладки Сообщества и Кланов — пилюли со счётчиком вместо кнопок в ряд.</span>
+        <span style="font-size:11px;">"Баланс поинтов" переименован в "Трофеи" (🏆). Лиги теперь выбираются вручную перед рейтинговым боем — у каждой своя ставка трофеями, лиги открываются по мере накопления трофеев, при 0 трофеев недоступна ни одна. Победа приносит ставку выбранной лиги, поражение её списывает; соперник ищется среди тех, кто выбрал ту же лигу.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.4.2 — интерфейс подтянут к паттернам Telegram: карточки в Настройках, шапка-баннер в Профиле, пилюли-вкладки со счётчиком<br>
           v0.4.1 — чинит "одобрил заявку, а всё равно не пускает" на закрытом бета-тесте<br>
           v0.4.0 — закрытый бета-тест: заявка вместо мгновенного создания аккаунта<br>
           v0.3.9 — режим обслуживания и аварийный режим (обе стороны — index.html и панель)<br>
@@ -5511,7 +5603,7 @@
         else { homeAvatar.style.backgroundImage = ''; homeAvatar.textContent = name.slice(0, 2).toUpperCase(); }
       }
       document.getElementById('profile-stars').innerHTML = `${Number(userData.starsBalance || 0).toLocaleString('ru-RU')} <span class="unit">⭐</span>`;
-      document.getElementById('profile-points').innerHTML = `${Number(userData.points || 0).toLocaleString('ru-RU')} <span class="unit">pts</span>`;
+      document.getElementById('profile-points').innerHTML = `${Number(userData.points || 0).toLocaleString('ru-RU')} <span class="unit">🏆</span>`;
 
       const myLeague = window.getLeague(userData.points || 0);
       const leagueTag = document.querySelector('.profile-league-tag');
@@ -5558,7 +5650,11 @@
         const result=m.refereeId===me?'Рефери':(m.winnerId===me?'Победа':(m.loserId===me?'Поражение':'Матч'));
         const opp=(m.hostId===me?m.guestName:(m.guestId===me?m.hostName:''))||'Соперник';
         const date=m.finishedAt?new Date(m.finishedAt).toLocaleDateString('ru-RU'):'';
-        return `<div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;gap:10px;"><div><div style="font-size:13px;font-weight:600;">${result} · ${window.escapeHtml(opp)}</div><div style="font-size:10.5px;color:var(--muted);">${date}</div></div><div style="font-family:'Bebas Neue',sans-serif;font-size:16px;">${m.pointsAwarded?.[me] ? '+'+m.pointsAwarded[me]+' pts':''}</div></div>`;
+        const awarded = m.pointsAwarded?.[me];
+        // раньше тут было "'+'+awarded" без проверки знака — на поражении
+        // (awarded отрицательный) это склеивалось в "+-30 🏆" вместо "-30 🏆"
+        const awardedText = typeof awarded === 'number' && awarded !== 0 ? (awarded > 0 ? '+' : '') + awarded + ' 🏆' : '';
+        return `<div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;gap:10px;"><div><div style="font-size:13px;font-weight:600;">${result} · ${window.escapeHtml(opp)}</div><div style="font-size:10.5px;color:var(--muted);">${date}</div></div><div style="font-family:'Bebas Neue',sans-serif;font-size:16px;">${awardedText}</div></div>`;
       }).join('');
     }
     window.renderMatchList = renderMatchList;
@@ -5915,20 +6011,36 @@
   // оскорбление в названии, а после середины таблицы тон разворачивается в
   // уважительный и на самых верхних лигах становится откровенно
   // комплементарным ("Батя троллей", "Рабовладелец" — высшая лига).
+  // stake — ставка трофеями за один рейтинговый бой в этой лиге: сколько
+  // теряешь при поражении, столько же получаешь при победе (симметрично,
+  // как и сам ELO-обмен выше). Выбирается игроком вручную перед поиском
+  // соперника (см. renderLeaguePicker) — лига открыта на выбор, только
+  // если общих трофеев (points) уже хватает на её minPoints; 0 трофеев
+  // не хватает даже на первую лигу (её minPoints — тот же ELO_BASELINE,
+  // с которого стартует новый аккаунт, см. createUser ниже), поэтому
+  // "нет трофеев вообще" = ни одна лига не доступна.
   const LEAGUES = [
-    { name: 'Сын шлюхи',        minPoints: ELO_BASELINE,        emoji: '💀',  color: '#6B4226',    borderColor: 'rgba(107,66,38,0.35)',   bgColor: 'rgba(107,66,38,0.08)' },
-    { name: 'Говно из-под коня',minPoints: ELO_BASELINE + 500,  emoji: '💩',  color: '#8B7355',    borderColor: 'rgba(139,115,85,0.35)',  bgColor: 'rgba(139,115,85,0.08)' },
-    { name: 'Отброс общества',  minPoints: ELO_BASELINE + 1500, emoji: '🗑️', color: '#B08D57',    borderColor: 'rgba(176,141,87,0.35)',  bgColor: 'rgba(176,141,87,0.08)' },
-    { name: 'Шавка подзаборная',minPoints: ELO_BASELINE + 3000, emoji: '🐕',  color: '#C9C9CE',    borderColor: 'rgba(201,201,206,0.35)', bgColor: 'rgba(201,201,206,0.08)' },
-    { name: 'Уважаемый тролль', minPoints: ELO_BASELINE + 6000, emoji: '😏',  color: '#F2B705',    borderColor: 'rgba(242,183,5,0.35)',   bgColor: 'rgba(242,183,5,0.08)' },
-    { name: 'Батя троллей',     minPoints: ELO_BASELINE + 10000,emoji: '👑',  color: '#5CC8FF',    borderColor: 'rgba(92,200,255,0.35)',  bgColor: 'rgba(92,200,255,0.08)' },
-    { name: 'Рабовладелец',     minPoints: ELO_BASELINE + 15000,emoji: '⛓️', color: 'var(--live)', borderColor: 'rgba(var(--live-rgb),0.35)', bgColor: 'rgba(var(--live-rgb),0.1)' }
+    { name: 'Сын шлюхи',        minPoints: ELO_BASELINE,        stake: 10,  emoji: '💀',  color: '#6B4226',    borderColor: 'rgba(107,66,38,0.35)',   bgColor: 'rgba(107,66,38,0.08)' },
+    { name: 'Говно из-под коня',minPoints: ELO_BASELINE + 500,  stake: 25,  emoji: '💩',  color: '#8B7355',    borderColor: 'rgba(139,115,85,0.35)',  bgColor: 'rgba(139,115,85,0.08)' },
+    { name: 'Отброс общества',  minPoints: ELO_BASELINE + 1500, stake: 50,  emoji: '🗑️', color: '#B08D57',    borderColor: 'rgba(176,141,87,0.35)',  bgColor: 'rgba(176,141,87,0.08)' },
+    { name: 'Шавка подзаборная',minPoints: ELO_BASELINE + 3000, stake: 100, emoji: '🐕',  color: '#C9C9CE',    borderColor: 'rgba(201,201,206,0.35)', bgColor: 'rgba(201,201,206,0.08)' },
+    { name: 'Уважаемый тролль', minPoints: ELO_BASELINE + 6000, stake: 200, emoji: '😏',  color: '#F2B705',    borderColor: 'rgba(242,183,5,0.35)',   bgColor: 'rgba(242,183,5,0.08)' },
+    { name: 'Батя троллей',     minPoints: ELO_BASELINE + 10000,stake: 400, emoji: '👑',  color: '#5CC8FF',    borderColor: 'rgba(92,200,255,0.35)',  bgColor: 'rgba(92,200,255,0.08)' },
+    { name: 'Рабовладелец',     minPoints: ELO_BASELINE + 15000,stake: 800, emoji: '⛓️', color: 'var(--live)', borderColor: 'rgba(var(--live-rgb),0.35)', bgColor: 'rgba(var(--live-rgb),0.1)' }
   ];
+  window.LEAGUES = LEAGUES;
   window.getLeague = function(points) {
     const p = Number(points || 0);
     let result = LEAGUES[0];
     for (const league of LEAGUES) { if (p >= league.minPoints) result = league; }
     return result;
+  };
+  // в отличие от getLeague (всегда возвращает хотя бы первую лигу — это
+  // просто косметический тег "твой лучший ранг") здесь строгая проверка:
+  // лига открыта на выбор для конкретного боя только если трофеев хватает
+  // на её порог — при 0 трофеях не хватает даже на первую лигу.
+  window.isLeagueUnlocked = function(points, league) {
+    return Number(points || 0) >= league.minPoints;
   };
 
   // "2026-08" и т.п. — ключ текущего месяца для сезонного топа игроков.
@@ -5969,7 +6081,7 @@
       // ни одного боя в этом месяце) — начинаем месячный счёт заново
       const monthlyBase=(u.monthlyPeriod===currentMonth) ? Number(u.monthlyPoints||0) : 0;
       const update={};
-      update['users/'+key+'/points']=Number(u.points||0)+delta;
+      update['users/'+key+'/points']=Math.max(0, Number(u.points||0)+delta); // трофеи не уходят в минус
       update['users/'+key+'/monthlyPoints']=monthlyBase+delta;
       update['users/'+key+'/monthlyPeriod']=currentMonth;
       update['users/'+key+'/stats/battles']=Number(stats.battles||0)+1;
