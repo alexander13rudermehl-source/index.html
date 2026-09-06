@@ -1556,6 +1556,7 @@
           <div class="event-banner-title" id="event-banner-popup-title"></div>
           <div class="event-banner-desc" id="event-banner-popup-desc"></div>
           <button class="event-claim-btn" id="event-claim-btn-popup">🎁 Забрать значок</button>
+          <button class="event-claim-btn" id="event-claim-mult-btn-popup">🎫 Забрать множитель</button>
         </div>
       </div>
     </div>
@@ -1590,6 +1591,7 @@
             <div class="event-banner-title" id="event-banner-mini-title"></div>
             <div class="event-banner-desc" id="event-banner-mini-desc"></div>
             <button class="event-claim-btn" id="event-claim-btn-mini">🎁 Забрать значок</button>
+            <button class="event-claim-btn" id="event-claim-mult-btn-mini">🎫 Забрать множитель</button>
           </div>
         </div>
 
@@ -2573,9 +2575,11 @@
     // как-то попал в судейство не через рейтинговую очередь) — прежний
     // ELO-обмен, как страховка.
     const league = battle.league ? LEAGUES.find((l) => l.name === battle.league) : null;
-    // множитель применяется только к выигрышу — иначе "буст" в дни ивента
-    // заодно бил бы и по проигравшим, что превращает праздник в наказание
-    const trophyMultiplier = league ? await window.computeActiveTrophyMultiplier() : 1;
+    // билет-множитель сжигается у победителя (и только у него — проигрыш
+    // билет не трогает) прямо здесь, при объявлении победителя, а не
+    // заранее при постановке в очередь — до этого момента ещё неизвестно,
+    // выиграет ли игрок вообще
+    const trophyMultiplier = (league && winnerId) ? await window.consumeMultiplierTicket(winnerId) : 1;
     if (winnerId && loserId) {
       if (league) {
         pointsAwarded[winnerId] = league.stake * trophyMultiplier;
@@ -3062,10 +3066,10 @@
     selectedLeague = null;
     startBtn.disabled = true;
     if (errorEl) errorEl.style.display = 'none';
-    const trophyMultiplier = await window.computeActiveTrophyMultiplier();
+    const trophyMultiplier = await window.getMyActiveMultiplierPreview();
     if (bannerEl) {
       if (trophyMultiplier > 1) {
-        bannerEl.textContent = `🔥 Сейчас идёт множитель x${trophyMultiplier} — трофеи за победу начисляются в ${trophyMultiplier} раз больше!`;
+        bannerEl.textContent = `🎫 У тебя есть билет x${trophyMultiplier} — следующая победа спишет его и даст трофеев в ${trophyMultiplier} раз больше!`;
         bannerEl.style.display = 'block';
       } else {
         bannerEl.style.display = 'none';
@@ -4783,13 +4787,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.4.6 · pre-alpha (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.4.7 · pre-alpha (LiveKit-ветка)</div>
         Внутренний тест · обновлено 06.09.2026<br>
-        <span style="font-size:11px;">Множители трофеев (x2–x10): админ заводит их на определённые даты/месяцы из панели "Ивент" → "Множитель трофеев", можно сразу несколько на разные периоды. Пока хоть один активен — победа в рейтинговом бою даёт трофеев в N раз больше (на поражение не влияет), в выборе лиги перед боем появляется плашка и уже умноженные цифры наград.</span>
+        <span style="font-size:11px;">Переделал множители трофеев (x2–x10) в билеты: теперь их видно кнопкой "🎫 Забрать множитель" прямо на ивенте (там же, где значок за участие), билет одноразовый — следующая победа в рейтинговом бою сжигает его и множит награду, на поражение не влияет. Прошлая версия (общий множитель на даты без кнопки) убрана.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.4.6 — множители трофеев (x2–x10) как отдельный ивент на даты (заменено в v0.4.7 на билеты)<br>
           v0.4.5 — пороги лиг синхронизированы с пресс-релизом Тролль-Бота (0/500/1500/3000/6000/10000/15000)<br>
           v0.4.4 — первая лига всегда открыта и бесплатна, иначе при 0 трофеев играть не с чего<br>
           v0.4.3 — "Баланс поинтов" → "Трофеи" (🏆), лиги выбираются вручную перед боем, у каждой своя ставка<br>
@@ -5898,6 +5903,44 @@
     });
   }
 
+  // Множитель трофеев за участие в ивенте — работает как одноразовый
+  // билет, а не как значок: игрок жмёт кнопку и получает в инвентарь
+  // users/<uid>/multiplierTickets/<ticketId> = {value, eventId, claimedAt}.
+  // Взять с одного и того же ивента можно только раз — это отмечается
+  // отдельно в users/<uid>/claimedMultiplierEvents/<eventId>, потому что
+  // (в отличие от значка) сам факт владения тикетом со значением N не
+  // говорит, с какого ивента он был получен, — тикет тратится и исчезает
+  // при следующей победе (см. consumeMultiplierTicket), а отметка "уже
+  // забирал" должна остаться навсегда, чтобы нельзя было получить второй
+  // билет с того же ивента после того как первый израсходован.
+  function renderEventMultiplierClaimButton(ev, eventId, btnEl){
+    if(!btnEl) return;
+    if(!ev || !ev.multiplier || !window.currentTelegramId || !eventId){
+      btnEl.classList.remove('show', 'claimed');
+      return;
+    }
+    btnEl.classList.add('show');
+    db.ref('users/' + window.currentTelegramId + '/claimedMultiplierEvents/' + eventId).once('value').then((snap) => {
+      if(snap.val()){
+        btnEl.classList.add('claimed');
+        btnEl.textContent = `✅ Билет x${ev.multiplier} получен`;
+        btnEl.onclick = null;
+      } else {
+        btnEl.classList.remove('claimed');
+        btnEl.textContent = `🎫 Забрать множитель x${ev.multiplier}`;
+        btnEl.onclick = () => {
+          const updates = {};
+          const ticketRef = db.ref('users/' + window.currentTelegramId + '/multiplierTickets').push();
+          updates['users/' + window.currentTelegramId + '/multiplierTickets/' + ticketRef.key] = { value: ev.multiplier, eventId, claimedAt: Date.now() };
+          updates['users/' + window.currentTelegramId + '/claimedMultiplierEvents/' + eventId] = true;
+          db.ref().update(updates).then(() => {
+            renderEventMultiplierClaimButton(ev, eventId, btnEl);
+          }).catch((err) => window.showDebugError?.('Забрать множитель ивента', err));
+        };
+      }
+    });
+  }
+
   function fillEventBanner(ev, prefix){
     document.getElementById(prefix + '-title').textContent = ev.title || '';
     document.getElementById(prefix + '-desc').textContent = ev.description || '';
@@ -5921,7 +5964,8 @@
           <div class="event-banner-tag">ИВЕНТ</div>
           <div class="event-banner-title"></div>
           <div class="event-banner-desc"></div>
-          <button class="event-claim-btn">🎁 Забрать значок</button>
+          <button class="event-claim-btn event-claim-badge-btn">🎁 Забрать значок</button>
+          <button class="event-claim-btn event-claim-mult-btn">🎫 Забрать множитель</button>
         </div>
       </div>
     `).join('');
@@ -5931,7 +5975,8 @@
       card.querySelector('.event-banner-desc').textContent = ev.description || '';
       const imgEl = card.querySelector('.event-banner-img');
       if(ev.imageData){ imgEl.src = ev.imageData; imgEl.style.display = ''; }
-      renderEventClaimButton(ev, card.querySelector('.event-claim-btn'));
+      renderEventClaimButton(ev, card.querySelector('.event-claim-badge-btn'));
+      renderEventMultiplierClaimButton(ev, id, card.querySelector('.event-claim-mult-btn'));
     });
   }
 
@@ -5955,10 +6000,12 @@
       fillEventBanner(ev, 'event-banner-popup');
       eventBannerPopupEl.classList.add('show');
       renderEventClaimButton(ev, document.getElementById('event-claim-btn-popup'));
+      renderEventMultiplierClaimButton(ev, id, document.getElementById('event-claim-mult-btn-popup'));
 
       fillEventBanner(ev, 'event-banner-mini');
       eventBannerMiniEl.classList.add('show');
       renderEventClaimButton(ev, document.getElementById('event-claim-btn-mini'));
+      renderEventMultiplierClaimButton(ev, id, document.getElementById('event-claim-mult-btn-mini'));
 
       // попап всплывает один раз на конкретный ивент — если игрок его уже
       // закрывал, при следующем заходе (или пока сидит в приложении) он не
@@ -6084,27 +6131,45 @@
     return Number(points || 0) >= league.minPoints;
   };
 
-  // Множители трофеев ("иксы") — заводятся из админ-панели (вкладка
-  // "Ивент" → "Множитель трофеев", multiplierEvents/<id> в базе) на
-  // конкретные даты вперёд, чтобы игроки в эти дни/месяцы получали за
-  // победы в N раз больше трофеев и быстрее продвигались по лигам.
-  // Можно завести сразу несколько на разные периоды — если попадает
-  // сразу несколько активных, берём наибольший, а не перемножаем их
-  // (иначе x5 и x3 разом дали бы нелепый x15).
-  window.computeActiveTrophyMultiplier = async function() {
+  // Множители трофеев ("билеты") — забираются кнопкой на ивенте (см.
+  // renderEventMultiplierClaimButton), одноразовые: следующая победа в
+  // рейтинговом бою сжигает ровно один билет и множит награду за неё.
+  // Билетов может накопиться несколько (с разных ивентов) — при
+  // сжигании берём тот, что с наибольшим значением, раз он всё равно
+  // одноразовый и терять его на слабом множителе не имеет смысла.
+  //
+  // getMyActiveMultiplierPreview — только читает, ничего не тратит:
+  // нужна экрану выбора лиги, чтобы заранее показать "у тебя есть билет
+  // x3" и умноженные цифры наград, не сжигая билет раньше времени.
+  window.getMyActiveMultiplierPreview = async function() {
+    if (!window.currentTelegramId) return 1;
     try {
-      const snap = await db.ref('multiplierEvents').once('value');
-      const all = snap.val() || {};
-      const now = Date.now();
-      let best = 1;
-      Object.values(all).forEach((m) => {
-        if (m && m.startAt && m.endAt && now >= m.startAt && now <= m.endAt && Number(m.multiplier) > best) {
-          best = Number(m.multiplier);
-        }
-      });
-      return best;
+      const snap = await db.ref('users/' + window.currentTelegramId + '/multiplierTickets').once('value');
+      const tickets = snap.val();
+      if (!tickets) return 1;
+      return Object.values(tickets).reduce((best, t) => Math.max(best, Number(t?.value) || 1), 1);
     } catch (err) {
-      window.showDebugError?.('Множитель трофеев', err);
+      return 1;
+    }
+  };
+  // consumeMultiplierTicket — реально тратит билет победителя (playerId,
+  // не telegramId — см. winnerId в refereeDeclareWinner) и возвращает его
+  // значение, либо 1, если билетов нет вообще.
+  window.consumeMultiplierTicket = async function(playerId) {
+    if (!playerId) return 1;
+    try {
+      const q = await db.ref('users').orderByChild('playerId').equalTo(playerId).once('value');
+      if (!q.exists()) return 1;
+      const key = Object.keys(q.val())[0];
+      const ticketsSnap = await db.ref('users/' + key + '/multiplierTickets').once('value');
+      const tickets = ticketsSnap.val();
+      if (!tickets) return 1;
+      const entries = Object.entries(tickets).sort((a, b) => (Number(b[1]?.value) || 0) - (Number(a[1]?.value) || 0));
+      const [ticketId, ticket] = entries[0];
+      await db.ref('users/' + key + '/multiplierTickets/' + ticketId).remove();
+      return Number(ticket?.value) || 1;
+    } catch (err) {
+      window.showDebugError?.('Списание билета множителя', err);
       return 1;
     }
   };
