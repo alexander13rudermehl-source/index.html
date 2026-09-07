@@ -1,0 +1,186 @@
+{
+  "-P0qxxHYTbNUNeeDOSXt" : {
+    "createdAt" : 1788702348441,
+    "firstName" : "♱прекрасен как Ии$у$♱",
+    "log" : "[15:45:41] Голос (LiveKit): токен получен, identity=host-ZZJEF-r2b0r1, serverUrl=wss://zolotaya-kletka-a8kq7ior.livekit.cloud\n[15:45:41] Голос (LiveKit): состояние: connecting\n[15:45:42] Голос (LiveKit): состояние: connected\n[15:45:45] Голос (LiveKit): подключено и микрофон включён",
+    "playerId" : "PLR-A44LA9",
+    "telegramId" : "871656058",
+    "userAgent" : "Mozilla/5.0 (Linux; Android 17; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.7922.200 Mobile Safari/537.36 Telegram-Android/12.10.1 (Samsung SM-S948B; Android 17; SDK 37; HIGH)"
+  },
+  "-P0qxyTRpAnYg8ETZMfT" : {
+    "createdAt" : 1788702353298,
+    "firstName" : "♱прекрасен как Ии$у$♱",
+    "log" : "[15:45:41] Голос (LiveKit): токен получен, identity=host-ZZJEF-r2b0r1, serverUrl=wss://zolotaya-kletka-a8kq7ior.livekit.cloud\n[15:45:41] Голос (LiveKit): состояние: connecting\n[15:45:42] Голос (LiveKit): состояние: connected\n[15:45:45] Голос (LiveKit): подключено и микрофон включён\n[15:45:51] Голос (LiveKit): состояние: disconnected",
+    "playerId" : "PLR-A44LA9",
+    "telegramId" : "871656058",
+    "userAgent" : "Mozilla/5.0 (Linux; Android 17; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.7922.200 Mobile Safari/537.36 Telegram-Android/12.10.1 (Samsung SM-S948B; Android 17; SDK 37; HIGH)"
+  },
+  "-P0r-b2dbCTMO3ZrdWPl" : {
+    "createdAt" : 1788703043803,
+    "firstName" : "♱прекрасен как Ии$у$♱",
+    "log" : "[15:57:20] Забрать множитель ивента: Firebase Database (${JSCORE_VERSION}) INTERNAL ASSERT FAILED: listen() called twice for same path/queryId.",
+    "playerId" : "PLR-A44LA9",
+    "telegramId" : "871656058",
+    "userAgent" : "Mozilla/5.0 (Linux; Android 17; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.7922.200 Mobile Safari/537.36 Telegram-Android/12.10.1 (Samsung SM-S948B; Android 17; SDK 37; HIGH)"
+  },
+  "-P0vcndPE5X9ZesuKlp0" : {
+    "createdAt" : 1788780690230,
+    "firstName" : "♱прекрасен как Ии$у$♱",
+    "log" : "[13:31:24] JS-ошибка: refreshShopAndProfile is not defined",
+    "playerId" : "PLR-A44LA9",
+    "telegramId" : "871656058",
+    "userAgent" : "Mozilla/5.0 (Linux; Android 17; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.7922.200 Mobile Safari/537.36 Telegram-Android/12.10.1 (Samsung SM-S948B; Android 17; SDK 37; HIGH)"
+  },
+  "-P0vdXt1xi15STVKYMtH" : {
+    "createdAt" : 1788780883450,
+    "firstName" : "♱прекрасен как Ии$у$♱",
+    "log" : "[13:31:24] JS-ошибка: refreshShopAndProfile is not defined\n[13:31:32] JS-ошибка: refreshShopAndProfile is not defined\n[13:34:41] JS-ошибка: Script error.",
+    "playerId" : "PLR-A44LA9",
+    "telegramId" : "871656058",
+    "userAgent" : "Mozilla/5.0 (Linux; Android 17; K) Telegram-Android/12.10.1 (Samsung SM-S948B; Android 17; SDK 37; HIGH)"
+  },
+  "-P0vde8J9pxuHNqjL_qn" : {
+    "createdAt" : 1788780913168,
+    "firstName" : "♱прекрасен как Ии$у$♱",
+    "log" : "[13:35:10] Забрать множитель ивента: Firebase Database (${JSCORE_VERSION}) INTERNAL ASSERT FAILED: listen() called twice for same path/queryId.",
+    "playerId" : "PLR-A44LA9",
+    "telegramId" : "871656058",
+    "userAgent" : "Mozilla/5.0 (Linux; Android 17; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.7922.200 Mobile Safari/537.36 Telegram-Android/12.10.1 (Samsung SM-S948B; Android 17; SDK 37; HIGH)"
+  },
+  "-P0vdsd0MAIAk0o4t1Ey" : {
+    "createdAt" : 1788780972475,
+    "firstName" : "Гость",
+    "log" : "[13:36:10] Забрать множитель ивента: Firebase Database (${JSCORE_VERSION}) INTERNAL ASSERT FAILED: listen() called twice for same path/queryId.",
+    "playerId" : "PLR-J3VFUD",
+    "telegramId" : "guest_ntz3jbg",
+    "userAgent" : "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+  },
+  "-P0ve-GvTNLmYIgOMuyr" : {
+    "createdAt" : 1788781003827,
+    "firstName" : "♱прекрасен как Ии$у$♱",
+    "log" : "[13:36:38] Голос (LiveKit): токен получен, identity=host-FJ8AD-qzrsjt, serverUrl=wss://zolotaya-kletka-a8kq7ior.livekit.cloud\n[13:36:38] Голос (LiveKit): состояние: connecting\n[13:36:39] Голос (LiveKit): состояние: connected\n[13:36:41] Голос (LiveKit): подключено и микрофон включён\n[13:36:41] Голос (LiveKit): состояние: disconnected",
+    "playerId" : "PLR-A44LA9",
+    "telegramId" : "871656058",
+    "userAgent" : "Mozilla/5.0 (Linux; Android 17; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.7922.200 Mobile Safari/537.36 Telegram-Android/12.10.1 (Samsung SM-S948B; Android 17; SDK 37; HIGH)"
+  },
+  "-P0ve2ayEe8Ss2XK99mx" : {
+    "createdAt" : 1788781017400,
+    "firstName" : "Гость",
+    "log" : "[13:36:10] Забрать множитель ивента: Firebase Database (${JSCORE_VERSION}) INTERNAL ASSERT FAILED: listen() called twice for same path/queryId.\n[13:36:55] Рейтинговый бой: не удалось застолбить соперника 871656058 — гонка, ищем снова",
+    "playerId" : "PLR-J3VFUD",
+    "telegramId" : "guest_ntz3jbg",
+    "userAgent" : "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+  },
+  "-P0ve41_Viv1sXVbyIqY" : {
+    "createdAt" : 1788781023325,
+    "firstName" : "♱прекрасен как Ии$у$♱",
+    "log" : "[13:36:38] Голос (LiveKit): токен получен, identity=host-FJ8AD-qzrsjt, serverUrl=wss://zolotaya-kletka-a8kq7ior.livekit.cloud\n[13:36:38] Голос (LiveKit): состояние: connecting\n[13:36:39] Голос (LiveKit): состояние: connected\n[13:36:41] Голос (LiveKit): подключено и микрофон включён\n[13:36:41] Голос (LiveKit): состояние: disconnected\n[13:36:57] Рейтинговый бой: matchedRoom=B3XB2, но battles/B3XB2 так и не появился",
+    "playerId" : "PLR-A44LA9",
+    "telegramId" : "871656058",
+    "userAgent" : "Mozilla/5.0 (Linux; Android 17; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.7922.200 Mobile Safari/537.36 Telegram-Android/12.10.1 (Samsung SM-S948B; Android 17; SDK 37; HIGH)"
+  },
+  "-P0ve67C-dFsb3G5R1C-" : {
+    "createdAt" : 1788781031876,
+    "firstName" : "♱прекрасен как Ии$у$♱",
+    "log" : "[13:36:38] Голос (LiveKit): токен получен, identity=host-FJ8AD-qzrsjt, serverUrl=wss://zolotaya-kletka-a8kq7ior.livekit.cloud\n[13:36:38] Голос (LiveKit): состояние: connecting\n[13:36:39] Голос (LiveKit): состояние: connected\n[13:36:41] Голос (LiveKit): подключено и микрофон включён\n[13:36:41] Голос (LiveKit): состояние: disconnected\n[13:36:57] Рейтинговый бой: matchedRoom=B3XB2, но battles/B3XB2 так и не появился\n[13:37:06] Голос (LiveKit): токен получен, identity=host-UR89V-p9pavb, serverUrl=wss://zolotaya-kletka-a8kq7ior.livekit.cloud\n[13:37:06] Голос (LiveKit): состояние: connecting\n[13:37:07] Голос (LiveKit): состояние: connected\n[13:37:08] Голос (LiveKit): получили аудио-трек: elastic-thread\n[13:37:10] Голос (LiveKit): подключено и микрофон включён",
+    "playerId" : "PLR-A44LA9",
+    "telegramId" : "871656058",
+    "userAgent" : "Mozilla/5.0 (Linux; Android 17; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.7922.200 Mobile Safari/537.36 Telegram-Android/12.10.1 (Samsung SM-S948B; Android 17; SDK 37; HIGH)"
+  },
+  "-P0veJAr50k94x2F8JYU" : {
+    "createdAt" : 1788781085359,
+    "firstName" : "♱прекрасен как Ии$у$♱",
+    "log" : "[13:36:38] Голос (LiveKit): токен получен, identity=host-FJ8AD-qzrsjt, serverUrl=wss://zolotaya-kletka-a8kq7ior.livekit.cloud\n[13:36:38] Голос (LiveKit): состояние: connecting\n[13:36:39] Голос (LiveKit): состояние: connected\n[13:36:41] Голос (LiveKit): подключено и микрофон включён\n[13:36:41] Голос (LiveKit): состояние: disconnected\n[13:36:57] Рейтинговый бой: matchedRoom=B3XB2, но battles/B3XB2 так и не появился\n[13:37:06] Голос (LiveKit): токен получен, identity=host-UR89V-p9pavb, serverUrl=wss://zolotaya-kletka-a8kq7ior.livekit.cloud\n[13:37:06] Голос (LiveKit): состояние: connecting\n[13:37:07] Голос (LiveKit): состояние: connected\n[13:37:08] Голос (LiveKit): получили аудио-трек: elastic-thread\n[13:37:10] Голос (LiveKit): подключено и микрофон включён\n[13:38:02] Голос (LiveKit): получили аудио-трек: adaptive-byte",
+    "playerId" : "PLR-A44LA9",
+    "telegramId" : "871656058",
+    "userAgent" : "Mozilla/5.0 (Linux; Android 17; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.7922.200 Mobile Safari/537.36 Telegram-Android/12.10.1 (Samsung SM-S948B; Android 17; SDK 37; HIGH)"
+  },
+  "-P0veOhYaJ38Da-VKml5" : {
+    "createdAt" : 1788781107790,
+    "firstName" : "Гость",
+    "log" : "[13:38:01] Голос (LiveKit): токен получен, identity=referee-UR89V-bekkxn, serverUrl=wss://zolotaya-kletka-a8kq7ior.livekit.cloud\n[13:38:01] Голос (LiveKit): состояние: connecting\n[13:38:02] Голос (LiveKit): состояние: connected\n[13:38:02] Голос (LiveKit): получили аудио-трек: elastic-thread\n[13:38:02] Голос (LiveKit): получили аудио-трек: wireless-topology\n[13:38:02] Голос (LiveKit): подключено и микрофон включён",
+    "playerId" : "PLR-FSJJA5",
+    "telegramId" : "guest_resikz8",
+    "userAgent" : "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+  },
+  "-P0veoYM8N4Dv_4-8iVF" : {
+    "createdAt" : 1788781217729,
+    "firstName" : "Гость",
+    "log" : "[13:38:01] Голос (LiveKit): токен получен, identity=referee-UR89V-bekkxn, serverUrl=wss://zolotaya-kletka-a8kq7ior.livekit.cloud\n[13:38:01] Голос (LiveKit): состояние: connecting\n[13:38:02] Голос (LiveKit): состояние: connected\n[13:38:02] Голос (LiveKit): получили аудио-трек: elastic-thread\n[13:38:02] Голос (LiveKit): получили аудио-трек: wireless-topology\n[13:38:02] Голос (LiveKit): подключено и микрофон включён\n[13:40:13] Голос (LiveKit): состояние: disconnected",
+    "playerId" : "PLR-FSJJA5",
+    "telegramId" : "guest_resikz8",
+    "userAgent" : "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+  },
+  "-P0veq9HZQa2bvLUXt4u" : {
+    "createdAt" : 1788781224522,
+    "firstName" : "♱прекрасен как Ии$у$♱",
+    "log" : "[13:36:38] Голос (LiveKit): токен получен, identity=host-FJ8AD-qzrsjt, serverUrl=wss://zolotaya-kletka-a8kq7ior.livekit.cloud\n[13:36:38] Голос (LiveKit): состояние: connecting\n[13:36:39] Голос (LiveKit): состояние: connected\n[13:36:41] Голос (LiveKit): подключено и микрофон включён\n[13:36:41] Голос (LiveKit): состояние: disconnected\n[13:36:57] Рейтинговый бой: matchedRoom=B3XB2, но battles/B3XB2 так и не появился\n[13:37:06] Голос (LiveKit): токен получен, identity=host-UR89V-p9pavb, serverUrl=wss://zolotaya-kletka-a8kq7ior.livekit.cloud\n[13:37:06] Голос (LiveKit): состояние: connecting\n[13:37:07] Голос (LiveKit): состояние: connected\n[13:37:08] Голос (LiveKit): получили аудио-трек: elastic-thread\n[13:37:10] Голос (LiveKit): подключено и микрофон включён\n[13:38:02] Голос (LiveKit): получили аудио-трек: adaptive-byte\n[13:40:13] Голос (LiveKit): состояние: disconnected",
+    "playerId" : "PLR-A44LA9",
+    "telegramId" : "871656058",
+    "userAgent" : "Mozilla/5.0 (Linux; Android 17; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.7922.200 Mobile Safari/537.36 Telegram-Android/12.10.1 (Samsung SM-S948B; Android 17; SDK 37; HIGH)"
+  },
+  "-P0vfOaDEdN7MFlsGQtj" : {
+    "createdAt" : 1788781369464,
+    "firstName" : "Гость",
+    "log" : "[13:38:01] Голос (LiveKit): токен получен, identity=referee-UR89V-bekkxn, serverUrl=wss://zolotaya-kletka-a8kq7ior.livekit.cloud\n[13:38:01] Голос (LiveKit): состояние: connecting\n[13:38:02] Голос (LiveKit): состояние: connected\n[13:38:02] Голос (LiveKit): получили аудио-трек: elastic-thread\n[13:38:02] Голос (LiveKit): получили аудио-трек: wireless-topology\n[13:38:02] Голос (LiveKit): подключено и микрофон включён\n[13:40:13] Голос (LiveKit): состояние: disconnected\n[13:42:47] JS-ошибка: refreshShopAndProfile is not defined",
+    "playerId" : "PLR-FSJJA5",
+    "telegramId" : "guest_resikz8",
+    "userAgent" : "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+  },
+  "-P0vfa8it2ZvcAXx2EiS" : {
+    "createdAt" : 1788781421087,
+    "firstName" : "♱прекрасен как Ии$у$♱",
+    "log" : "[13:42:38] JS-ошибка: refreshShopAndProfile is not defined",
+    "playerId" : "PLR-A44LA9",
+    "telegramId" : "871656058",
+    "userAgent" : "Mozilla/5.0 (Linux; Android 17; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.7922.200 Mobile Safari/537.36 Telegram-Android/12.10.1 (Samsung SM-S948B; Android 17; SDK 37; HIGH)"
+  },
+  "-P0wClPYEL8sCVrRJ2mn" : {
+    "createdAt" : 1788790379620,
+    "firstName" : "Гость",
+    "log" : "[16:12:57] Забрать множитель ивента: Firebase Database (${JSCORE_VERSION}) INTERNAL ASSERT FAILED: listen() called twice for same path/queryId.",
+    "playerId" : "PLR-RBPKXY",
+    "telegramId" : "guest_xwqovyg",
+    "userAgent" : "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+  },
+  "-P0wPFmNqLbTpW8lH3LA" : {
+    "createdAt" : 1788793653816,
+    "firstName" : "Гость",
+    "log" : "[17:06:29] Голос (LiveKit): токен получен, identity=referee-8N48U-r7ysnm, serverUrl=wss://zolotaya-kletka-a8kq7ior.livekit.cloud\n[17:06:29] Голос (LiveKit): состояние: connecting\n[17:06:29] Голос (LiveKit): состояние: connected\n[17:06:29] Голос (LiveKit): получили аудио-трек: self-healing-grid\n[17:06:30] Голос (LiveKit): подключено и микрофон включён\n[17:07:03] Голос (LiveKit): получили аудио-трек: predictive-blockchain",
+    "playerId" : "PLR-HVGYVD",
+    "telegramId" : "guest_9yn69w7",
+    "userAgent" : "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+  },
+  "-P0wPQGkm7FrPwZARghh" : {
+    "createdAt" : 1788793696757,
+    "firstName" : "Гость",
+    "log" : "[17:07:00] Голос (LiveKit): токен получен, identity=guest-8N48U-o7z2l2, serverUrl=wss://zolotaya-kletka-a8kq7ior.livekit.cloud\n[17:07:00] Голос (LiveKit): состояние: connecting\n[17:07:02] Голос (LiveKit): состояние: connected\n[17:07:02] Голос (LiveKit): получили аудио-трек: self-healing-grid\n[17:07:02] Голос (LiveKit): получили аудио-трек: polyglot-plugin\n[17:07:03] Голос (LiveKit): подключено и микрофон включён",
+    "playerId" : "PLR-HQMR56",
+    "telegramId" : "guest_jt2n2cu",
+    "userAgent" : "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+  },
+  "-P0wPQnvf-MDC2FJSNfk" : {
+    "createdAt" : 1788793698919,
+    "firstName" : "Гость",
+    "log" : "[17:06:22] Голос (LiveKit): токен получен, identity=host-8N48U-qjw0az, serverUrl=wss://zolotaya-kletka-a8kq7ior.livekit.cloud\n[17:06:23] Голос (LiveKit): состояние: connecting\n[17:06:24] Голос (LiveKit): состояние: connected\n[17:06:25] Голос (LiveKit): подключено и микрофон включён\n[17:06:30] Голос (LiveKit): получили аудио-трек: polyglot-plugin\n[17:07:03] Голос (LiveKit): получили аудио-трек: predictive-blockchain",
+    "playerId" : "PLR-KS4BCK",
+    "telegramId" : "guest_fauprsg",
+    "userAgent" : "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+  },
+  "-P0wPh9qwFK6keH6PDsC" : {
+    "createdAt" : 1788793770018,
+    "firstName" : "Гость",
+    "log" : "[17:06:22] Голос (LiveKit): токен получен, identity=host-8N48U-qjw0az, serverUrl=wss://zolotaya-kletka-a8kq7ior.livekit.cloud\n[17:06:23] Голос (LiveKit): состояние: connecting\n[17:06:24] Голос (LiveKit): состояние: connected\n[17:06:25] Голос (LiveKit): подключено и микрофон включён\n[17:06:30] Голос (LiveKit): получили аудио-трек: polyglot-plugin\n[17:07:03] Голос (LiveKit): получили аудио-трек: predictive-blockchain\n[17:08:35] Голос (LiveKit): состояние: disconnected",
+    "playerId" : "PLR-KS4BCK",
+    "telegramId" : "guest_fauprsg",
+    "userAgent" : "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+  },
+  "-P0wQ1KNBp9fM3fwgqOw" : {
+    "createdAt" : 1788793856759,
+    "firstName" : "Гость",
+    "log" : "[17:06:29] Голос (LiveKit): токен получен, identity=referee-8N48U-r7ysnm, serverUrl=wss://zolotaya-kletka-a8kq7ior.livekit.cloud\n[17:06:29] Голос (LiveKit): состояние: connecting\n[17:06:29] Голос (LiveKit): состояние: connected\n[17:06:29] Голос (LiveKit): получили аудио-трек: self-healing-grid\n[17:06:30] Голос (LiveKit): подключено и микрофон включён\n[17:07:03] Голос (LiveKit): получили аудио-трек: predictive-blockchain\n[17:09:12] Голос (LiveKit): состояние: disconnected",
+    "playerId" : "PLR-HVGYVD",
+    "telegramId" : "guest_9yn69w7",
+    "userAgent" : "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+  }
+}
