@@ -4967,7 +4967,7 @@
       <div class="section-label">Аккаунт</div>
       <div class="list-group">
         <div class="plain-row" onclick="alert('→ Управление привязкой Telegram-аккаунта')">
-          <div class="t-label">Telegram-аккаунт</div>
+          <div class="t-label" id="settings-account-label">Telegram-аккаунт</div>
           <div class="t-val" id="settings-account-val">@oleg_leipzig</div>
         </div>
         <div class="plain-row" onclick="alert('→ Язык интерфейса')">
@@ -4976,29 +4976,42 @@
         </div>
       </div>
 
-      <div id="google-account-block" style="background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; margin:0 0 16px;">
+      <!-- показывается только гостю (открыл не из Telegram, своего email ещё
+           не вводил) — явная кнопка "войти", а не тот же блок, что и
+           привязка нового email у настоящего аккаунта (см. ниже) -->
+      <div id="guest-login-block" style="display:none; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; margin:0 0 16px;">
+        <div class="t-label" style="margin-bottom:10px;">Войти в свой аккаунт</div>
+        <input type="email" id="guest-login-email-input" placeholder="твой email" autocomplete="email" style="width:100%; box-sizing:border-box; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; color:var(--text); font-size:13px; margin-bottom:8px;">
+        <button id="btn-guest-login" style="width:100%; background:var(--gold); border:none; color:#fff; border-radius:10px; padding:11px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer;">Войти в аккаунт</button>
+        <div class="t-desc" id="guest-login-status" style="display:none; margin-top:8px; line-height:1.4;"></div>
+        <div class="t-desc" style="margin-top:8px; line-height:1.4;">Если раньше уже привязывал email к своему настоящему аккаунту (в Telegram, Настройки → Аккаунт) — впиши тот же и перейди по ссылке из письма.</div>
+      </div>
+
+      <!-- показывается только настоящему аккаунту (Telegram или уже вошёл
+           по email где-то ещё) — привязка/смена email для входа с других
+           устройств, отдельно от входа гостя выше -->
+      <div id="google-account-block" style="display:none; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; margin:0 0 16px;">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
           <div>
             <div class="t-label">Вход с других устройств</div>
             <div class="t-desc" id="settings-google-val">Не привязан</div>
           </div>
         </div>
-        <button id="btn-google-link" style="width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:11px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer;">Привязать Google</button>
-        <div class="t-desc" style="margin:8px 0; line-height:1.4;">Google внутри Telegram иногда блокируется самим Google (см. выше) — если не сработало, проще способ ниже: письмо со ссылкой на почту, без пароля и без Google.</div>
         <input type="email" id="email-link-input" placeholder="твой email" autocomplete="email" style="width:100%; box-sizing:border-box; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; color:var(--text); font-size:13px; margin-bottom:8px;">
         <button id="btn-email-link-send" style="width:100%; background:var(--gold); border:none; color:#fff; border-radius:10px; padding:11px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer;">Прислать ссылку на почту</button>
         <div class="t-desc" id="email-link-status" style="display:none; margin-top:8px; line-height:1.4;"></div>
-        <div class="t-desc" style="margin-top:8px; line-height:1.4;">Любой из двух способов открывает тот же профиль на компьютере или другом телефоне, зайдя на сайт напрямую в браузере.</div>
+        <div class="t-desc" style="margin-top:8px; line-height:1.4;">Открывает тот же профиль на компьютере или другом телефоне, зайдя на сайт напрямую в браузере — без пароля.</div>
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.4.19 · бета (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.4.20 · бета (LiveKit-ветка)</div>
         Бета-тест · обновлено 07.09.2026<br>
-        <span style="font-size:11px;">"Прислать ссылку на почту" теперь работает и с нового устройства без Telegram (раньше требовала настоящий Telegram-аккаунт даже для входа, а не только для привязки) — если email уже привязан раньше, ссылка из письма сразу войдёт в настоящий аккаунт вместо гостя.</span>
+        <span style="font-size:11px;">Настройки → Аккаунт переработаны: у гостя теперь отдельная явная кнопка "Войти в аккаунт" вместо общего блока привязки, "Привязать Google" убран (email-ссылка его полностью заменяет), а строка аккаунта показывает способ входа (Telegram / Email · браузер), а не всегда "Telegram-аккаунт".</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.4.19 — email-ссылка заработала и с нового устройства без Telegram (вход, не только привязка)<br>
           v0.4.18 — вход с других устройств теперь и по email-ссылке, без пароля и без Google<br>
           v0.4.17 — Магазин чинился без перезагрузки: кнопка "Магазин" была сломана опечаткой<br>
           v0.4.16 — трофеи после боя обновляются у игрока сразу, без перезапуска приложения<br>
@@ -5139,75 +5152,85 @@
     // после релоада страницы тут всегда молча показывалось "Не привязан",
     // даже если аккаунт был давно привязан
     window.updateGoogleAccountUI?.(window.currentPlayer?.googleEmail);
+    window.updateAccountLoginUI?.();
   });
   document.getElementById('settings-close-btn').addEventListener('click', () => settingsOverlay.classList.remove('open'));
   settingsOverlay.addEventListener('click', (e) => { if(e.target === settingsOverlay) settingsOverlay.classList.remove('open'); });
 
-  // ===== привязка Google-аккаунта =====
-  // Даёт возможность открыть тот же профиль в обычном браузере (не из
-  // Telegram) — там signInWithPopup работает нормально, в отличие от
-  // встроенного WebView самого Telegram, где Google его иногда блокирует.
+  // ===== "Аккаунт" в Настройках =====
+  // Раньше тут был отдельный "Привязать Google" (signInWithPopup) — убран:
+  // Google внутри встроенного браузера Telegram блокируется самим Google
+  // (политика безопасности, не наша), а email-ссылка ниже решает ту же
+  // задачу без этой возни. Оставшиеся googleUid/googleEmail — просто
+  // названия полей с прошлого раза, реально в них теперь пишет email-вход.
   function updateGoogleAccountUI(email) {
     const valEl = document.getElementById('settings-google-val');
-    const btn = document.getElementById('btn-google-link');
-    if (!valEl || !btn) return;
+    if (!valEl) return;
     valEl.textContent = email || 'Не привязан';
-    btn.textContent = email ? 'Отвязать Google' : 'Привязать Google';
   }
   window.updateGoogleAccountUI = updateGoogleAccountUI;
 
-  document.getElementById('btn-google-link').addEventListener('click', async () => {
-    const me = window.currentPlayer;
+  // Показываем разное: настоящему аккаунту (Telegram или уже вошёл по
+  // email где-то ещё) — блок "привязать/сменить email" (btn-email-link-send),
+  // гостю — отдельную явную кнопку "Войти в аккаунт" (btn-guest-login) тем
+  // же механизмом, но без linkTelegramId — привязывать гостю нечего,
+  // только входить в то, что уже привязано раньше.
+  function updateAccountLoginUI() {
     const telegramId = window.currentTelegramId;
-    if (!telegramId || telegramId.startsWith('guest_')) {
-      alert('Привязка доступна только внутри Telegram-профиля. Открой приложение через бота.');
-      return;
-    }
+    const isGuest = !!telegramId && telegramId.startsWith('guest_');
+    const guestBlock = document.getElementById('guest-login-block');
+    const attachBlock = document.getElementById('google-account-block');
+    if (guestBlock) guestBlock.style.display = isGuest ? 'block' : 'none';
+    if (attachBlock) attachBlock.style.display = isGuest ? 'none' : 'block';
 
-    if (me?.googleUid) {
-      if (!confirm('Отвязать Google-аккаунт от этого профиля?')) return;
-      try {
-        await db.ref('googleLinks/' + me.googleUid).remove();
-        await db.ref('users/' + telegramId).update({ googleUid: null, googleEmail: null });
-        me.googleUid = null; me.googleEmail = null;
-        updateGoogleAccountUI(null);
-      } catch (err) {
-        console.error(err);
-        alert('Не удалось отвязать аккаунт');
+    const labelEl = document.getElementById('settings-account-label');
+    const valEl = document.getElementById('settings-account-val');
+    if (labelEl && valEl) {
+      if (tgUser) {
+        labelEl.textContent = 'Telegram-аккаунт';
+        valEl.textContent = window.currentPlayer?.username || window.currentPlayer?.playerId || 'PLR-XXXXXX';
+      } else {
+        labelEl.textContent = 'Способ входа';
+        valEl.textContent = (isGuest ? 'Гость · ' : 'Email · ') + detectBrowserName();
       }
-      return;
     }
+  }
+  window.updateAccountLoginUI = updateAccountLoginUI;
 
-    const provider = new firebase.auth.GoogleAuthProvider();
+  function detectBrowserName() {
+    const ua = navigator.userAgent;
+    if (/YaBrowser/.test(ua)) return 'Яндекс.Браузер';
+    if (/EdgA?\//.test(ua)) return 'Edge';
+    if (/OPR\//.test(ua) || /Opera/.test(ua)) return 'Opera';
+    if (/Firefox\//.test(ua)) return 'Firefox';
+    if (/CriOS\//.test(ua)) return 'Chrome (iOS)';
+    if (/Chrome\//.test(ua)) return 'Chrome';
+    if (/Safari\//.test(ua)) return 'Safari';
+    return 'браузер';
+  }
+
+  // ===== вход в аккаунт для гостя (та же email-ссылка, без привязки) =====
+  document.getElementById('btn-guest-login')?.addEventListener('click', async () => {
+    const emailInput = document.getElementById('guest-login-email-input');
+    const email = emailInput.value.trim();
+    const statusEl = document.getElementById('guest-login-status');
+    if (!email || !email.includes('@')) { alert('Впиши email'); return; }
+    const btn = document.getElementById('btn-guest-login');
+    btn.disabled = true;
+    btn.textContent = 'Отправляем…';
     try {
-      const result = await auth.signInWithPopup(provider);
-      const uid = result.user.uid;
-      const email = result.user.email;
-
-      // если этот Google-аккаунт уже привязан к ДРУГОМУ Telegram-профилю —
-      // не перезаписываем чужую привязку молча
-      const existingLinkSnap = await db.ref('googleLinks/' + uid).once('value');
-      const existingTelegramId = existingLinkSnap.val();
-      if (existingTelegramId && existingTelegramId !== telegramId) {
-        alert('Этот Google-аккаунт уже привязан к другому профилю БАТТЛ');
-        await auth.signOut();
-        return;
-      }
-
-      await db.ref('users/' + telegramId).update({ googleUid: uid, googleEmail: email });
-      await db.ref('googleLinks/' + uid).set(telegramId);
-      if (me) { me.googleUid = uid; me.googleEmail = email; }
-      updateGoogleAccountUI(email);
-      alert('Google-аккаунт привязан: ' + email);
+      await auth.sendSignInLinkToEmail(email, { url: location.origin + location.pathname, handleCodeInApp: true });
+      window.localStorage.setItem('emailForSignIn', email);
+      statusEl.style.display = 'block';
+      statusEl.textContent = '✅ Письмо отправлено на ' + email + ' — открой его (проверь и папку "Спам") и перейди по ссылке.';
+      emailInput.value = '';
     } catch (err) {
       console.error(err);
-      window.showDebugError?.('Google-вход', err.message || String(err));
-      if (confirm('Не получилось войти через Google внутри Telegram. Открыть сайт в обычном браузере, чтобы попробовать там?')) {
-        const tgApp = window.Telegram?.WebApp;
-        const plainUrl = location.href.split('?')[0];
-        if (tgApp?.openLink) tgApp.openLink(plainUrl, { try_instant_view: false });
-        else window.open(plainUrl, '_blank');
-      }
+      window.showDebugError?.('Вход гостя по email-ссылке', err);
+      alert('Не удалось отправить: ' + (err.message || err));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Войти в аккаунт';
     }
   });
 
@@ -5216,40 +5239,33 @@
   // (политика безопасности, не наша), а открывать сайт заново в системном
   // браузере — лишний шаг. Email-ссылка эту проблему обходит целиком: письмо
   // открывается в почтовом приложении, а не в WebView, и работает на любом
-  // устройстве без пароля. Пишет в те же поля googleUid/googleEmail и
-  // googleLinks/<uid>, что и Google-привязка выше — оба способа
-  // взаимозаменяемы и работают одновременно.
+  // устройстве без пароля. Пишет в googleUid/googleEmail и googleLinks/<uid>
+  // (названия полей остались с тех пор, когда сюда писал только Google).
   //
-  // Кнопка одна, но решает две разные задачи в зависимости от того, откуда
-  // жмут: 1) внутри Telegram — ПРИВЯЗКА email к текущему аккаунту (шлём
-  // linkTelegramId, чтобы страница знала, куда привязывать); 2) с нового
-  // устройства без Telegram (в т.ч. гость, специально не блокируем —
-  // гости остаются гостями, если email ещё ни к чему не привязан) — просто
-  // ВХОД: если email уже привязан раньше, signInWithEmailLink вернёт тот
-  // же uid, что и в прошлый раз, и resolveIdentity найдёт googleLinks/<uid>
-  // сама, без всякого linkTelegramId.
+  // Этот блок виден только НЕ-гостю (см. updateAccountLoginUI) — то есть
+  // тут всегда есть реальный telegramId, к которому можно привязывать.
+  // Вход гостя по уже существующей привязке — отдельная кнопка выше
+  // (btn-guest-login), без linkTelegramId, потому что гостю привязывать
+  // нечего, только входить в то, что уже есть.
   document.getElementById('btn-email-link-send')?.addEventListener('click', async () => {
     const telegramId = window.currentTelegramId;
-    const isRealTelegramAccount = telegramId && !telegramId.startsWith('guest_');
     const emailInput = document.getElementById('email-link-input');
     const email = emailInput.value.trim();
     const statusEl = document.getElementById('email-link-status');
+    if (!telegramId || telegramId.startsWith('guest_')) { alert('Доступно только внутри настоящего аккаунта.'); return; }
     if (!email || !email.includes('@')) { alert('Впиши email'); return; }
     const btn = document.getElementById('btn-email-link-send');
     btn.disabled = true;
     btn.textContent = 'Отправляем…';
     try {
-      const baseUrl = location.origin + location.pathname;
       const actionCodeSettings = {
-        url: isRealTelegramAccount ? (baseUrl + '?linkTelegramId=' + encodeURIComponent(telegramId)) : baseUrl,
+        url: location.origin + location.pathname + '?linkTelegramId=' + encodeURIComponent(telegramId),
         handleCodeInApp: true
       };
       await auth.sendSignInLinkToEmail(email, actionCodeSettings);
       window.localStorage.setItem('emailForSignIn', email);
       statusEl.style.display = 'block';
-      statusEl.textContent = isRealTelegramAccount
-        ? '✅ Письмо отправлено на ' + email + ' — открой его и перейди по ссылке (можно на любом устройстве, включая компьютер).'
-        : '✅ Письмо отправлено на ' + email + ' — если этот email уже привязан к аккаунту, ссылка из письма войдёт в него. Если ещё нет — сначала привяжи email внутри Telegram (Настройки → Аккаунт).';
+      statusEl.textContent = '✅ Письмо отправлено на ' + email + ' — открой его (проверь и папку "Спам") и перейди по ссылке (можно на любом устройстве, включая компьютер).';
       emailInput.value = '';
     } catch (err) {
       console.error(err);
