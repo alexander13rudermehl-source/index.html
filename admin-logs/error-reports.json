@@ -182,5 +182,13 @@
     "playerId" : "PLR-HVGYVD",
     "telegramId" : "guest_9yn69w7",
     "userAgent" : "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+  },
+  "-P0wsgFB4o6DMM40FnWo" : {
+    "createdAt" : 1788801631287,
+    "firstName" : "♱прекрасен как Ии$у$♱",
+    "log" : "[19:20:23] Google-вход: Firebase: This domain is not authorized for OAuth operations for your Firebase project. Edit the list of authorized domains from the Firebase console. (auth/unauthorized-domain).",
+    "playerId" : "PLR-A44LA9",
+    "telegramId" : "871656058",
+    "userAgent" : "Mozilla/5.0 (Linux; Android 17; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.7922.200 Mobile Safari/537.36 Telegram-Android/12.10.1 (Samsung SM-S948B; Android 17; SDK 37; HIGH)"
   }
 }
