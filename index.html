@@ -75,14 +75,32 @@
       align-items:flex-start;
       gap:24px;
     }
-    /* всплывающие панели (Профиль/Настройки/Магазин/Сообщество и т.д.) —
-       общий класс .sheet у всех, поэтому одна строка расширяет их разом */
+    /* всплывающие панели-модалки (бой, результат, приглашение, ивент и
+       т.п.) — общий класс .sheet у всех, поэтому одна строка расширяет их
+       разом. У "вкладок" сайдбара (Сообщество/Профиль/Настройки/Магазин,
+       класс .dock-desktop, см. ниже) своя, отдельная логика —
+       не всплывающая карточка, а замена содержимого .device. */
     .sheet{ max-width: 640px; }
     .device{
       max-width: 640px;
       min-height: calc(100vh - 48px);
       border-radius: 20px;
       box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+    }
+    /* .dock-desktop: раньше эти 4 панели открывались как обычная
+       .sheet-модалка — маленькая карточка по центру ВСЕГО экрана (поверх
+       сайдбара тоже), что выглядело как костыль. Теперь на десктопе они
+       через dockOverlayToDevice() (см. JS) точно накладываются на
+       прямоугольник .device — тёмная подложка не нужна (сама .sheet его
+       целиком закрывает), а Сообщество/Профиль/Настройки/Магазин выглядят
+       как смена содержимого правой панели, а не всплывающее окно. */
+    .overlay.dock-desktop{ background: transparent; padding: 0; }
+    .overlay.dock-desktop .sheet{
+      max-width: none;
+      width: 100%;
+      height: 100%;
+      max-height: none;
+      border-radius: 20px;
     }
     .desktop-sidebar{
       display:flex;
@@ -4028,7 +4046,7 @@
 </script>
 
 <!-- ===== community sheet — топ игроков и друзья ===== -->
-<div class="overlay" id="community-overlay">
+<div class="overlay dock-desktop" id="community-overlay">
   <div class="sheet">
     <div class="sheet-grabber"></div>
     <div class="sheet-head">
@@ -4100,7 +4118,7 @@
 </div>
 
 <!-- ===== profile sheet ===== -->
-<div class="overlay" id="profile-overlay">
+<div class="overlay dock-desktop" id="profile-overlay">
   <div class="sheet">
     <div class="sheet-grabber"></div>
     <div class="sheet-head">
@@ -4168,7 +4186,7 @@
 </div>
 
 <!-- ===== магазин: рамки для аватара и билеты-множители за Stars ===== -->
-<div class="overlay" id="shop-overlay">
+<div class="overlay dock-desktop" id="shop-overlay">
   <div class="sheet">
     <div class="sheet-grabber"></div>
     <div class="sheet-head">
@@ -4197,6 +4215,45 @@
 </div>
 
 <script>
+  // ===== .dock-desktop: Сообщество/Профиль/Настройки/Магазин на десктопе
+  // не всплывают маленькой карточкой поверх всего экрана (был вид костыля —
+  // окно посередине, наполовину над сайдбаром), а точно накладываются на
+  // прямоугольник .device, создавая вид смены содержимого правой панели.
+  // На мобильных (<900px) — обычная нижняя шторка, ничего не меняется. =====
+  function dockOverlayToDevice(overlayEl) {
+    if (!overlayEl) return;
+    if (window.innerWidth < 900) {
+      overlayEl.style.position = '';
+      overlayEl.style.left = '';
+      overlayEl.style.top = '';
+      overlayEl.style.right = '';
+      overlayEl.style.bottom = '';
+      overlayEl.style.width = '';
+      overlayEl.style.height = '';
+      return;
+    }
+    const deviceEl = document.querySelector('.device');
+    if (!deviceEl) return;
+    // position:absolute (не fixed!) — страница может скроллиться (сайдбар
+    // ниже sticky), а .device лежит в обычном потоке; absolute у прямых
+    // детей body считается от документа и скроллится вместе с .device,
+    // fixed остался бы прибит к вьюпорту и "уехал" бы при скролле
+    const rect = deviceEl.getBoundingClientRect();
+    const scrollX = window.scrollX || window.pageXOffset;
+    const scrollY = window.scrollY || window.pageYOffset;
+    overlayEl.style.position = 'absolute';
+    overlayEl.style.left = (rect.left + scrollX) + 'px';
+    overlayEl.style.top = (rect.top + scrollY) + 'px';
+    overlayEl.style.right = 'auto';
+    overlayEl.style.bottom = 'auto';
+    overlayEl.style.width = rect.width + 'px';
+    overlayEl.style.height = rect.height + 'px';
+  }
+  window.dockOverlayToDevice = dockOverlayToDevice;
+  window.addEventListener('resize', () => {
+    document.querySelectorAll('.overlay.open.dock-desktop').forEach(dockOverlayToDevice);
+  });
+
   // ===== Сообщество: топ игроков (по очкам) + друзья по заявкам =====
   // users/<uid>/friends/<friendUid>: true — взаимный список (появляется
   // ТОЛЬКО после того, как получатель примет заявку, см. ниже), плюс
@@ -4381,6 +4438,7 @@
 
   document.getElementById('community-btn').addEventListener('click', () => {
     communityOverlay.classList.add('open');
+    window.dockOverlayToDevice?.(communityOverlay);
     window.applyTranslations?.(communityOverlay);
     loadCommunityTop();
     loadCommunityFriends();
@@ -4942,6 +5000,7 @@
   const profileOverlay = document.getElementById('profile-overlay');
   document.getElementById('profile-btn').addEventListener('click', () => {
     profileOverlay.classList.add('open');
+    window.dockOverlayToDevice?.(profileOverlay);
     window.applyTranslations?.(profileOverlay);
     if (typeof renderProfileFromMatches === 'function') renderProfileFromMatches();
     // билеты могли появиться после claim-кнопки на ивенте уже после
@@ -4959,6 +5018,7 @@
   const shopOverlay = document.getElementById('shop-overlay');
   document.getElementById('btn-open-shop')?.addEventListener('click', () => {
     shopOverlay.classList.add('open');
+    window.dockOverlayToDevice?.(shopOverlay);
     window.applyTranslations?.(shopOverlay);
     // refreshShopAndProfile живёт в отдельном замыкании (см. ниже, рядом с
     // applyProfileUser) и наружу торчит только через window. — без префикса
@@ -5014,7 +5074,7 @@
 </script>
 
 <!-- ===== settings sheet ===== -->
-<div class="overlay" id="settings-overlay">
+<div class="overlay dock-desktop" id="settings-overlay">
   <div class="sheet">
     <div class="sheet-grabber"></div>
     <div class="sheet-head">
@@ -5172,13 +5232,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.4.23 · бета (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.4.24 · бета (LiveKit-ветка)</div>
         Бета-тест · обновлено 07.09.2026<br>
-        <span style="font-size:11px;">Сайдбар на десктопе: вместо одной кнопки "Сообщество" — сразу все её вкладки (Топ/Друзья/Запросы/Кланы) отдельными пунктами, каждая открывает нужную вкладку сразу. Убран дублирующий "Участвовать" из сайдбара — на десктопе он и так есть внизу.</span>
+        <span style="font-size:11px;">Сообщество/Профиль/Настройки/Магазин на десктопе больше не всплывают маленькой карточкой поверх всего экрана — теперь точно занимают место правой панели (.device), выглядит как смена содержимого, а не окно поверх сайдбара.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.4.23 — сайдбар на десктопе: вкладки Сообщества вместо одной кнопки, убран дублирующий "Участвовать"<br>
           v0.4.22 — добавлены English и Deutsch (Настройки → Язык) — переведён весь основной интерфейс<br>
           v0.4.21 — полноценная desktop-раскладка: боковая панель + расширенные панели на широких экранах<br>
           v0.4.20 — Настройки → Аккаунт переработаны: отдельная кнопка "Войти в аккаунт" для гостя, убран Google<br>
@@ -5318,6 +5379,7 @@
   });
   document.getElementById('settings-btn').addEventListener('click', () => {
     settingsOverlay.classList.add('open');
+    window.dockOverlayToDevice?.(settingsOverlay);
     refreshMicStatus();
     // раньше при открытии не подтягивалось сохранённое состояние привязки —
     // после релоада страницы тут всегда молча показывалось "Не привязан",
