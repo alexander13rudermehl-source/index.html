@@ -4979,22 +4979,27 @@
       <div id="google-account-block" style="background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; margin:0 0 16px;">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
           <div>
-            <div class="t-label">Google-аккаунт</div>
+            <div class="t-label">Вход с других устройств</div>
             <div class="t-desc" id="settings-google-val">Не привязан</div>
           </div>
         </div>
         <button id="btn-google-link" style="width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:11px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer;">Привязать Google</button>
-        <div class="t-desc" style="margin-top:8px; line-height:1.4;">Позволяет открыть тот же профиль на компьютере, зайдя на сайт напрямую в браузере и войдя через Google.</div>
+        <div class="t-desc" style="margin:8px 0; line-height:1.4;">Google внутри Telegram иногда блокируется самим Google (см. выше) — если не сработало, проще способ ниже: письмо со ссылкой на почту, без пароля и без Google.</div>
+        <input type="email" id="email-link-input" placeholder="твой email" autocomplete="email" style="width:100%; box-sizing:border-box; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; color:var(--text); font-size:13px; margin-bottom:8px;">
+        <button id="btn-email-link-send" style="width:100%; background:var(--gold); border:none; color:#fff; border-radius:10px; padding:11px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer;">Прислать ссылку на почту</button>
+        <div class="t-desc" id="email-link-status" style="display:none; margin-top:8px; line-height:1.4;"></div>
+        <div class="t-desc" style="margin-top:8px; line-height:1.4;">Любой из двух способов открывает тот же профиль на компьютере или другом телефоне, зайдя на сайт напрямую в браузере.</div>
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.4.17 · бета (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.4.18 · бета (LiveKit-ветка)</div>
         Бета-тест · обновлено 07.09.2026<br>
-        <span style="font-size:11px;">Магазин чинился без перезагрузки: кнопка "Магазин" была сломана опечаткой (кидала ReferenceError вместо обновления баланса/рамок), плюс защита от редкого сбоя Firebase при быстром повторном клике на кнопки ивента.</span>
+        <span style="font-size:11px;">Вход с других устройств теперь и по email-ссылке, без пароля и без Google (который Telegram иногда блокирует изнутри) — письмо со ссылкой открывается в почте на любом устройстве. Плюс починена привязка Google, не подтягивавшая сохранённый статус при повторном открытии Настроек.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.4.17 — Магазин чинился без перезагрузки: кнопка "Магазин" была сломана опечаткой<br>
           v0.4.16 — трофеи после боя обновляются у игрока сразу, без перезапуска приложения<br>
           v0.4.15 — премиум-рамки в Магазине (1000–10000 ⭐): "Пламя дракона", "Небесное пламя", "Звёздное кольцо"<br>
           v0.4.14 — рамки для аватара научились анимации (pulse/rotate/spikes)<br>
@@ -5129,6 +5134,10 @@
   document.getElementById('settings-btn').addEventListener('click', () => {
     settingsOverlay.classList.add('open');
     refreshMicStatus();
+    // раньше при открытии не подтягивалось сохранённое состояние привязки —
+    // после релоада страницы тут всегда молча показывалось "Не привязан",
+    // даже если аккаунт был давно привязан
+    window.updateGoogleAccountUI?.(window.currentPlayer?.googleEmail);
   });
   document.getElementById('settings-close-btn').addEventListener('click', () => settingsOverlay.classList.remove('open'));
   settingsOverlay.addEventListener('click', (e) => { if(e.target === settingsOverlay) settingsOverlay.classList.remove('open'); });
@@ -5198,6 +5207,50 @@
         if (tgApp?.openLink) tgApp.openLink(plainUrl, { try_instant_view: false });
         else window.open(plainUrl, '_blank');
       }
+    }
+  });
+
+  // ===== вход по ссылке на email (passwordless) =====
+  // Google внутри встроенного браузера Telegram блокируется самим Google
+  // (политика безопасности, не наша), а открывать сайт заново в системном
+  // браузере — лишний шаг. Email-ссылка эту проблему обходит целиком: письмо
+  // открывается в почтовом приложении, а не в WebView, и работает на любом
+  // устройстве без пароля. Пишет в те же поля googleUid/googleEmail и
+  // googleLinks/<uid>, что и Google-привязка выше — оба способа
+  // взаимозаменяемы и работают одновременно.
+  document.getElementById('btn-email-link-send')?.addEventListener('click', async () => {
+    const telegramId = window.currentTelegramId;
+    if (!telegramId || telegramId.startsWith('guest_')) {
+      alert('Доступно только внутри Telegram-профиля. Открой приложение через бота.');
+      return;
+    }
+    const emailInput = document.getElementById('email-link-input');
+    const email = emailInput.value.trim();
+    const statusEl = document.getElementById('email-link-status');
+    if (!email || !email.includes('@')) { alert('Впиши email'); return; }
+    const btn = document.getElementById('btn-email-link-send');
+    btn.disabled = true;
+    btn.textContent = 'Отправляем…';
+    try {
+      // linkTelegramId в URL — единственный способ узнать, к какому именно
+      // игровому аккаунту привязывать вход, когда ссылку открывают на
+      // совсем другом устройстве без своего Telegram-сеанса
+      const actionCodeSettings = {
+        url: location.origin + location.pathname + '?linkTelegramId=' + encodeURIComponent(telegramId),
+        handleCodeInApp: true
+      };
+      await auth.sendSignInLinkToEmail(email, actionCodeSettings);
+      window.localStorage.setItem('emailForSignIn', email);
+      statusEl.style.display = 'block';
+      statusEl.textContent = '✅ Письмо отправлено на ' + email + ' — открой его и перейди по ссылке (можно на любом устройстве, включая компьютер).';
+      emailInput.value = '';
+    } catch (err) {
+      console.error(err);
+      window.showDebugError?.('Отправка email-ссылки', err);
+      alert('Не удалось отправить: ' + (err.message || err));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Прислать ссылку на почту';
     }
   });
 
@@ -5751,13 +5804,55 @@
     return 'PLR-' + code;
   }
 
+  // Открыта ли страница по ссылке из письма (см. btn-email-link-send выше)?
+  // Должно завершиться и, если нужно, привязаться ДО первого чтения auth-
+  // состояния в resolveIdentity — иначе onAuthStateChanged там успеет
+  // сработать на ещё не вошедшего пользователя и "съест" единственный вызов
+  // (unsubscribe после первого срабатывания).
+  async function completeEmailLinkSignInIfNeeded() {
+    if (!auth.isSignInWithEmailLink(window.location.href)) return;
+    let email = window.localStorage.getItem('emailForSignIn');
+    if (!email) {
+      // ссылку открыли не на том устройстве/браузere, где её запрашивали —
+      // email там просто негде было сохранить, спрашиваем ещё раз как
+      // подтверждение (стандартная рекомендация Firebase для этого случая)
+      email = window.prompt('Подтверди свой email, чтобы завершить вход:');
+    }
+    if (!email) return;
+    try {
+      const result = await auth.signInWithEmailLink(email, window.location.href);
+      window.localStorage.removeItem('emailForSignIn');
+      const uid = result.user.uid;
+      const params = new URLSearchParams(window.location.search);
+      const linkTelegramId = params.get('linkTelegramId');
+      if (linkTelegramId) {
+        const existingLinkSnap = await db.ref('googleLinks/' + uid).once('value');
+        const existingTelegramId = existingLinkSnap.val();
+        if (!existingTelegramId || existingTelegramId === linkTelegramId) {
+          await db.ref('users/' + linkTelegramId).update({ googleUid: uid, googleEmail: email });
+          await db.ref('googleLinks/' + uid).set(linkTelegramId);
+        }
+      }
+    } catch (err) {
+      window.showDebugError?.('Вход по ссылке из email', err);
+      alert('Не удалось войти по ссылке: ' + (err.message || err));
+    } finally {
+      // убираем служебные параметры из адресной строки — иначе при
+      // обновлении страницы Firebase попробует обработать ту же ссылку
+      // повторно и упадёт (ссылка одноразовая)
+      window.history.replaceState({}, document.title, window.location.origin + window.location.pathname);
+    }
+  }
+
   // ===== чей это профиль =====
   // Из Telegram — берём initDataUnsafe.user.id, он есть всегда и не меняется.
   // Если сайт открыт как обычная страница (не из Telegram) и человек раньше
-  // привязал сюда Google-аккаунт (см. Настройки → Аккаунт) — подгружаем тот
-  // же профиль по обратной ссылке googleLinks/<uid>, а не создаём гостя.
-  function resolveIdentity() {
-    if (tgUser) return Promise.resolve(String(tgUser.id));
+  // привязал сюда Google-аккаунт или вошёл по email-ссылке (см. Настройки →
+  // Аккаунт) — подгружаем тот же профиль по обратной ссылке googleLinks/<uid>,
+  // а не создаём гостя.
+  async function resolveIdentity() {
+    if (tgUser) return String(tgUser.id);
+    await completeEmailLinkSignInIfNeeded();
     return new Promise((resolve) => {
       const unsubscribe = auth.onAuthStateChanged((user) => {
         unsubscribe();
