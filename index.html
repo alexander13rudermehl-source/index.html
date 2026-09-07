@@ -1557,6 +1557,7 @@
           <div class="event-banner-desc" id="event-banner-popup-desc"></div>
           <button class="event-claim-btn" id="event-claim-btn-popup">🎁 Забрать значок</button>
           <button class="event-claim-btn" id="event-claim-mult-btn-popup">🎫 Забрать множитель</button>
+          <button class="event-claim-btn" id="event-shop-frame-btn-popup">🛍 Купить рамку</button>
         </div>
       </div>
     </div>
@@ -1592,6 +1593,7 @@
             <div class="event-banner-desc" id="event-banner-mini-desc"></div>
             <button class="event-claim-btn" id="event-claim-btn-mini">🎁 Забрать значок</button>
             <button class="event-claim-btn" id="event-claim-mult-btn-mini">🎫 Забрать множитель</button>
+            <button class="event-claim-btn" id="event-shop-frame-btn-mini">🛍 Купить рамку</button>
           </div>
         </div>
 
@@ -4843,13 +4845,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.4.11 · бета (LiveKit-ветка)</div>
-        Бета-тест · обновлено 06.09.2026<br>
-        <span style="font-size:11px;">Stars ожили — раньше баланс существовал только на экране, менял его лишь админ вручную. Теперь судейство боя приносит 5 ⭐, а в новом Магазине (кнопка в Профиле) их можно потратить на рамки для аватара (навсегда, можно переключать) или на билеты-множители напрямую, не дожидаясь ивента.</span>
+        <div class="v-num">MICBATTLE v0.4.12 · бета (LiveKit-ветка)</div>
+        Бета-тест · обновлено 07.09.2026<br>
+        <span style="font-size:11px;">Ивент-магазин: у ивента теперь можно задать эксклюзивную рамку для аватара — покупается за Stars прямо на баннере ивента, только пока он активен, дальше остаётся у игрока навсегда (можно надевать/снимать в общем Магазине вместе с обычными рамками).</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.4.11 — Stars ожили: 5⭐ за судейство, Магазин с рамками и билетами-множителями<br>
           v0.4.10 — раздел "Билеты-множители" в Профиле и в карточке игрока в админке<br>
           v0.4.9 — проект переведён из альфа- в бета-тестирование<br>
           v0.4.8 — debug-панель заменена на маленькую карточку с кнопкой "Отправить" → вкладка "Ошибки" в админке<br>
@@ -5716,7 +5719,7 @@
       if (!el) return;
       const owned = userData?.ownedFrames || {};
       const equipped = userData?.avatarFrame || null;
-      el.innerHTML = AVATAR_FRAMES.map((f) => {
+      const baseRows = AVATAR_FRAMES.map((f) => {
         const isOwned = !!owned[f.id];
         const isEquipped = equipped === f.id;
         const actionText = isEquipped ? '✅ Надета' : isOwned ? 'Надеть' : `${f.price} ⭐`;
@@ -5730,20 +5733,40 @@
             <button type="button" class="shop-frame-btn" data-frame-id="${f.id}" ${isEquipped ? 'disabled' : ''} style="flex-shrink:0; padding:8px 14px; border-radius:100px; border:none; background:${isEquipped ? 'var(--panel-2)' : 'var(--gold)'}; color:${isEquipped ? 'var(--muted)' : '#0B0B0D'}; font-size:11.5px; font-weight:700; cursor:${isEquipped ? 'default' : 'pointer'};">${actionText}</button>
           </div>
         `;
-      }).join('');
+      });
+      // ивентовые рамки уже куплены к моменту, когда они тут появляются
+      // (см. renderEventShopFrameButton) — здесь их можно только надеть,
+      // повторно покупать нечего
+      const eventFrameEntries = Object.entries(userData?.eventFrames || {});
+      const eventRows = eventFrameEntries.map(([frameId, f]) => {
+        const isEquipped = equipped === frameId;
+        return `
+          <div class="league-row" style="cursor:default;">
+            <div class="league-dot" style="background:${f.color};"></div>
+            <div style="flex:1; min-width:0;">
+              <div class="league-name">${escapeHtml(f.name)}</div>
+              <div class="league-range">🎉 Из ивента</div>
+            </div>
+            <button type="button" class="shop-frame-btn" data-frame-id="${frameId}" ${isEquipped ? 'disabled' : ''} style="flex-shrink:0; padding:8px 14px; border-radius:100px; border:none; background:${isEquipped ? 'var(--panel-2)' : 'var(--gold)'}; color:${isEquipped ? 'var(--muted)' : '#0B0B0D'}; font-size:11.5px; font-weight:700; cursor:${isEquipped ? 'default' : 'pointer'};">${isEquipped ? '✅ Надета' : 'Надеть'}</button>
+          </div>
+        `;
+      });
+      el.innerHTML = baseRows.concat(eventRows).join('');
       el.querySelectorAll('.shop-frame-btn:not([disabled])').forEach((btn) => {
         btn.addEventListener('click', () => handleFrameAction(btn.dataset.frameId));
       });
     }
 
     async function handleFrameAction(frameId) {
-      const frame = AVATAR_FRAMES.find((f) => f.id === frameId);
-      if (!frame || !window.currentTelegramId) return;
+      if (!window.currentTelegramId) return;
       const snap = await db.ref('users/' + window.currentTelegramId).once('value');
       const u = snap.val() || {};
       const owned = u.ownedFrames || {};
+      const isEventFrame = !!(u.eventFrames && u.eventFrames[frameId]);
+      const frame = AVATAR_FRAMES.find((f) => f.id === frameId) || (isEventFrame ? u.eventFrames[frameId] : null);
+      if (!frame) return;
       try {
-        if (owned[frameId]) {
+        if (isEventFrame || owned[frameId]) {
           await db.ref('users/' + window.currentTelegramId + '/avatarFrame').set(frameId);
         } else {
           const balance = Number(u.starsBalance || 0);
@@ -5809,6 +5832,7 @@
         renderShopTickets();
       }).catch((err) => window.showDebugError?.('Магазин: обновление', err));
     }
+    window.refreshShopAndProfile = refreshShopAndProfile;
 
     function applyProfileUser(userData) {
       const name = userData.firstName || 'Игрок';
@@ -5817,8 +5841,9 @@
       const avatar = document.getElementById('profile-avatar');
       if (userData.avatarData) { avatar.style.backgroundImage = `url(${userData.avatarData})`; avatar.classList.add('has-image'); avatar.textContent=''; }
       else { avatar.style.backgroundImage=''; avatar.classList.remove('has-image'); avatar.textContent=name.slice(0,2).toUpperCase(); }
-      // рамка из Магазина — просто цветная обводка потолще поверх обычной
-      const equippedFrame = AVATAR_FRAMES.find((f) => f.id === userData.avatarFrame);
+      // рамка из Магазина (базовая или ивентовая) — просто цветная обводка
+      // потолще поверх обычной
+      const equippedFrame = window.resolveFrame(userData, userData.avatarFrame);
       avatar.style.borderColor = equippedFrame ? equippedFrame.color : '';
       avatar.style.borderWidth = equippedFrame ? '3px' : '';
 
@@ -6129,6 +6154,46 @@
     });
   }
 
+  // Ивент-магазин: эксклюзивная рамка для аватара, которую админ задаёт
+  // прямо в форме ивента (ev.shopFrame = {name, color, price}) — в отличие
+  // от значка и билета выше, эта штука не бесплатная, а покупается за
+  // Stars, и только пока ивент активен. Куплена — навсегда остаётся в
+  // users/<uid>/eventFrames/event_<eventId> (сама расцветка/имя, а не
+  // просто true, см. window.resolveFrame) — так рамка не сломается, даже
+  // если админ потом удалит сам ивент из events/.
+  function renderEventShopFrameButton(ev, eventId, btnEl){
+    if(!btnEl) return;
+    if(!ev || !ev.shopFrame || !ev.shopFrame.name || !window.currentTelegramId || !eventId){
+      btnEl.classList.remove('show', 'claimed');
+      return;
+    }
+    const frameId = 'event_' + eventId;
+    btnEl.classList.add('show');
+    db.ref('users/' + window.currentTelegramId + '/eventFrames/' + frameId).once('value').then((snap) => {
+      if(snap.val()){
+        btnEl.classList.add('claimed');
+        btnEl.textContent = `✅ «${ev.shopFrame.name}» куплена`;
+        btnEl.onclick = null;
+      } else {
+        btnEl.classList.remove('claimed');
+        btnEl.textContent = `🛍 Купить «${ev.shopFrame.name}» — ${ev.shopFrame.price} ⭐`;
+        btnEl.onclick = () => {
+          db.ref('users/' + window.currentTelegramId + '/starsBalance').once('value').then((balSnap) => {
+            const balance = Number(balSnap.val() || 0);
+            if (balance < ev.shopFrame.price) { alert('Не хватает Stars'); return; }
+            const updates = {};
+            updates['users/' + window.currentTelegramId + '/starsBalance'] = balance - ev.shopFrame.price;
+            updates['users/' + window.currentTelegramId + '/eventFrames/' + frameId] = { name: ev.shopFrame.name, color: ev.shopFrame.color };
+            db.ref().update(updates).then(() => {
+              renderEventShopFrameButton(ev, eventId, btnEl);
+              window.refreshShopAndProfile?.();
+            }).catch((err) => window.showDebugError?.('Купить рамку ивента', err));
+          }).catch((err) => window.showDebugError?.('Купить рамку ивента', err));
+        };
+      }
+    });
+  }
+
   function fillEventBanner(ev, prefix){
     document.getElementById(prefix + '-title').textContent = ev.title || '';
     document.getElementById(prefix + '-desc').textContent = ev.description || '';
@@ -6154,6 +6219,7 @@
           <div class="event-banner-desc"></div>
           <button class="event-claim-btn event-claim-badge-btn">🎁 Забрать значок</button>
           <button class="event-claim-btn event-claim-mult-btn">🎫 Забрать множитель</button>
+          <button class="event-claim-btn event-shop-frame-btn">🛍 Купить рамку</button>
         </div>
       </div>
     `).join('');
@@ -6165,6 +6231,7 @@
       if(ev.imageData){ imgEl.src = ev.imageData; imgEl.style.display = ''; }
       renderEventClaimButton(ev, card.querySelector('.event-claim-badge-btn'));
       renderEventMultiplierClaimButton(ev, id, card.querySelector('.event-claim-mult-btn'));
+      renderEventShopFrameButton(ev, id, card.querySelector('.event-shop-frame-btn'));
     });
   }
 
@@ -6189,11 +6256,13 @@
       eventBannerPopupEl.classList.add('show');
       renderEventClaimButton(ev, document.getElementById('event-claim-btn-popup'));
       renderEventMultiplierClaimButton(ev, id, document.getElementById('event-claim-mult-btn-popup'));
+      renderEventShopFrameButton(ev, id, document.getElementById('event-shop-frame-btn-popup'));
 
       fillEventBanner(ev, 'event-banner-mini');
       eventBannerMiniEl.classList.add('show');
       renderEventClaimButton(ev, document.getElementById('event-claim-btn-mini'));
       renderEventMultiplierClaimButton(ev, id, document.getElementById('event-claim-mult-btn-mini'));
+      renderEventShopFrameButton(ev, id, document.getElementById('event-shop-frame-btn-mini'));
 
       // попап всплывает один раз на конкретный ивент — если игрок его уже
       // закрывал, при следующем заходе (или пока сидит в приложении) он не
@@ -6341,6 +6410,17 @@
   // цена билета в Магазине — альтернатива ожиданию ивента, поэтому дороже
   // самой ставки этой лиги (иначе не было бы смысла вообще ждать ивенты)
   window.ticketShopPrice = function(multiplier) { return multiplier * 15; };
+
+  // рамки бывают двух видов: базовые (AVATAR_FRAMES, всегда продаются в
+  // Магазине) и ивентовые — их название/цвет админ задаёт прямо в форме
+  // ивента (ev.shopFrame), продаются только пока ивент активен (см.
+  // renderEventShopFrameButton), а купленную расцветку/имя сохраняем на
+  // самого игрока в users/<id>/eventFrames/<frameId> — так рамка не
+  // потеряется и не сломается, даже если админ потом удалит сам ивент.
+  window.resolveFrame = function(userData, frameId) {
+    if (!frameId) return null;
+    return AVATAR_FRAMES.find((f) => f.id === frameId) || userData?.eventFrames?.[frameId] || null;
+  };
 
   // Множители трофеев ("билеты") — забираются кнопкой на ивенте (см.
   // renderEventMultiplierClaimButton), одноразовые: следующая победа в
