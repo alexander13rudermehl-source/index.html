@@ -102,6 +102,13 @@
       max-height: none;
       border-radius: 20px;
     }
+    /* заголовок "Сообщество" и вкладки Топ/Друзья/Запросы/Кланы внутри
+       самой панели теперь избыточны — на десктопе то же самое уже есть
+       прямыми пунктами в сайдбаре (см. #sidebar-nav-community-*). Крестик
+       закрытия оставлен — это единственный способ вернуться на главный
+       экран из докнутой панели. */
+    #community-overlay .sheet-title{ visibility: hidden; }
+    #community-overlay .tabs{ display: none; }
     .desktop-sidebar{
       display:flex;
       flex-direction:column;
@@ -4254,6 +4261,19 @@
     document.querySelectorAll('.overlay.open.dock-desktop').forEach(dockOverlayToDevice);
   });
 
+  // сайдбар остаётся кликабельным поверх открытой панели — без этого клик
+  // по другому пункту (напр. Топ после Настроек) просто открывал ЕЩЁ один
+  // .dock-desktop оверлей поверх уже открытого (у всех одинаковый z-index,
+  // рисуется по порядку в DOM), и снаружи выглядело так, будто клик вообще
+  // ничего не делает — реально нужный оверлей открывался, но был скрыт под
+  // предыдущим, закрыть который можно было только крестиком
+  function closeOtherDockOverlays(exceptEl) {
+    document.querySelectorAll('.overlay.dock-desktop.open').forEach((el) => {
+      if (el !== exceptEl) el.classList.remove('open');
+    });
+  }
+  window.closeOtherDockOverlays = closeOtherDockOverlays;
+
   // ===== Сообщество: топ игроков (по очкам) + друзья по заявкам =====
   // users/<uid>/friends/<friendUid>: true — взаимный список (появляется
   // ТОЛЬКО после того, как получатель примет заявку, см. ниже), плюс
@@ -4437,6 +4457,7 @@
   });
 
   document.getElementById('community-btn').addEventListener('click', () => {
+    window.closeOtherDockOverlays?.(communityOverlay);
     communityOverlay.classList.add('open');
     window.dockOverlayToDevice?.(communityOverlay);
     window.applyTranslations?.(communityOverlay);
@@ -4999,6 +5020,7 @@
 <script>
   const profileOverlay = document.getElementById('profile-overlay');
   document.getElementById('profile-btn').addEventListener('click', () => {
+    window.closeOtherDockOverlays?.(profileOverlay);
     profileOverlay.classList.add('open');
     window.dockOverlayToDevice?.(profileOverlay);
     window.applyTranslations?.(profileOverlay);
@@ -5017,6 +5039,7 @@
 
   const shopOverlay = document.getElementById('shop-overlay');
   document.getElementById('btn-open-shop')?.addEventListener('click', () => {
+    window.closeOtherDockOverlays?.(shopOverlay);
     shopOverlay.classList.add('open');
     window.dockOverlayToDevice?.(shopOverlay);
     window.applyTranslations?.(shopOverlay);
@@ -5232,13 +5255,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.4.24 · бета (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.4.25 · бета (LiveKit-ветка)</div>
         Бета-тест · обновлено 07.09.2026<br>
-        <span style="font-size:11px;">Сообщество/Профиль/Настройки/Магазин на десктопе больше не всплывают маленькой карточкой поверх всего экрана — теперь точно занимают место правой панели (.device), выглядит как смена содержимого, а не окно поверх сайдбара.</span>
+        <span style="font-size:11px;">Починен баг: после Топ → Профиль → Настройки клик по Топ снова не открывал его — панели просто копились друг на друге, теперь при открытии одной остальные закрываются. В самой панели Сообщества убраны заголовок и вкладки-дубли — они теперь только в сайдбаре.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.4.24 — Сообщество/Профиль/Настройки/Магазин на десктопе докуются в панель .device вместо всплывающей карточки<br>
           v0.4.23 — сайдбар на десктопе: вкладки Сообщества вместо одной кнопки, убран дублирующий "Участвовать"<br>
           v0.4.22 — добавлены English и Deutsch (Настройки → Язык) — переведён весь основной интерфейс<br>
           v0.4.21 — полноценная desktop-раскладка: боковая панель + расширенные панели на широких экранах<br>
@@ -5378,6 +5402,7 @@
     el.style.display = el.style.display === 'none' ? 'block' : 'none';
   });
   document.getElementById('settings-btn').addEventListener('click', () => {
+    window.closeOtherDockOverlays?.(settingsOverlay);
     settingsOverlay.classList.add('open');
     window.dockOverlayToDevice?.(settingsOverlay);
     refreshMicStatus();
