@@ -222,5 +222,13 @@
     "playerId" : "PLR-A44LA9",
     "telegramId" : "871656058",
     "userAgent" : "Mozilla/5.0 (Linux; Android 17; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.7922.200 Mobile Safari/537.36 Telegram-Android/12.10.1 (Samsung SM-S948B; Android 17; SDK 37; HIGH)"
+  },
+  "-P0xKZ8T5EBgx7MtU77e" : {
+    "createdAt" : 1788809200146,
+    "firstName" : "♱прекрасен как Ии$у$♱",
+    "log" : "[21:26:29] Голос (LiveKit): токен получен, identity=host-MF9T9-g7ngk3, serverUrl=wss://zolotaya-kletka-a8kq7ior.livekit.cloud\n[21:26:29] Голос (LiveKit): состояние: connecting\n[21:26:30] Голос (LiveKit): состояние: connected\n[21:26:31] Голос (LiveKit): подключено и микрофон включён",
+    "playerId" : "PLR-A44LA9",
+    "telegramId" : "871656058",
+    "userAgent" : "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
   }
 }
