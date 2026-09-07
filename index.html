@@ -58,6 +58,101 @@
     flex-direction:column;
   }
 
+  /* ===== desktop-раскладка (боковая панель + расширенный контент) =====
+     Мобильный Telegram WebView никогда не бывает шире ~500px, поэтому
+     эта раскладка активна только на настоящих десктопных окнах — сама
+     мобильная вёрстка (.device, .action-row и т.д.) не тронута ни на
+     байт, просто по умолчанию .desktop-sidebar скрыт и .device уже.
+     Пункты навигации в сайдбаре не дублируют логику — просто "кликают"
+     существующие action-row по id (см. JS), вся остальная механика
+     (открытие профиля/настроек/магазина как раньше, оверлеем) не меняется. */
+  .desktop-sidebar{ display:none; }
+  .desktop-stats-row{ display:none; }
+
+  @media (min-width: 900px){
+    body{
+      justify-content:center;
+      align-items:flex-start;
+      gap:24px;
+    }
+    /* всплывающие панели (Профиль/Настройки/Магазин/Сообщество и т.д.) —
+       общий класс .sheet у всех, поэтому одна строка расширяет их разом */
+    .sheet{ max-width: 640px; }
+    .device{
+      max-width: 640px;
+      min-height: calc(100vh - 48px);
+      border-radius: 20px;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+    }
+    .desktop-sidebar{
+      display:flex;
+      flex-direction:column;
+      width: 260px;
+      flex-shrink:0;
+      min-height: calc(100vh - 48px);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 22px 18px;
+      position: sticky;
+      top: 24px;
+    }
+    .desktop-sidebar-brand{
+      font-family:'Bebas Neue', sans-serif;
+      font-size: 24px;
+      letter-spacing: 1px;
+      margin-bottom: 22px;
+      padding: 0 6px;
+    }
+    .desktop-sidebar-brand .accent{ color: var(--live); }
+    .desktop-sidebar-profile{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      padding: 10px 6px 20px;
+      margin-bottom: 14px;
+      border-bottom: 1px solid var(--line);
+    }
+    .desktop-sidebar-profile .stage-avatar{
+      width: 48px; height: 48px; font-size: 17px; flex-shrink:0;
+    }
+    .desktop-sidebar-name{ font-weight:600; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .desktop-sidebar-points{ color: var(--muted); font-size: 12.5px; margin-top:2px; }
+    .desktop-nav-item{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      padding: 11px 10px;
+      border-radius: 10px;
+      cursor:pointer;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .desktop-nav-item:hover{ background: var(--panel-2); }
+    .desktop-nav-item svg{ width:19px; height:19px; stroke: var(--muted); stroke-width:1.8; fill:none; flex-shrink:0; }
+    .desktop-nav-item.primary{ background: var(--live); color:#fff; }
+    .desktop-nav-item.primary svg{ stroke:#fff; }
+    .desktop-nav-item.primary:hover{ background: var(--live-dark); }
+
+    /* дублирующие пункты (Сообщество/Профиль/Настройки) теперь только в
+       сайдбаре — на самом главном экране оставляем только "Участвовать",
+       а освободившееся место отдаём под мини-статы */
+    #community-btn, #profile-btn, #settings-btn{ display:none; }
+    .desktop-stats-row{ display:flex; gap:10px; padding: 0 20px 4px; }
+  }
+  .desktop-stat-card{
+    flex:1;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 12px 14px;
+    text-align:center;
+  }
+  .desktop-stat-card .val{ font-family:'Bebas Neue', sans-serif; font-size:20px; }
+  .desktop-stat-card .lbl{ color: var(--muted); font-size:11px; margin-top:2px; }
+
   /* top bar */
   .topbar{
     display:flex;
@@ -1563,6 +1658,39 @@
   };
 </script>
 
+<!-- desktop-раскладка: постоянная боковая панель, видна только от 900px
+     (см. .desktop-sidebar в <style> выше). Пункты навигации ничего не
+     делают сами — просто "кликают" существующие action-row ниже по id,
+     см. wiring в JS (sidebar-nav-*). -->
+<div class="desktop-sidebar" id="desktop-sidebar">
+  <div class="desktop-sidebar-brand">Тролль<span class="accent">-баттл</span></div>
+  <div class="desktop-sidebar-profile">
+    <div class="stage-avatar" id="sidebar-avatar">??</div>
+    <div style="min-width:0;">
+      <div class="desktop-sidebar-name" id="sidebar-name">Игрок</div>
+      <div class="desktop-sidebar-points" id="sidebar-points">0 🏆</div>
+    </div>
+  </div>
+  <nav>
+    <div class="desktop-nav-item primary" id="sidebar-nav-join">
+      <svg viewBox="0 0 24 24"><path d="M5 3l14 9-14 9V3z"/></svg>
+      Участвовать
+    </div>
+    <div class="desktop-nav-item" id="sidebar-nav-community">
+      <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2.5 20c1-3 3.2-4.6 6.5-4.6s5.5 1.6 6.5 4.6"/><circle cx="17" cy="8.5" r="2.4"/><path d="M15.5 15.6c2.6.3 4.2 1.7 5 4.4"/></svg>
+      Сообщество
+    </div>
+    <div class="desktop-nav-item" id="sidebar-nav-profile">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1.2-3.6 4-5.5 7-5.5s5.8 1.9 7 5.5"/></svg>
+      Профиль
+    </div>
+    <div class="desktop-nav-item" id="sidebar-nav-settings">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.97 7.97 0 0 0 0-2l2-1.5-2-3.4-2.4 1a8.1 8.1 0 0 0-1.7-1L15 3h-4l-.3 2.6a8.1 8.1 0 0 0-1.7 1l-2.4-1-2 3.4L6.6 11a7.97 7.97 0 0 0 0 2l-2 1.5 2 3.4 2.4-1c.5.4 1.1.75 1.7 1L11 21h4l.3-2.6c.6-.25 1.2-.6 1.7-1l2.4 1 2-3.4-2-1.5z"/></svg>
+      Настройки
+    </div>
+  </nav>
+</div>
+
 <div class="device">
 
   <div class="stage">
@@ -1580,6 +1708,15 @@
     <div class="waveform">
       <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
     </div>
+  </div>
+
+  <!-- видно только на десктопе (.desktop-stats-row, см. <style>) — на
+       мобильном эти же цифры и так есть в Профиле, тут просто заполняем
+       место, освободившееся от скрытых на десктопе action-row ниже -->
+  <div class="desktop-stats-row">
+    <div class="desktop-stat-card"><div class="val" id="desktop-stat-points">0 🏆</div><div class="lbl">Трофеи</div></div>
+    <div class="desktop-stat-card"><div class="val" id="desktop-stat-league">—</div><div class="lbl">Лига</div></div>
+    <div class="desktop-stat-card"><div class="val" id="desktop-stat-stars">0 ⭐</div><div class="lbl">Stars</div></div>
   </div>
 
   <div class="actions">
@@ -5004,13 +5141,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.4.20 · бета (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.4.21 · бета (LiveKit-ветка)</div>
         Бета-тест · обновлено 07.09.2026<br>
-        <span style="font-size:11px;">Настройки → Аккаунт переработаны: у гостя теперь отдельная явная кнопка "Войти в аккаунт" вместо общего блока привязки, "Привязать Google" убран (email-ссылка его полностью заменяет), а строка аккаунта показывает способ входа (Telegram / Email · браузер), а не всегда "Telegram-аккаунт".</span>
+        <span style="font-size:11px;">Полноценная desktop-раскладка: на широких экранах (компьютер) появилась боковая панель с навигацией и мини-статами (трофеи/лига/Stars), а все всплывающие панели (Профиль, Настройки, Магазин и т.д.) стали заметно шире. На телефоне и в Telegram — всё как было, без изменений.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.4.20 — Настройки → Аккаунт переработаны: отдельная кнопка "Войти в аккаунт" для гостя, убран Google<br>
           v0.4.19 — email-ссылка заработала и с нового устройства без Telegram (вход, не только привязка)<br>
           v0.4.18 — вход с других устройств теперь и по email-ссылке, без пароля и без Google<br>
           v0.4.17 — Магазин чинился без перезагрузки: кнопка "Магазин" была сломана опечаткой<br>
@@ -5156,6 +5294,14 @@
   });
   document.getElementById('settings-close-btn').addEventListener('click', () => settingsOverlay.classList.remove('open'));
   settingsOverlay.addEventListener('click', (e) => { if(e.target === settingsOverlay) settingsOverlay.classList.remove('open'); });
+
+  // ===== desktop-сайдбар: пункты навигации просто "кликают" настоящие
+  // action-row по id, никакой отдельной логики открытия/закрытия —
+  // сайдбар виден только от 900px (см. .desktop-sidebar в <style>). =====
+  document.getElementById('sidebar-nav-join')?.addEventListener('click', () => document.getElementById('cta-join-btn')?.click());
+  document.getElementById('sidebar-nav-community')?.addEventListener('click', () => document.getElementById('community-btn')?.click());
+  document.getElementById('sidebar-nav-profile')?.addEventListener('click', () => document.getElementById('profile-btn')?.click());
+  document.getElementById('sidebar-nav-settings')?.addEventListener('click', () => document.getElementById('settings-btn')?.click());
 
   // ===== "Аккаунт" в Настройках =====
   // Раньше тут был отдельный "Привязать Google" (signInWithPopup) — убран:
@@ -6148,6 +6294,25 @@
         leagueTag.style.background = myLeague.bgColor;
         leagueTag.innerHTML = `<span class="dot" style="background:${myLeague.color}"></span>${myLeague.emoji} ${myLeague.name}`;
       }
+
+      // desktop-сайдбар и мини-статы на главном экране (см. .desktop-sidebar/
+      // .desktop-stats-row в <style>) — просто дублируют то же самое, что
+      // и выше, на мобильной вёрстке этих элементов не видно вообще
+      const sidebarAvatar = document.getElementById('sidebar-avatar');
+      const sidebarName = document.getElementById('sidebar-name');
+      if (sidebarAvatar && sidebarName) {
+        sidebarName.textContent = name;
+        if (userData.avatarData) { sidebarAvatar.style.backgroundImage = `url(${userData.avatarData})`; sidebarAvatar.textContent = ''; }
+        else { sidebarAvatar.style.backgroundImage = ''; sidebarAvatar.textContent = name.slice(0, 2).toUpperCase(); }
+      }
+      const sidebarPoints = document.getElementById('sidebar-points');
+      if (sidebarPoints) sidebarPoints.textContent = `${Number(userData.points || 0).toLocaleString('ru-RU')} 🏆`;
+      const desktopStatPoints = document.getElementById('desktop-stat-points');
+      if (desktopStatPoints) desktopStatPoints.textContent = `${Number(userData.points || 0).toLocaleString('ru-RU')} 🏆`;
+      const desktopStatLeague = document.getElementById('desktop-stat-league');
+      if (desktopStatLeague) desktopStatLeague.textContent = `${myLeague.emoji} ${myLeague.name}`;
+      const desktopStatStars = document.getElementById('desktop-stat-stars');
+      if (desktopStatStars) desktopStatStars.textContent = `${Number(userData.starsBalance || 0).toLocaleString('ru-RU')} ⭐`;
 
       // Настройки → "Telegram-аккаунт": если есть username — показываем его,
       // если нет (у части людей username просто не задан в Telegram) — показываем
