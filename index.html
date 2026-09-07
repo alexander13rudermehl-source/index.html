@@ -4992,13 +4992,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.4.18 · бета (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.4.19 · бета (LiveKit-ветка)</div>
         Бета-тест · обновлено 07.09.2026<br>
-        <span style="font-size:11px;">Вход с других устройств теперь и по email-ссылке, без пароля и без Google (который Telegram иногда блокирует изнутри) — письмо со ссылкой открывается в почте на любом устройстве. Плюс починена привязка Google, не подтягивавшая сохранённый статус при повторном открытии Настроек.</span>
+        <span style="font-size:11px;">"Прислать ссылку на почту" теперь работает и с нового устройства без Telegram (раньше требовала настоящий Telegram-аккаунт даже для входа, а не только для привязки) — если email уже привязан раньше, ссылка из письма сразу войдёт в настоящий аккаунт вместо гостя.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.4.18 — вход с других устройств теперь и по email-ссылке, без пароля и без Google<br>
           v0.4.17 — Магазин чинился без перезагрузки: кнопка "Магазин" была сломана опечаткой<br>
           v0.4.16 — трофеи после боя обновляются у игрока сразу, без перезапуска приложения<br>
           v0.4.15 — премиум-рамки в Магазине (1000–10000 ⭐): "Пламя дракона", "Небесное пламя", "Звёздное кольцо"<br>
@@ -5218,12 +5219,18 @@
   // устройстве без пароля. Пишет в те же поля googleUid/googleEmail и
   // googleLinks/<uid>, что и Google-привязка выше — оба способа
   // взаимозаменяемы и работают одновременно.
+  //
+  // Кнопка одна, но решает две разные задачи в зависимости от того, откуда
+  // жмут: 1) внутри Telegram — ПРИВЯЗКА email к текущему аккаунту (шлём
+  // linkTelegramId, чтобы страница знала, куда привязывать); 2) с нового
+  // устройства без Telegram (в т.ч. гость, специально не блокируем —
+  // гости остаются гостями, если email ещё ни к чему не привязан) — просто
+  // ВХОД: если email уже привязан раньше, signInWithEmailLink вернёт тот
+  // же uid, что и в прошлый раз, и resolveIdentity найдёт googleLinks/<uid>
+  // сама, без всякого linkTelegramId.
   document.getElementById('btn-email-link-send')?.addEventListener('click', async () => {
     const telegramId = window.currentTelegramId;
-    if (!telegramId || telegramId.startsWith('guest_')) {
-      alert('Доступно только внутри Telegram-профиля. Открой приложение через бота.');
-      return;
-    }
+    const isRealTelegramAccount = telegramId && !telegramId.startsWith('guest_');
     const emailInput = document.getElementById('email-link-input');
     const email = emailInput.value.trim();
     const statusEl = document.getElementById('email-link-status');
@@ -5232,17 +5239,17 @@
     btn.disabled = true;
     btn.textContent = 'Отправляем…';
     try {
-      // linkTelegramId в URL — единственный способ узнать, к какому именно
-      // игровому аккаунту привязывать вход, когда ссылку открывают на
-      // совсем другом устройстве без своего Telegram-сеанса
+      const baseUrl = location.origin + location.pathname;
       const actionCodeSettings = {
-        url: location.origin + location.pathname + '?linkTelegramId=' + encodeURIComponent(telegramId),
+        url: isRealTelegramAccount ? (baseUrl + '?linkTelegramId=' + encodeURIComponent(telegramId)) : baseUrl,
         handleCodeInApp: true
       };
       await auth.sendSignInLinkToEmail(email, actionCodeSettings);
       window.localStorage.setItem('emailForSignIn', email);
       statusEl.style.display = 'block';
-      statusEl.textContent = '✅ Письмо отправлено на ' + email + ' — открой его и перейди по ссылке (можно на любом устройстве, включая компьютер).';
+      statusEl.textContent = isRealTelegramAccount
+        ? '✅ Письмо отправлено на ' + email + ' — открой его и перейди по ссылке (можно на любом устройстве, включая компьютер).'
+        : '✅ Письмо отправлено на ' + email + ' — если этот email уже привязан к аккаунту, ссылка из письма войдёт в него. Если ещё нет — сначала привяжи email внутри Telegram (Настройки → Аккаунт).';
       emailInput.value = '';
     } catch (err) {
       console.error(err);
