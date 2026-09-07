@@ -4092,8 +4092,8 @@
       <!-- входящие заявки в друзья — добавление по коду теперь не мгновенное,
            а заявка, которую нужно принять (см. JS ниже) -->
       <div id="community-view-requests" style="display:none;">
-        <p style="color:var(--muted); font-size:12px; line-height:1.5; margin-bottom:12px;">Заявки в друзья от других игроков — прими, чтобы попасть друг другу в друзья.</p>
-        <div id="community-requests-list"><div class="admin-empty">Нет новых заявок в друзья</div></div>
+        <p style="color:var(--muted); font-size:12px; line-height:1.5; margin-bottom:12px;">Заявки в друзья и запросы на вход с других устройств — подтверди, чтобы разрешить.</p>
+        <div id="community-requests-list"><div class="admin-empty">Нет новых заявок</div></div>
       </div>
 
       <!-- клан: один игрок состоит максимум в одном клане одновременно
@@ -4360,19 +4360,31 @@
   }
 
   // ===== заявки в друзья =====
-  function renderCommunityRequests(list) {
+  // Запросы = заявки в друзья + заявки на вход с другого устройства
+  // (loginRequests, см. Настройки → Аккаунт → btn-guest-login) в одном
+  // списке — вход сверху, он обычно срочнее (кто-то ждёт прямо сейчас).
+  function renderCommunityRequests(friendList, loginList) {
     const el = document.getElementById('community-requests-list');
     const countEl = document.getElementById('community-requests-count');
     const sidebarCountEl = document.getElementById('sidebar-requests-count');
-    if (list.length) {
-      countEl.textContent = list.length; countEl.style.display = 'inline-flex';
-      if (sidebarCountEl) { sidebarCountEl.textContent = list.length; sidebarCountEl.style.display = 'inline-flex'; }
+    const total = friendList.length + loginList.length;
+    if (total) {
+      countEl.textContent = total; countEl.style.display = 'inline-flex';
+      if (sidebarCountEl) { sidebarCountEl.textContent = total; sidebarCountEl.style.display = 'inline-flex'; }
     } else {
       countEl.style.display = 'none';
       if (sidebarCountEl) sidebarCountEl.style.display = 'none';
     }
-    if (!list.length) { el.innerHTML = '<div class="admin-empty">Нет новых заявок в друзья</div>'; window.applyTranslations?.(el); return; }
-    el.innerHTML = list.map(({ key, request }) => `
+    if (!total) { el.innerHTML = '<div class="admin-empty">Нет новых заявок</div>'; window.applyTranslations?.(el); return; }
+    const loginHtml = loginList.map(({ key, request }) => `
+      <div style="background:var(--panel); border:1px solid rgba(var(--gold-rgb),0.4); border-radius:12px; padding:10px 12px; display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+        <div class="profile-avatar" style="width:34px; height:34px; font-size:16px; flex-shrink:0;">🔐</div>
+        <div style="flex:1; min-width:0; font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Вход: ${escapeHtml(request.device || 'неизвестное устройство')}</div>
+        <button type="button" class="community-approve-login" data-key="${key}" style="background:var(--gold); border:none; color:#0B0B0D; border-radius:100px; padding:7px 12px; font-size:12px; font-weight:700; cursor:pointer; flex-shrink:0;">✓ Разрешить</button>
+        <button type="button" class="community-deny-login" data-key="${key}" style="background:none; border:1px solid var(--line); color:var(--muted); border-radius:100px; width:30px; height:30px; font-size:14px; cursor:pointer; flex-shrink:0;">✕</button>
+      </div>
+    `).join('');
+    const friendHtml = friendList.map(({ key, request }) => `
       <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; display:flex; align-items:center; gap:10px; margin-bottom:8px;">
         <div class="profile-avatar" style="width:34px; height:34px; font-size:13px; flex-shrink:0;">${escapeHtml((request.fromName || '??').slice(0, 2).toUpperCase())}</div>
         <div style="flex:1; min-width:0; font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(request.fromName || 'Игрок')}</div>
@@ -4380,6 +4392,7 @@
         <button type="button" class="community-decline-request" data-key="${key}" style="background:none; border:1px solid var(--line); color:var(--muted); border-radius:100px; width:30px; height:30px; font-size:14px; cursor:pointer; flex-shrink:0;">✕</button>
       </div>
     `).join('');
+    el.innerHTML = loginHtml + friendHtml;
     window.applyTranslations?.(el);
     el.querySelectorAll('.community-accept-request').forEach((btn) => {
       btn.addEventListener('click', () => acceptCommunityRequest(btn.dataset.key));
@@ -4387,13 +4400,28 @@
     el.querySelectorAll('.community-decline-request').forEach((btn) => {
       btn.addEventListener('click', () => declineCommunityRequest(btn.dataset.key));
     });
+    el.querySelectorAll('.community-approve-login').forEach((btn) => {
+      btn.addEventListener('click', () => approveLoginRequest(btn.dataset.key));
+    });
+    el.querySelectorAll('.community-deny-login').forEach((btn) => {
+      btn.addEventListener('click', () => denyLoginRequest(btn.dataset.key));
+    });
   }
   function loadCommunityRequests() {
     const myKey = window.currentTelegramId;
-    if (!myKey) { renderCommunityRequests([]); return; }
-    db.ref('users/' + myKey + '/friendRequests').once('value').then((snap) => {
-      const requests = snap.val() || {};
-      renderCommunityRequests(Object.keys(requests).map((key) => ({ key, request: requests[key] })));
+    if (!myKey) { renderCommunityRequests([], []); return; }
+    Promise.all([
+      db.ref('users/' + myKey + '/friendRequests').once('value'),
+      db.ref('users/' + myKey + '/loginRequests').once('value')
+    ]).then(([friendSnap, loginSnap]) => {
+      const friendRequests = friendSnap.val() || {};
+      const loginRequests = loginSnap.val() || {};
+      renderCommunityRequests(
+        Object.keys(friendRequests).map((key) => ({ key, request: friendRequests[key] })),
+        Object.keys(loginRequests)
+          .filter((key) => loginRequests[key]?.status === 'pending')
+          .map((key) => ({ key, request: loginRequests[key] }))
+      );
     }).catch((err) => window.showDebugError?.('Сообщество: заявки', err));
   }
   // принять — становимся друзьями взаимно (обе стороны сразу видят друг
@@ -4413,6 +4441,23 @@
     if (!myKey) return;
     db.ref('users/' + myKey + '/friendRequests/' + fromKey).remove().then(loadCommunityRequests)
       .catch((err) => window.showDebugError?.('Сообщество: отклонить заявку', err));
+  }
+  // подтверждение/отказ читает браузер, который ждёт (см. btn-guest-login
+  // в Настройках) — просто выставляем статус, сам браузер потом удаляет
+  // запись и переподхватывает identity; здесь только освежаем свой список
+  function approveLoginRequest(requestId) {
+    const myKey = window.currentTelegramId;
+    if (!myKey) return;
+    db.ref('users/' + myKey + '/loginRequests/' + requestId).update({ status: 'approved' })
+      .then(loadCommunityRequests)
+      .catch((err) => window.showDebugError?.('Сообщество: подтвердить вход', err));
+  }
+  function denyLoginRequest(requestId) {
+    const myKey = window.currentTelegramId;
+    if (!myKey) return;
+    db.ref('users/' + myKey + '/loginRequests/' + requestId).update({ status: 'denied' })
+      .then(loadCommunityRequests)
+      .catch((err) => window.showDebugError?.('Сообщество: отклонить вход', err));
   }
 
   function showCommunityFriendStatus(text, isError) {
@@ -5228,19 +5273,22 @@
       </div>
 
       <!-- показывается только гостю (открыл не из Telegram, своего email ещё
-           не вводил) — явная кнопка "войти", а не тот же блок, что и
-           привязка нового email у настоящего аккаунта (см. ниже) -->
+           не вводил) — запрос на вход, а не письмо: заявка уходит тому
+           настоящему аккаунту, где этот email привязан (см. emailLogins в
+           JS), и подтверждается им самим в Сообщество → Запросы. Никакого
+           письма Firebase тут не шлёт — почта не проверяется на владение,
+           реальная защита — это ручное подтверждение на стороне аккаунта. -->
       <div id="guest-login-block" style="display:none; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; margin:0 0 16px;">
         <div class="t-label" style="margin-bottom:10px;">Войти в свой аккаунт</div>
         <input type="email" id="guest-login-email-input" placeholder="твой email" autocomplete="email" style="width:100%; box-sizing:border-box; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; color:var(--text); font-size:13px; margin-bottom:8px;">
-        <button id="btn-guest-login" style="width:100%; background:var(--gold); border:none; color:#fff; border-radius:10px; padding:11px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer;">Войти в аккаунт</button>
+        <button id="btn-guest-login" style="width:100%; background:var(--gold); border:none; color:#fff; border-radius:10px; padding:11px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer;">Запросить вход</button>
         <div class="t-desc" id="guest-login-status" style="display:none; margin-top:8px; line-height:1.4;"></div>
-        <div class="t-desc" style="margin-top:8px; line-height:1.4;">Если раньше уже привязывал email к своему настоящему аккаунту (в Telegram, Настройки → Аккаунт) — впиши тот же и перейди по ссылке из письма.</div>
+        <div class="t-desc" style="margin-top:8px; line-height:1.4;">Нужно, чтобы этот email раньше привязали в настоящем аккаунте (Настройки → Аккаунт → «Вход с других устройств»). Заявка придёт туда — в Сообщество → Запросы — подтверди её оттуда.</div>
       </div>
 
       <!-- показывается только настоящему аккаунту (Telegram или уже вошёл
-           по email где-то ещё) — привязка/смена email для входа с других
-           устройств, отдельно от входа гостя выше -->
+           по email где-то ещё) — привязка email для будущих запросов на
+           вход, отдельно от самого запроса выше -->
       <div id="google-account-block" style="display:none; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; margin:0 0 16px;">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
           <div>
@@ -5249,19 +5297,20 @@
           </div>
         </div>
         <input type="email" id="email-link-input" placeholder="твой email" autocomplete="email" style="width:100%; box-sizing:border-box; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; color:var(--text); font-size:13px; margin-bottom:8px;">
-        <button id="btn-email-link-send" style="width:100%; background:var(--gold); border:none; color:#fff; border-radius:10px; padding:11px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer;">Прислать ссылку на почту</button>
+        <button id="btn-email-link-send" style="width:100%; background:var(--gold); border:none; color:#fff; border-radius:10px; padding:11px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer;">Привязать</button>
         <div class="t-desc" id="email-link-status" style="display:none; margin-top:8px; line-height:1.4;"></div>
-        <div class="t-desc" style="margin-top:8px; line-height:1.4;">Открывает тот же профиль на компьютере или другом телефоне, зайдя на сайт напрямую в браузере — без пароля.</div>
+        <div class="t-desc" style="margin-top:8px; line-height:1.4;">На другом устройстве/браузере впиши этот же email в «Войти в свой аккаунт» — заявку на вход подтвердишь прямо здесь, в Сообщество → Запросы, без пароля и без письма.</div>
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.4.25 · бета (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.4.26 · бета (LiveKit-ветка)</div>
         Бета-тест · обновлено 07.09.2026<br>
-        <span style="font-size:11px;">Починен баг: после Топ → Профиль → Настройки клик по Топ снова не открывал его — панели просто копились друг на друге, теперь при открытии одной остальные закрываются. В самой панели Сообщества убраны заголовок и вкладки-дубли — они теперь только в сайдбаре.</span>
+        <span style="font-size:11px;">Вход с других устройств переделан: вместо email-ссылки (у Firebase на бесплатном плане суточная квота на письма) — заявка на вход, которую подтверждаешь сам в Сообщество → Запросы. Без пароля, без письма, без ограничений.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.4.25 — починен баг "залипания" панелей на десктопе, убраны дублирующие заголовок/вкладки в Сообществе<br>
           v0.4.24 — Сообщество/Профиль/Настройки/Магазин на десктопе докуются в панель .device вместо всплывающей карточки<br>
           v0.4.23 — сайдбар на десктопе: вкладки Сообщества вместо одной кнопки, убран дублирующий "Участвовать"<br>
           v0.4.22 — добавлены English и Deutsch (Настройки → Язык) — переведён весь основной интерфейс<br>
@@ -5409,7 +5458,7 @@
     // раньше при открытии не подтягивалось сохранённое состояние привязки —
     // после релоада страницы тут всегда молча показывалось "Не привязан",
     // даже если аккаунт был давно привязан
-    window.updateGoogleAccountUI?.(window.currentPlayer?.googleEmail);
+    window.updateGoogleAccountUI?.(window.currentPlayer?.attachedEmail);
     window.updateAccountLoginUI?.();
   });
   document.getElementById('settings-close-btn').addEventListener('click', () => settingsOverlay.classList.remove('open'));
@@ -5429,11 +5478,19 @@
   document.getElementById('sidebar-nav-settings')?.addEventListener('click', () => document.getElementById('settings-btn')?.click());
 
   // ===== "Аккаунт" в Настройках =====
-  // Раньше тут был отдельный "Привязать Google" (signInWithPopup) — убран:
-  // Google внутри встроенного браузера Telegram блокируется самим Google
-  // (политика безопасности, не наша), а email-ссылка ниже решает ту же
-  // задачу без этой возни. Оставшиеся googleUid/googleEmail — просто
-  // названия полей с прошлого раза, реально в них теперь пишет email-вход.
+  // Было: письмо со ссылкой через Firebase Auth (email-ссылка/Google) —
+  // убрано целиком, у Firebase Auth на бесплатном плане суточная квота на
+  // отправку писем, и мы в неё упирались просто от тестирования. Теперь
+  // никакого письма нет вообще: email — просто ключ поиска аккаунта
+  // (emailLogins/<email> → telegramId, не проверяется на владение), а
+  // реальный вход подтверждается вручную на самом аккаунте, в Сообщество →
+  // Запросы (см. loginRequests ниже и renderCommunityRequests). Firebase
+  // Auth (auth.*, googleLinks) в проекте больше не участвует ни в чём.
+  function emailToKey(email) {
+    // Firebase RTDB запрещает "." в ключах — заменяем на "," (стандартный
+    // приём), "@" в ключах разрешён, трогать не нужно
+    return email.trim().toLowerCase().replace(/\./g, ',');
+  }
   function updateGoogleAccountUI(email) {
     const valEl = document.getElementById('settings-google-val');
     if (!valEl) return;
@@ -5480,44 +5537,94 @@
     return 'браузер';
   }
 
-  // ===== вход в аккаунт для гостя (та же email-ссылка, без привязки) =====
+  // ===== запрос на вход для гостя (без email-ссылки — заявка вместо письма) =====
+  // Ищем, кому принадлежит email (emailLogins/<key>), кладём заявку в
+  // users/<найденный telegramId>/loginRequests и ждём, пока её подтвердят
+  // на самом аккаунте (Сообщество → Запросы, approveLoginRequest ниже).
+  // Тайм-аут ожидания — 5 минут, чтобы забытая заявка не висела вечно в
+  // чужом списке запросов.
+  let activeLoginRequestPath = null;
+  let activeLoginRequestCb = null;
+  let activeLoginRequestTimeout = null;
+  function stopWaitingForLoginApproval() {
+    if (activeLoginRequestPath && activeLoginRequestCb) db.ref(activeLoginRequestPath).off('value', activeLoginRequestCb);
+    if (activeLoginRequestTimeout) clearTimeout(activeLoginRequestTimeout);
+    activeLoginRequestPath = null;
+    activeLoginRequestCb = null;
+    activeLoginRequestTimeout = null;
+  }
   document.getElementById('btn-guest-login')?.addEventListener('click', async () => {
     const emailInput = document.getElementById('guest-login-email-input');
     const email = emailInput.value.trim();
     const statusEl = document.getElementById('guest-login-status');
     if (!email || !email.includes('@')) { alert('Впиши email'); return; }
     const btn = document.getElementById('btn-guest-login');
+    stopWaitingForLoginApproval();
     btn.disabled = true;
-    btn.textContent = 'Отправляем…';
+    btn.textContent = 'Ищем аккаунт…';
+    statusEl.style.display = 'none';
     try {
-      await auth.sendSignInLinkToEmail(email, { url: location.origin + location.pathname, handleCodeInApp: true });
-      window.localStorage.setItem('emailForSignIn', email);
+      const linkSnap = await db.ref('emailLogins/' + emailToKey(email)).once('value');
+      const targetTelegramId = linkSnap.val();
+      if (!targetTelegramId) {
+        statusEl.style.display = 'block';
+        statusEl.style.color = 'var(--live)';
+        statusEl.textContent = 'Эта почта не привязана ни к одному аккаунту.';
+        return;
+      }
+      const reqRef = db.ref('users/' + targetTelegramId + '/loginRequests').push();
+      await reqRef.set({ device: detectBrowserName(), requestedAt: Date.now(), status: 'pending' });
+      const reqPath = 'users/' + targetTelegramId + '/loginRequests/' + reqRef.key;
       statusEl.style.display = 'block';
-      statusEl.textContent = '✅ Письмо отправлено на ' + email + ' — открой его (проверь и папку "Спам") и перейди по ссылке.';
-      emailInput.value = '';
+      statusEl.style.color = 'var(--muted)';
+      statusEl.textContent = '⏳ Заявка отправлена — подтверди её в Сообщество → Запросы на устройстве с настоящим Telegram-аккаунтом.';
+      btn.textContent = 'Ждём подтверждения…';
+      activeLoginRequestPath = reqPath;
+      activeLoginRequestCb = db.ref(reqPath).on('value', (snap) => {
+        const val = snap.val();
+        if (!val || val.status === 'pending') return;
+        if (val.status === 'approved') {
+          db.ref(reqPath).remove();
+          window.localStorage.setItem('battleTelegramId', targetTelegramId);
+          statusEl.textContent = '✅ Вход разрешён, обновляем…';
+          stopWaitingForLoginApproval();
+          setTimeout(() => window.location.reload(), 600);
+        } else if (val.status === 'denied') {
+          db.ref(reqPath).remove();
+          statusEl.style.color = 'var(--live)';
+          statusEl.textContent = 'Отклонено на другом устройстве.';
+          stopWaitingForLoginApproval();
+          btn.disabled = false;
+          btn.textContent = 'Запросить вход';
+        }
+      });
+      activeLoginRequestTimeout = setTimeout(() => {
+        db.ref(reqPath).once('value').then((s) => { if (s.val()?.status === 'pending') db.ref(reqPath).remove(); });
+        stopWaitingForLoginApproval();
+        statusEl.style.color = 'var(--live)';
+        statusEl.textContent = 'Время ожидания истекло, попробуй ещё раз.';
+        btn.disabled = false;
+        btn.textContent = 'Запросить вход';
+      }, 5 * 60 * 1000);
     } catch (err) {
       console.error(err);
-      window.showDebugError?.('Вход гостя по email-ссылке', err);
-      alert('Не удалось отправить: ' + (err.message || err));
-    } finally {
+      window.showDebugError?.('Запрос входа по email', err);
+      statusEl.style.display = 'block';
+      statusEl.style.color = 'var(--live)';
+      statusEl.textContent = 'Не удалось отправить запрос: ' + (err.message || err);
       btn.disabled = false;
-      btn.textContent = 'Войти в аккаунт';
+      btn.textContent = 'Запросить вход';
     }
   });
 
-  // ===== вход по ссылке на email (passwordless) =====
-  // Google внутри встроенного браузера Telegram блокируется самим Google
-  // (политика безопасности, не наша), а открывать сайт заново в системном
-  // браузере — лишний шаг. Email-ссылка эту проблему обходит целиком: письмо
-  // открывается в почтовом приложении, а не в WebView, и работает на любом
-  // устройстве без пароля. Пишет в googleUid/googleEmail и googleLinks/<uid>
-  // (названия полей остались с тех пор, когда сюда писал только Google).
+  // ===== привязка email (для будущих запросов на вход с других устройств) =====
+  // Не проверяет владение почтой (никакого письма) — если email уже
+  // привязан к ДРУГОМУ аккаунту, отказываем, чтобы не перехватить чужую
+  // привязку; иначе просто перезаписываем на себя (повторная привязка того
+  // же email тем же аккаунтом — не ошибка, это просто обновление записи).
   //
   // Этот блок виден только НЕ-гостю (см. updateAccountLoginUI) — то есть
   // тут всегда есть реальный telegramId, к которому можно привязывать.
-  // Вход гостя по уже существующей привязке — отдельная кнопка выше
-  // (btn-guest-login), без linkTelegramId, потому что гостю привязывать
-  // нечего, только входить в то, что уже есть.
   document.getElementById('btn-email-link-send')?.addEventListener('click', async () => {
     const telegramId = window.currentTelegramId;
     const emailInput = document.getElementById('email-link-input');
@@ -5527,24 +5634,35 @@
     if (!email || !email.includes('@')) { alert('Впиши email'); return; }
     const btn = document.getElementById('btn-email-link-send');
     btn.disabled = true;
-    btn.textContent = 'Отправляем…';
+    btn.textContent = 'Привязываем…';
+    statusEl.style.display = 'none';
     try {
-      const actionCodeSettings = {
-        url: location.origin + location.pathname + '?linkTelegramId=' + encodeURIComponent(telegramId),
-        handleCodeInApp: true
-      };
-      await auth.sendSignInLinkToEmail(email, actionCodeSettings);
-      window.localStorage.setItem('emailForSignIn', email);
+      const emailKey = emailToKey(email);
+      const existingSnap = await db.ref('emailLogins/' + emailKey).once('value');
+      const existingTelegramId = existingSnap.val();
+      if (existingTelegramId && existingTelegramId !== telegramId) {
+        statusEl.style.display = 'block';
+        statusEl.style.color = 'var(--live)';
+        statusEl.textContent = 'Эта почта уже привязана к другому аккаунту.';
+        return;
+      }
+      await db.ref('emailLogins/' + emailKey).set(telegramId);
+      await db.ref('users/' + telegramId).update({ attachedEmail: email });
+      if (window.currentPlayer) window.currentPlayer.attachedEmail = email;
+      window.updateGoogleAccountUI?.(email);
       statusEl.style.display = 'block';
-      statusEl.textContent = '✅ Письмо отправлено на ' + email + ' — открой его (проверь и папку "Спам") и перейди по ссылке (можно на любом устройстве, включая компьютер).';
+      statusEl.style.color = 'var(--muted)';
+      statusEl.textContent = '✅ Привязано — теперь с другого устройства можно запросить вход по этому email.';
       emailInput.value = '';
     } catch (err) {
       console.error(err);
-      window.showDebugError?.('Отправка email-ссылки', err);
-      alert('Не удалось отправить: ' + (err.message || err));
+      window.showDebugError?.('Привязка email', err);
+      statusEl.style.display = 'block';
+      statusEl.style.color = 'var(--live)';
+      statusEl.textContent = 'Не удалось привязать: ' + (err.message || err);
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Прислать ссылку на почту';
+      btn.textContent = 'Привязать';
     }
   });
 
@@ -6060,7 +6178,6 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
 <script>
   const tg = window.Telegram?.WebApp;
@@ -6087,8 +6204,6 @@
   };
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
-  const auth = firebase.auth();
-  window.battleAuth = auth;
 
   // Генерирует случайный внутренний ID игрока, например "PLR-8X3F9K"
   function generatePlayerId() {
@@ -6098,64 +6213,21 @@
     return 'PLR-' + code;
   }
 
-  // Открыта ли страница по ссылке из письма (см. btn-email-link-send выше)?
-  // Должно завершиться и, если нужно, привязаться ДО первого чтения auth-
-  // состояния в resolveIdentity — иначе onAuthStateChanged там успеет
-  // сработать на ещё не вошедшего пользователя и "съест" единственный вызов
-  // (unsubscribe после первого срабатывания).
-  async function completeEmailLinkSignInIfNeeded() {
-    if (!auth.isSignInWithEmailLink(window.location.href)) return;
-    let email = window.localStorage.getItem('emailForSignIn');
-    if (!email) {
-      // ссылку открыли не на том устройстве/браузere, где её запрашивали —
-      // email там просто негде было сохранить, спрашиваем ещё раз как
-      // подтверждение (стандартная рекомендация Firebase для этого случая)
-      email = window.prompt('Подтверди свой email, чтобы завершить вход:');
-    }
-    if (!email) return;
-    try {
-      const result = await auth.signInWithEmailLink(email, window.location.href);
-      window.localStorage.removeItem('emailForSignIn');
-      const uid = result.user.uid;
-      const params = new URLSearchParams(window.location.search);
-      const linkTelegramId = params.get('linkTelegramId');
-      if (linkTelegramId) {
-        const existingLinkSnap = await db.ref('googleLinks/' + uid).once('value');
-        const existingTelegramId = existingLinkSnap.val();
-        if (!existingTelegramId || existingTelegramId === linkTelegramId) {
-          await db.ref('users/' + linkTelegramId).update({ googleUid: uid, googleEmail: email });
-          await db.ref('googleLinks/' + uid).set(linkTelegramId);
-        }
-      }
-    } catch (err) {
-      window.showDebugError?.('Вход по ссылке из email', err);
-      alert('Не удалось войти по ссылке: ' + (err.message || err));
-    } finally {
-      // убираем служебные параметры из адресной строки — иначе при
-      // обновлении страницы Firebase попробует обработать ту же ссылку
-      // повторно и упадёт (ссылка одноразовая)
-      window.history.replaceState({}, document.title, window.location.origin + window.location.pathname);
-    }
-  }
-
   // ===== чей это профиль =====
   // Из Telegram — берём initDataUnsafe.user.id, он есть всегда и не меняется.
-  // Если сайт открыт как обычная страница (не из Telegram) и человек раньше
-  // привязал сюда Google-аккаунт или вошёл по email-ссылке (см. Настройки →
-  // Аккаунт) — подгружаем тот же профиль по обратной ссылке googleLinks/<uid>,
-  // а не создаём гостя.
+  // Если сайт открыт как обычная страница (не из Telegram) — смотрим,
+  // не запоминали ли мы уже подтверждённый вход в этом браузере
+  // (localStorage battleTelegramId, ставится после approveLoginRequest на
+  // другом устройстве — см. Настройки → Аккаунт → btn-guest-login); если
+  // нет — гость. Firebase Auth тут больше не участвует ни в чём: раньше
+  // тут была email-ссылка, но у неё суточная квота на бесплатном плане,
+  // в которую упирались просто от тестирования — заменили на ручное
+  // подтверждение входа в Сообщество → Запросы (см. loginRequests).
   async function resolveIdentity() {
     if (tgUser) return String(tgUser.id);
-    await completeEmailLinkSignInIfNeeded();
-    return new Promise((resolve) => {
-      const unsubscribe = auth.onAuthStateChanged((user) => {
-        unsubscribe();
-        if (!user) { resolve('guest_' + Math.random().toString(36).slice(2, 9)); return; }
-        db.ref('googleLinks/' + user.uid).once('value').then((snap) => {
-          resolve(snap.val() || ('guest_' + Math.random().toString(36).slice(2, 9)));
-        });
-      });
-    });
+    const saved = window.localStorage.getItem('battleTelegramId');
+    if (saved) return saved;
+    return 'guest_' + Math.random().toString(36).slice(2, 9);
   }
 
   resolveIdentity().then((telegramId) => {
@@ -6446,7 +6518,7 @@
       if (accountValEl) {
         accountValEl.textContent = userData.username || userData.playerId || 'PLR-XXXXXX';
       }
-      window.updateGoogleAccountUI?.(userData.googleEmail || null);
+      window.updateGoogleAccountUI?.(userData.attachedEmail || null);
     }
     window.applyProfileUser = applyProfileUser; // доступна из любого другого JS-блока на странице (глобальная область видимости)
 
@@ -7322,8 +7394,8 @@
       "Код игрока, напр. PLR-8X3F9K": "Player code, e.g. PLR-8X3F9K",
       "Добавить": "Add",
       "Пока нет друзей": "No friends yet",
-      "Заявки в друзья от других игроков — прими, чтобы попасть друг другу в друзья.": "Friend requests from other players — accept to become friends.",
-      "Нет новых заявок в друзья": "No new friend requests",
+      "Заявки в друзья и запросы на вход с других устройств — подтверди, чтобы разрешить.": "Friend requests and sign-in requests from other devices — confirm to allow.",
+      "Нет новых заявок": "No new requests",
       "Создать": "Create",
       "Таблица": "Table",
       "Список": "List",
@@ -7437,8 +7509,8 @@
       "Код игрока, напр. PLR-8X3F9K": "Spielercode, z. B. PLR-8X3F9K",
       "Добавить": "Hinzufügen",
       "Пока нет друзей": "Noch keine Freunde",
-      "Заявки в друзья от других игроков — прими, чтобы попасть друг другу в друзья.": "Freundschaftsanfragen von anderen Spielern — annehmen, um Freunde zu werden.",
-      "Нет новых заявок в друзья": "Keine neuen Freundschaftsanfragen",
+      "Заявки в друзья и запросы на вход с других устройств — подтверди, чтобы разрешить.": "Freundschaftsanfragen und Anmeldeanfragen von anderen Geräten — bestätigen, um zuzulassen.",
+      "Нет новых заявок": "Keine neuen Anfragen",
       "Создать": "Erstellen",
       "Таблица": "Tabelle",
       "Список": "Liste",

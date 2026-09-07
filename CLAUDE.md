@@ -8,7 +8,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The backend is **Firebase Realtime Database only** — there is no server, no Cloud Functions, no API. All game logic (matchmaking, battle state, ELO, shop, clans, events) lives in client-side JS in `index.html` that reads/writes the RTDB directly. `database.rules.json` is deliberately wide open (`.read: true, .write: true` at root, with only two narrow `.validate` rules for `users/$uid/role` and `battles/$code`) — this is an accepted, explicit tradeoff, not an oversight.
 
-A companion repo, `battle-admin-bot`, provides a Telegram-bot-launched admin panel against the **same Firebase project** (`zolotaya-kletka`). The two repos share: the RTDB schema, the `googleLinks/<uid> → telegramId` reverse-lookup table (so one email-link login works for both the game and the admin panel), and the error-reporting pipeline described below.
+A companion repo, `battle-admin-bot`, provides a Telegram-bot-launched admin panel against the **same Firebase project** (`zolotaya-kletka`). The two repos share: the RTDB schema, the `emailLogins/<email> → telegramId` table (so one attached email works for cross-device login to both the game and the admin panel — see Identity below), and the error-reporting pipeline described below.
+
+**This project must stay on Firebase's free (Spark) plan — no billing, ever.** This constraint has already shaped real architecture decisions (see the login-request flow below, which replaced Firebase Auth specifically to avoid its paid-tier-only email quota) and should keep shaping them; don't propose Blaze/billing as the fix for a Firebase quota or limit.
 
 ## Commands
 
@@ -38,9 +40,14 @@ The file is not one script — it's several sequential `<script>` blocks interle
 
 ### Identity & accounts (`resolveIdentity()`)
 - Opened inside Telegram → `telegramId = tgUser.id` (from `Telegram.WebApp.initDataUnsafe.user`), always present and stable.
-- Opened as a plain webpage (not Telegram) → passwordless **Firebase Email Link** sign-in (`completeEmailLinkSignInIfNeeded()`), then `googleLinks/<firebaseUid>` is looked up to recover the real `telegramId` (shared with `battle-admin-bot`). No Google OAuth popup — it's unreliable inside Telegram's embedded WebView (a Google-side restriction, not fixable in app code); the fallback there is `Telegram.WebApp.openLink()` to escape to the system browser.
-- No account/session at all → synthetic `guest_<random>` id, kept for that browser only. Guests are a deliberate, permanent feature (used for testing) — they can later attach a real email via Settings without losing anything, using the *same* email-link flow with a `?linkTelegramId=` query param appended to the sign-in URL.
-- Player records live at `users/<telegramId-or-guest-id>`: `role` (`user`/`moderator`/`admin`/`superadmin`), `points` (ELO, see `ELO_BASELINE`/`computeEloDelta`/`LEAGUES` — **not** a plain win counter), `stats`, `status` (`active`/`restricted`/`banned`), `avatarData`, `starsBalance`.
+- Opened as a plain webpage (not Telegram) → check `localStorage.battleTelegramId` (set once a login request below gets approved); if present, use it as-is.
+- Neither of the above → synthetic `guest_<random>` id, kept for that browser only. Guests are a deliberate, permanent feature (used for testing) — they can later attach to a real account via Settings without losing anything.
+- **No Firebase Auth anywhere in this project** — it was removed entirely (previously used for passwordless Email Link sign-in) because its free-tier daily quota on auth emails was trivial to exhaust just by testing, and the project must stay on Firebase's free plan (explicit, non-negotiable constraint — do not suggest Blaze/billing as a fix for anything). Cross-device login is now a **manual approval flow**, built entirely on the RTDB (no email ever sent, no third-party service):
+  1. Settings → Account lets a real account attach an email: `emailLogins/<emailToKey(email)> = telegramId` plus `users/<telegramId>/attachedEmail`. `emailToKey` replaces `.` with `,` (RTDB forbids `.` in keys). Attaching does **not** verify ownership of the email (deliberate — see below) but does refuse to overwrite an email already claimed by a *different* `telegramId`.
+  2. A guest/new browser enters that same email; the client looks up `emailLogins/<key>` to find the target `telegramId`, then pushes a request to `users/<telegramId>/loginRequests/<pushId>` (`{ device, requestedAt, status: 'pending' }`) and attaches a `.on('value')` listener on that exact node (5-minute client-side timeout, after which it deletes the still-pending request).
+  3. The real account sees pending requests merged into Community's "Запросы" tab (`renderCommunityRequests` — see below) or, for the admin panel specifically, also in `battle-admin-bot`'s own Account tab. Approving sets `status: 'approved'`; the waiting browser's listener picks that up, saves `telegramId` to `localStorage`, deletes the request, and reloads.
+  - The lack of email verification is intentional, not an oversight: the real security boundary is the human tap on "Разрешить", not the email. Don't re-add email verification without being asked — it would require sending mail again, which is the exact problem this design avoids.
+- Player records live at `users/<telegramId-or-guest-id>`: `role` (`user`/`moderator`/`admin`/`superadmin`), `points` (ELO, see `ELO_BASELINE`/`computeEloDelta`/`LEAGUES` — **not** a plain win counter), `stats`, `status` (`active`/`restricted`/`banned`), `avatarData`, `starsBalance`, `attachedEmail`.
 - New Telegram accounts are gated by `config/closedBeta` (see the beta-application screen) when set.
 
 ### Overlay/sheet UI system
