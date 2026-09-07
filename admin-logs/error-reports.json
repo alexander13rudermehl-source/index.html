@@ -214,5 +214,13 @@
     "playerId" : "PLR-A44LA9",
     "telegramId" : "871656058",
     "userAgent" : "Mozilla/5.0 (Linux; Android 17; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.7922.200 Mobile Safari/537.36 Telegram-Android/12.10.1 (Samsung SM-S948B; Android 17; SDK 37; HIGH)"
+  },
+  "-P0x1VB1eSQ3PT1tVQA9" : {
+    "createdAt" : 1788804203393,
+    "firstName" : "♱прекрасен как Ии$у$♱",
+    "log" : "[20:03:03] Google-вход: Firebase: The popup has been closed by the user before finalizing the operation. (auth/popup-closed-by-user).",
+    "playerId" : "PLR-A44LA9",
+    "telegramId" : "871656058",
+    "userAgent" : "Mozilla/5.0 (Linux; Android 17; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.7922.200 Mobile Safari/537.36 Telegram-Android/12.10.1 (Samsung SM-S948B; Android 17; SDK 37; HIGH)"
   }
 }
