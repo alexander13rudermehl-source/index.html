@@ -4796,7 +4796,11 @@
   const shopOverlay = document.getElementById('shop-overlay');
   document.getElementById('btn-open-shop')?.addEventListener('click', () => {
     shopOverlay.classList.add('open');
-    refreshShopAndProfile?.();
+    // refreshShopAndProfile живёт в отдельном замыкании (см. ниже, рядом с
+    // applyProfileUser) и наружу торчит только через window. — без префикса
+    // это необъявленный идентификатор, и ?.() тут не спасает: ReferenceError
+    // кидается ДО проверки на null/undefined (см. отчёты в errorReports)
+    window.refreshShopAndProfile?.();
   });
   document.getElementById('shop-close-btn')?.addEventListener('click', () => shopOverlay.classList.remove('open'));
   shopOverlay?.addEventListener('click', (e) => { if (e.target === shopOverlay) shopOverlay.classList.remove('open'); });
@@ -4984,13 +4988,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.4.16 · бета (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.4.17 · бета (LiveKit-ветка)</div>
         Бета-тест · обновлено 07.09.2026<br>
-        <span style="font-size:11px;">Починены трофеи, которые не показывались после боя: рефери сам подтягивал себе свежий баланс, а бойцов после матча никто не досвежал — трофеи начислялись в базе как и раньше, но "Профиль" победителя показывал старое значение до перезапуска приложения.</span>
+        <span style="font-size:11px;">Магазин чинился без перезагрузки: кнопка "Магазин" была сломана опечаткой (кидала ReferenceError вместо обновления баланса/рамок), плюс защита от редкого сбоя Firebase при быстром повторном клике на кнопки ивента.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.4.16 — трофеи после боя обновляются у игрока сразу, без перезапуска приложения<br>
           v0.4.15 — премиум-рамки в Магазине (1000–10000 ⭐): "Пламя дракона", "Небесное пламя", "Звёздное кольцо"<br>
           v0.4.14 — рамки для аватара научились анимации (pulse/rotate/spikes)<br>
           v0.4.13 — судейство: обе кнопки победителя блокируются сразу, до сетевого запроса<br>
@@ -6255,7 +6260,15 @@
       return;
     }
     btnEl.classList.add('show');
+    // db.ref('events').on('value', ...) шлёт кэш и серверное подтверждение
+    // почти подряд — без этой защиты второй вызов вешал новый .once() на
+    // тот же путь раньше, чем первый успевал получить ответ, и Firebase
+    // иногда падал с "listen() called twice for same path/queryId" (см.
+    // errorReports)
+    if (btnEl.dataset.claimPending === '1') return;
+    btnEl.dataset.claimPending = '1';
     db.ref('users/' + window.currentTelegramId + '/badges/' + ev.badgeId).once('value').then((snap) => {
+      btnEl.dataset.claimPending = '0';
       if(snap.val()){
         btnEl.classList.add('claimed');
         btnEl.textContent = '✅ Значок получен';
@@ -6270,7 +6283,7 @@
           }).catch((err) => window.showDebugError?.('Забрать значок ивента', err));
         };
       }
-    });
+    }).catch((err) => { btnEl.dataset.claimPending = '0'; window.showDebugError?.('Значок ивента', err); });
   }
 
   // Множитель трофеев за участие в ивенте — работает как одноразовый
@@ -6290,7 +6303,12 @@
       return;
     }
     btnEl.classList.add('show');
+    // см. комментарий в renderEventClaimButton выше — та же защита от
+    // двойного .once() на один путь при быстрой повторной перерисовке
+    if (btnEl.dataset.claimPending === '1') return;
+    btnEl.dataset.claimPending = '1';
     db.ref('users/' + window.currentTelegramId + '/claimedMultiplierEvents/' + eventId).once('value').then((snap) => {
+      btnEl.dataset.claimPending = '0';
       if(snap.val()){
         btnEl.classList.add('claimed');
         btnEl.textContent = `✅ Билет x${ev.multiplier} получен`;
@@ -6308,7 +6326,7 @@
           }).catch((err) => window.showDebugError?.('Забрать множитель ивента', err));
         };
       }
-    });
+    }).catch((err) => { btnEl.dataset.claimPending = '0'; window.showDebugError?.('Забрать множитель ивента', err); });
   }
 
   // Ивент-магазин: эксклюзивная рамка для аватара, которую админ задаёт
@@ -6326,7 +6344,12 @@
     }
     const frameId = 'event_' + eventId;
     btnEl.classList.add('show');
+    // см. комментарий в renderEventClaimButton выше — та же защита от
+    // двойного .once() на один путь при быстрой повторной перерисовке
+    if (btnEl.dataset.claimPending === '1') return;
+    btnEl.dataset.claimPending = '1';
     db.ref('users/' + window.currentTelegramId + '/eventFrames/' + frameId).once('value').then((snap) => {
+      btnEl.dataset.claimPending = '0';
       if(snap.val()){
         btnEl.classList.add('claimed');
         btnEl.textContent = `✅ «${ev.shopFrame.name}» куплена`;
@@ -6348,7 +6371,7 @@
           }).catch((err) => window.showDebugError?.('Купить рамку ивента', err));
         };
       }
-    });
+    }).catch((err) => { btnEl.dataset.claimPending = '0'; window.showDebugError?.('Рамка ивента', err); });
   }
 
   function fillEventBanner(ev, prefix){
