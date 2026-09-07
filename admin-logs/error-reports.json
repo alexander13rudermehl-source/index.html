@@ -190,5 +190,29 @@
     "playerId" : "PLR-A44LA9",
     "telegramId" : "871656058",
     "userAgent" : "Mozilla/5.0 (Linux; Android 17; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.7922.200 Mobile Safari/537.36 Telegram-Android/12.10.1 (Samsung SM-S948B; Android 17; SDK 37; HIGH)"
+  },
+  "-P0wvDx_lFidFpNhdO5Z" : {
+    "createdAt" : 1788802297751,
+    "firstName" : "♱прекрасен как Ии$у$♱",
+    "log" : "[19:30:41] Google-вход: Firebase: This domain is not authorized for OAuth operations for your Firebase project. Edit the list of authorized domains from the Firebase console. (auth/unauthorized-domain).",
+    "playerId" : "PLR-A44LA9",
+    "telegramId" : "871656058",
+    "userAgent" : "Mozilla/5.0 (Linux; Android 17; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.7922.200 Mobile Safari/537.36 Telegram-Android/12.10.1 (Samsung SM-S948B; Android 17; SDK 37; HIGH)"
+  },
+  "-P0wvMrta4I4J8Q3vFIX" : {
+    "createdAt" : 1788802334299,
+    "firstName" : "♱прекрасен как Ии$у$♱",
+    "log" : "[19:30:41] Google-вход: Firebase: This domain is not authorized for OAuth operations for your Firebase project. Edit the list of authorized domains from the Firebase console. (auth/unauthorized-domain).\n[19:31:41] Google-вход: Firebase: This domain is not authorized for OAuth operations for your Firebase project. Edit the list of authorized domains from the Firebase console. (auth/unauthorized-domain).",
+    "playerId" : "PLR-A44LA9",
+    "telegramId" : "871656058",
+    "userAgent" : "Mozilla/5.0 (Linux; Android 17; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.7922.200 Mobile Safari/537.36 Telegram-Android/12.10.1 (Samsung SM-S948B; Android 17; SDK 37; HIGH)"
+  },
+  "-P0wzSW8qzJhfCtDv6UV" : {
+    "createdAt" : 1788803405936,
+    "firstName" : "♱прекрасен как Ии$у$♱",
+    "log" : "[19:49:55] Google-вход: Firebase: The popup has been closed by the user before finalizing the operation. (auth/popup-closed-by-user).",
+    "playerId" : "PLR-A44LA9",
+    "telegramId" : "871656058",
+    "userAgent" : "Mozilla/5.0 (Linux; Android 17; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.7922.200 Mobile Safari/537.36 Telegram-Android/12.10.1 (Samsung SM-S948B; Android 17; SDK 37; HIGH)"
   }
 }
