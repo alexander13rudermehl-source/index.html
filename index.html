@@ -1672,13 +1672,28 @@
     </div>
   </div>
   <nav>
-    <div class="desktop-nav-item primary" id="sidebar-nav-join">
-      <svg viewBox="0 0 24 24"><path d="M5 3l14 9-14 9V3z"/></svg>
-      Участвовать
+    <!-- "Участвовать" тут не дублируется — в десктоп-версии он и так есть
+         внизу .device (та же кнопка, что и в мобильной вёрстке), а вкладки
+         "Сообщества" (Топ/Друзья/Запросы/Кланы) вместо одного пункта
+         "Сообщество" разложены по сайдбару отдельными пунктами — каждый
+         открывает community-overlay сразу на нужной вкладке (см. wiring
+         в JS ниже, sidebar-nav-community-*). -->
+    <div class="desktop-nav-item" id="sidebar-nav-community-top">
+      <svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6.1.6-4.6 4.1 1.3 6-5.4-3.2-5.4 3.2 1.3-6-4.6-4.1 6.1-.6L12 3z"/></svg>
+      Топ
     </div>
-    <div class="desktop-nav-item" id="sidebar-nav-community">
+    <div class="desktop-nav-item" id="sidebar-nav-community-friends">
       <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2.5 20c1-3 3.2-4.6 6.5-4.6s5.5 1.6 6.5 4.6"/><circle cx="17" cy="8.5" r="2.4"/><path d="M15.5 15.6c2.6.3 4.2 1.7 5 4.4"/></svg>
-      Сообщество
+      Друзья
+    </div>
+    <div class="desktop-nav-item" id="sidebar-nav-community-requests">
+      <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 6.5l9 6.5 9-6.5"/></svg>
+      Запросы
+      <span class="tab-count" id="sidebar-requests-count" style="display:none; margin-left:auto;"></span>
+    </div>
+    <div class="desktop-nav-item" id="sidebar-nav-community-clans">
+      <svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6l7-3z"/></svg>
+      Кланы
     </div>
     <div class="desktop-nav-item" id="sidebar-nav-profile">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1.2-3.6 4-5.5 7-5.5s5.8 1.9 7 5.5"/></svg>
@@ -4271,8 +4286,14 @@
   function renderCommunityRequests(list) {
     const el = document.getElementById('community-requests-list');
     const countEl = document.getElementById('community-requests-count');
-    if (list.length) { countEl.textContent = list.length; countEl.style.display = 'inline-flex'; }
-    else { countEl.style.display = 'none'; }
+    const sidebarCountEl = document.getElementById('sidebar-requests-count');
+    if (list.length) {
+      countEl.textContent = list.length; countEl.style.display = 'inline-flex';
+      if (sidebarCountEl) { sidebarCountEl.textContent = list.length; sidebarCountEl.style.display = 'inline-flex'; }
+    } else {
+      countEl.style.display = 'none';
+      if (sidebarCountEl) sidebarCountEl.style.display = 'none';
+    }
     if (!list.length) { el.innerHTML = '<div class="admin-empty">Нет новых заявок в друзья</div>'; window.applyTranslations?.(el); return; }
     el.innerHTML = list.map(({ key, request }) => `
       <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; display:flex; align-items:center; gap:10px; margin-bottom:8px;">
@@ -5151,13 +5172,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.4.22 · бета (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.4.23 · бета (LiveKit-ветка)</div>
         Бета-тест · обновлено 07.09.2026<br>
-        <span style="font-size:11px;">Добавлены English и Deutsch (Настройки → Язык) — переведён весь основной интерфейс: главный экран, боковая панель, Настройки, Профиль, Магазин, Сообщество, комната боя. Более редкие места (кланы, заявки на бета-тест, история версий) пока остаются на русском — следующими заходами.</span>
+        <span style="font-size:11px;">Сайдбар на десктопе: вместо одной кнопки "Сообщество" — сразу все её вкладки (Топ/Друзья/Запросы/Кланы) отдельными пунктами, каждая открывает нужную вкладку сразу. Убран дублирующий "Участвовать" из сайдбара — на десктопе он и так есть внизу.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.4.22 — добавлены English и Deutsch (Настройки → Язык) — переведён весь основной интерфейс<br>
           v0.4.21 — полноценная desktop-раскладка: боковая панель + расширенные панели на широких экранах<br>
           v0.4.20 — Настройки → Аккаунт переработаны: отдельная кнопка "Войти в аккаунт" для гостя, убран Google<br>
           v0.4.19 — email-ссылка заработала и с нового устройства без Telegram (вход, не только привязка)<br>
@@ -5309,8 +5331,13 @@
   // ===== desktop-сайдбар: пункты навигации просто "кликают" настоящие
   // action-row по id, никакой отдельной логики открытия/закрытия —
   // сайдбар виден только от 900px (см. .desktop-sidebar в <style>). =====
-  document.getElementById('sidebar-nav-join')?.addEventListener('click', () => document.getElementById('cta-join-btn')?.click());
-  document.getElementById('sidebar-nav-community')?.addEventListener('click', () => document.getElementById('community-btn')?.click());
+  // "Участвовать" тут нет — в десктоп-версии он и так виден внизу .device,
+  // дублировать его в сайдбаре незачем. Вкладки "Сообщества" вместо одного
+  // пункта открывают community-overlay сразу на нужной вкладке.
+  document.getElementById('sidebar-nav-community-top')?.addEventListener('click', () => { document.getElementById('community-btn')?.click(); showCommunityTab('top'); });
+  document.getElementById('sidebar-nav-community-friends')?.addEventListener('click', () => { document.getElementById('community-btn')?.click(); showCommunityTab('friends'); });
+  document.getElementById('sidebar-nav-community-requests')?.addEventListener('click', () => { document.getElementById('community-btn')?.click(); showCommunityTab('requests'); loadCommunityRequests(); });
+  document.getElementById('sidebar-nav-community-clans')?.addEventListener('click', () => { document.getElementById('community-btn')?.click(); showCommunityTab('clans'); loadClansTab(); });
   document.getElementById('sidebar-nav-profile')?.addEventListener('click', () => document.getElementById('profile-btn')?.click());
   document.getElementById('sidebar-nav-settings')?.addEventListener('click', () => document.getElementById('settings-btn')?.click());
 
