@@ -2058,6 +2058,14 @@
   const roomOverlay = document.getElementById('room-overlay');
   let myRoomCode = null;
   let myRoomRole = null; // 'host' | 'guest' | 'referee'
+  // защита от повторного объявления победителя: обе кнопки "Победил X"/
+  // "Победил Y" видны и активны одновременно, и между тапом и закрытием
+  // комнаты (closeRoom вызывается только ПОСЛЕ await finishMatch/battles-
+  // update — заметная сетевая пауза) кнопки ничем не блокировались. Тапнув
+  // одну кнопку и не увидев мгновенной реакции, судья тапал вторую — уходили
+  // два refereeDeclareWinner подряд, гонка на чтении battles/<code> отдавала
+  // очки обоим. См. refereeDeclareWinner/showRoomAsReferee ниже.
+  let decidingWinner = false;
 
   // зрительские симпатии (❤️ по каждой стороне) — считает рефери, тапая
   // бейдж прямо на аватаре; бойцы видят те же числа на своих аватарах
@@ -2501,6 +2509,15 @@
   function showRoomAsReferee(code, data) {
     myRoomCode = code;
     myRoomRole = 'referee';
+    decidingWinner = false;
+    const hostBtn = document.getElementById('ref-declare-host');
+    const guestBtn = document.getElementById('ref-declare-guest');
+    [hostBtn, guestBtn].forEach((btn) => {
+      if (!btn) return;
+      btn.disabled = false;
+      btn.style.removeProperty('opacity');
+      if (btn.dataset.origHtml) { btn.innerHTML = btn.dataset.origHtml; delete btn.dataset.origHtml; }
+    });
     document.getElementById('room-headline').textContent = 'СУДИШЬ БОЙ';
     document.getElementById('room-combatant-view').style.display = 'none';
     document.getElementById('room-referee-view').style.display = 'block';
@@ -2559,11 +2576,24 @@
   }
 
   async function refereeDeclareWinner(winnerSide) {
-    if (!myRoomCode || myRoomRole !== 'referee') return;
+    if (!myRoomCode || myRoomRole !== 'referee' || decidingWinner) return;
+    decidingWinner = true;
+    // видимая реакция на тап сразу, синхронно, до единого await — до этого
+    // момента обе кнопки оставались кликабельными всю сетевую паузу, и не
+    // увидев мгновенного отклика, судья успевал тапнуть вторую
+    const hostBtn = document.getElementById('ref-declare-host');
+    const guestBtn = document.getElementById('ref-declare-guest');
+    if (hostBtn) hostBtn.disabled = true;
+    if (guestBtn) guestBtn.disabled = true;
+    const clickedBtn = winnerSide === 'host' ? hostBtn : guestBtn;
+    if (clickedBtn) {
+      clickedBtn.dataset.origHtml = clickedBtn.innerHTML;
+      clickedBtn.textContent = 'Записываем…';
+    }
     const code = myRoomCode;
     const battleSnap = await db.ref('battles/' + code).once('value');
     const battle = battleSnap.val();
-    if (!battle) { closeRoom(); return; }
+    if (!battle || battle.status === 'finished') { closeRoom(); return; }
     const winnerId = winnerSide === 'host' ? battle.hostId : battle.guestId;
     const loserId = winnerSide === 'host' ? battle.guestId : battle.hostId;
     const likesSnap = await db.ref('battles/' + code + '/audienceLikes').once('value');
@@ -4845,13 +4875,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.4.12 · бета (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.4.13 · бета (LiveKit-ветка)</div>
         Бета-тест · обновлено 07.09.2026<br>
-        <span style="font-size:11px;">Ивент-магазин: у ивента теперь можно задать эксклюзивную рамку для аватара — покупается за Stars прямо на баннере ивента, только пока он активен, дальше остаётся у игрока навсегда (можно надевать/снимать в общем Магазине вместе с обычными рамками).</span>
+        <span style="font-size:11px;">Чинит баг судейства: обе кнопки "Победил X/Y" оставались кликабельны всю сетевую паузу после тапа, без видимой реакции — не увидев отклика, судья тапал вторую, и очки уходили обоим сразу. Теперь тап сразу блокирует обе кнопки и показывает "Записываем…".</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.4.12 — ивент-магазин: эксклюзивная рамка для аватара за Stars, продаётся только пока идёт ивент<br>
           v0.4.11 — Stars ожили: 5⭐ за судейство, Магазин с рамками и билетами-множителями<br>
           v0.4.10 — раздел "Билеты-множители" в Профиле и в карточке игрока в админке<br>
           v0.4.9 — проект переведён из альфа- в бета-тестирование<br>
