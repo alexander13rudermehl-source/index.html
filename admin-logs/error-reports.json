@@ -230,5 +230,53 @@
     "playerId" : "PLR-A44LA9",
     "telegramId" : "871656058",
     "userAgent" : "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+  },
+  "-P0xXV8RvMWNZwg_njnr" : {
+    "createdAt" : 1788812591632,
+    "firstName" : "♱прекрасен как Ии$у$♱",
+    "log" : "[21:26:29] Голос (LiveKit): токен получен, identity=host-MF9T9-g7ngk3, serverUrl=wss://zolotaya-kletka-a8kq7ior.livekit.cloud\n[21:26:29] Голос (LiveKit): состояние: connecting\n[21:26:30] Голос (LiveKit): состояние: connected\n[21:26:31] Голос (LiveKit): подключено и микрофон включён\n[21:26:54] Голос (LiveKit): состояние: disconnected",
+    "playerId" : "PLR-A44LA9",
+    "telegramId" : "871656058",
+    "userAgent" : "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+  },
+  "-P0xkvic46UFlLK8N_ee" : {
+    "createdAt" : 1788816374909,
+    "firstName" : "Гость",
+    "log" : "[23:26:11] Вход гостя по email-ссылке: [auth/unauthorized-continue-uri] Firebase: Domain not allowlisted by project (auth/unauthorized-continue-uri).",
+    "playerId" : "PLR-9MRG24",
+    "telegramId" : "guest_k6td80p",
+    "userAgent" : "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+  },
+  "-P0xm4fs92_YE9npld_h" : {
+    "createdAt" : 1788816677081,
+    "firstName" : "Гость",
+    "log" : "[00:31:11] Забрать множитель ивента: Firebase Database (${JSCORE_VERSION}) INTERNAL ASSERT FAILED: listen() called twice for same path/queryId.",
+    "playerId" : "PLR-LHTBAY",
+    "telegramId" : "guest_o5txx3j",
+    "userAgent" : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 OPR/134.0.0.0"
+  },
+  "-P0xonwPpj0OVLwGmpVK" : {
+    "createdAt" : 1788817391260,
+    "firstName" : "Гость",
+    "log" : "[23:42:33] Вход гостя по email-ссылке: [auth/quota-exceeded] Firebase: Exceeded daily quota for email sign-in. (auth/quota-exceeded).",
+    "playerId" : "PLR-BMU2WL",
+    "telegramId" : "guest_5sug7ee",
+    "userAgent" : "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+  },
+  "-P0xovEJOrvD6rR5GXfM" : {
+    "createdAt" : 1788817421142,
+    "firstName" : "Гость",
+    "log" : "[23:42:33] Вход гостя по email-ссылке: [auth/quota-exceeded] Firebase: Exceeded daily quota for email sign-in. (auth/quota-exceeded).\n[23:43:15] Вход гостя по email-ссылке: [auth/quota-exceeded] Firebase: Exceeded daily quota for email sign-in. (auth/quota-exceeded).",
+    "playerId" : "PLR-BMU2WL",
+    "telegramId" : "guest_5sug7ee",
+    "userAgent" : "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+  },
+  "-P0xs6ZJ0FLvK8ZeRHyJ" : {
+    "createdAt" : 1788818258288,
+    "firstName" : "Гость",
+    "log" : "[23:57:32] Вход гостя по email-ссылке: [auth/quota-exceeded] Firebase: Exceeded daily quota for email sign-in. (auth/quota-exceeded).",
+    "playerId" : "PLR-WS332B",
+    "telegramId" : "guest_gkw4klp",
+    "userAgent" : "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
   }
 }
