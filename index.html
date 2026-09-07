@@ -1514,7 +1514,7 @@
           const app = snap.val();
           if (!app) {
             stopPolling();
-            titleEl.textContent = 'Закрытый бета-тест';
+            titleEl.textContent = window.t?.('Закрытый бета-тест') ?? 'Закрытый бета-тест';
             messageEl.textContent = 'Сейчас доступ только по заявке — админ рассматривает их вручную. Оставь заявку, и как только её одобрят, страница сама обновится.';
             btnEl.textContent = 'Подать заявку';
             btnEl.style.display = 'block';
@@ -1522,14 +1522,14 @@
             btnEl.onclick = submitApplication;
           } else if (app.status === 'rejected') {
             stopPolling();
-            titleEl.textContent = 'Заявка отклонена';
+            titleEl.textContent = window.t?.('Заявка отклонена') ?? 'Заявка отклонена';
             messageEl.textContent = (app.rejectionReason || 'Причина не указана.') + '\n\nМожешь подать заявку ещё раз.';
             btnEl.textContent = 'Подать заявку заново';
             btnEl.style.display = 'block';
             btnEl.disabled = false;
             btnEl.onclick = submitApplication;
           } else {
-            titleEl.textContent = 'Заявка на рассмотрении';
+            titleEl.textContent = window.t?.('Заявка на рассмотрении') ?? 'Заявка на рассмотрении';
             messageEl.textContent = 'Админ ещё не рассмотрел заявку. Эта страница сама обновится, как только её одобрят — можно просто подождать здесь.';
             btnEl.textContent = 'Проверить статус';
             btnEl.style.display = 'block';
@@ -2241,7 +2241,7 @@
   function showView(name){
     document.querySelectorAll('.sheet-view').forEach(v => v.classList.remove('active'));
     document.querySelector(`.sheet-view[data-view="${name}"]`).classList.add('active');
-    titleEl.textContent = titles[name];
+    titleEl.textContent = window.t ? window.t(titles[name]) : titles[name];
     backBtn.classList.toggle('hidden', name === 'main');
     sheet.dataset.current = name;
     sheet.scrollTop = 0;
@@ -2530,13 +2530,13 @@
     const titleEl = document.getElementById('battle-result-title');
     const pointsEl = document.getElementById('battle-result-points');
     if (myRole === 'referee' || myRole === 'spectator') {
-      titleEl.textContent = 'Бой завершён';
+      titleEl.textContent = window.t?.('Бой завершён') ?? 'Бой завершён';
       pointsEl.style.display = 'none';
     } else {
       const delta = battle.pointsAwarded?.[myPlayerId];
-      if (myPlayerId && myPlayerId === battle.winnerId) titleEl.textContent = '🏆 Победа!';
-      else if (myPlayerId && myPlayerId === battle.loserId) titleEl.textContent = 'Поражение';
-      else titleEl.textContent = 'Бой завершён';
+      if (myPlayerId && myPlayerId === battle.winnerId) titleEl.textContent = window.t?.('🏆 Победа!') ?? '🏆 Победа!';
+      else if (myPlayerId && myPlayerId === battle.loserId) titleEl.textContent = window.t?.('Поражение') ?? 'Поражение';
+      else titleEl.textContent = window.t?.('Бой завершён') ?? 'Бой завершён';
       if (typeof delta === 'number' && delta !== 0) {
         pointsEl.style.display = 'block';
         pointsEl.style.color = delta > 0 ? 'var(--gold)' : 'var(--live)';
@@ -4203,7 +4203,7 @@
 
   function renderCommunityTop(entries) {
     const el = document.getElementById('community-top-list');
-    if (!entries.length) { el.innerHTML = '<div class="admin-empty">Пока никто не набрал очков в этом месяце</div>'; return; }
+    if (!entries.length) { el.innerHTML = '<div class="admin-empty">Пока никто не набрал очков в этом месяце</div>'; window.applyTranslations?.(el); return; }
     el.innerHTML = entries.map((u, i) => `
       <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; display:flex; align-items:center; gap:10px; margin-bottom:8px;">
         <div style="font-family:'Bebas Neue',sans-serif; font-size:16px; color:var(--muted); width:22px; text-align:center; flex-shrink:0;">${i + 1}</div>
@@ -4212,6 +4212,7 @@
         <div style="font-family:'Bebas Neue',sans-serif; font-size:15px; color:var(--gold);">${Number(u.effectivePoints || 0).toLocaleString('ru-RU')}</div>
       </div>
     `).join('');
+    window.applyTranslations?.(el);
   }
   function loadCommunityTop() {
     // топ месяца, не за всё время — считаем locally по monthlyPoints с учётом
@@ -4233,7 +4234,7 @@
 
   function renderCommunityFriends(list) {
     const el = document.getElementById('community-friends-list');
-    if (!list.length) { el.innerHTML = '<div class="admin-empty">Пока нет друзей</div>'; return; }
+    if (!list.length) { el.innerHTML = '<div class="admin-empty">Пока нет друзей</div>'; window.applyTranslations?.(el); return; }
     el.innerHTML = list.map(({ key, user }) => `
       <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; display:flex; align-items:center; gap:10px; margin-bottom:8px;">
         <div class="profile-avatar" style="width:34px; height:34px; font-size:13px; flex-shrink:0;${user.avatarData ? ` background-image:url(${user.avatarData}); background-size:cover; background-position:center; color:transparent;` : ''}">${escapeHtml((user.firstName || '??').slice(0, 2).toUpperCase())}</div>
@@ -4244,6 +4245,7 @@
         <button type="button" class="community-remove-friend" data-key="${key}" style="background:none; border:none; color:var(--muted); font-size:18px; line-height:1; cursor:pointer; padding:4px 8px;">✕</button>
       </div>
     `).join('');
+    window.applyTranslations?.(el);
     el.querySelectorAll('.community-remove-friend').forEach((btn) => {
       btn.addEventListener('click', () => removeCommunityFriend(btn.dataset.key));
     });
@@ -4271,7 +4273,7 @@
     const countEl = document.getElementById('community-requests-count');
     if (list.length) { countEl.textContent = list.length; countEl.style.display = 'inline-flex'; }
     else { countEl.style.display = 'none'; }
-    if (!list.length) { el.innerHTML = '<div class="admin-empty">Нет новых заявок в друзья</div>'; return; }
+    if (!list.length) { el.innerHTML = '<div class="admin-empty">Нет новых заявок в друзья</div>'; window.applyTranslations?.(el); return; }
     el.innerHTML = list.map(({ key, request }) => `
       <div style="background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; display:flex; align-items:center; gap:10px; margin-bottom:8px;">
         <div class="profile-avatar" style="width:34px; height:34px; font-size:13px; flex-shrink:0;">${escapeHtml((request.fromName || '??').slice(0, 2).toUpperCase())}</div>
@@ -4280,6 +4282,7 @@
         <button type="button" class="community-decline-request" data-key="${key}" style="background:none; border:1px solid var(--line); color:var(--muted); border-radius:100px; width:30px; height:30px; font-size:14px; cursor:pointer; flex-shrink:0;">✕</button>
       </div>
     `).join('');
+    window.applyTranslations?.(el);
     el.querySelectorAll('.community-accept-request').forEach((btn) => {
       btn.addEventListener('click', () => acceptCommunityRequest(btn.dataset.key));
     });
@@ -4357,6 +4360,7 @@
 
   document.getElementById('community-btn').addEventListener('click', () => {
     communityOverlay.classList.add('open');
+    window.applyTranslations?.(communityOverlay);
     loadCommunityTop();
     loadCommunityFriends();
     loadCommunityRequests();
@@ -4917,6 +4921,7 @@
   const profileOverlay = document.getElementById('profile-overlay');
   document.getElementById('profile-btn').addEventListener('click', () => {
     profileOverlay.classList.add('open');
+    window.applyTranslations?.(profileOverlay);
     if (typeof renderProfileFromMatches === 'function') renderProfileFromMatches();
     // билеты могли появиться после claim-кнопки на ивенте уже после
     // последней синхронизации userData — досвежаем живым запросом, а не
@@ -4933,6 +4938,7 @@
   const shopOverlay = document.getElementById('shop-overlay');
   document.getElementById('btn-open-shop')?.addEventListener('click', () => {
     shopOverlay.classList.add('open');
+    window.applyTranslations?.(shopOverlay);
     // refreshShopAndProfile живёт в отдельном замыкании (см. ниже, рядом с
     // applyProfileUser) и наружу торчит только через window. — без префикса
     // это необъявленный идентификатор, и ?.() тут не спасает: ReferenceError
@@ -5107,9 +5113,13 @@
           <div class="t-label" id="settings-account-label">Telegram-аккаунт</div>
           <div class="t-val" id="settings-account-val">@oleg_leipzig</div>
         </div>
-        <div class="plain-row" onclick="alert('→ Язык интерфейса')">
+        <div class="plain-row" style="cursor:default;">
           <div class="t-label">Язык</div>
-          <div class="t-val">Русский</div>
+          <select id="lang-select" style="background:transparent; border:none; color:var(--text); font-size:14px; font-weight:600; font-family:'Inter',sans-serif; cursor:pointer; text-align:right; -webkit-appearance:none; appearance:none;">
+            <option value="ru">Русский</option>
+            <option value="en">English</option>
+            <option value="de">Deutsch</option>
+          </select>
         </div>
       </div>
 
@@ -5141,13 +5151,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.4.21 · бета (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.4.22 · бета (LiveKit-ветка)</div>
         Бета-тест · обновлено 07.09.2026<br>
-        <span style="font-size:11px;">Полноценная desktop-раскладка: на широких экранах (компьютер) появилась боковая панель с навигацией и мини-статами (трофеи/лига/Stars), а все всплывающие панели (Профиль, Настройки, Магазин и т.д.) стали заметно шире. На телефоне и в Telegram — всё как было, без изменений.</span>
+        <span style="font-size:11px;">Добавлены English и Deutsch (Настройки → Язык) — переведён весь основной интерфейс: главный экран, боковая панель, Настройки, Профиль, Магазин, Сообщество, комната боя. Более редкие места (кланы, заявки на бета-тест, история версий) пока остаются на русском — следующими заходами.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.4.21 — полноценная desktop-раскладка: боковая панель + расширенные панели на широких экранах<br>
           v0.4.20 — Настройки → Аккаунт переработаны: отдельная кнопка "Войти в аккаунт" для гостя, убран Google<br>
           v0.4.19 — email-ссылка заработала и с нового устройства без Telegram (вход, не только привязка)<br>
           v0.4.18 — вход с других устройств теперь и по email-ссылке, без пароля и без Google<br>
@@ -7104,6 +7115,316 @@
       window.showDebugError('Промис отклонён', e.reason);
     });
   })();
+</script>
+
+<!-- ===== Многоязычность (RU/EN/DE) =====
+     Ретрофит на готовую разметку без переписывания тысяч мест на
+     абстрактные ключи: единый словарь "русская фраза → перевод" плюс
+     обход DOM (TreeWalker по текстовым узлам), который меняет только
+     текстовые узлы, точно совпадающие с русской фразой из словаря — не
+     трогает структуру/классы, работает даже когда фраза разбита по
+     вложенным тегам (например .headline: "Тролль" и "-баттл" — два
+     разных текстовых узла, каждый переводится независимо).
+
+     Покрытие в этом проходе: весь основной видимый интерфейс — главный
+     экран, боковая панель (desktop), Настройки (кроме истории версий —
+     это чисто технический русскоязычный лог для разработки, не для
+     игроков), Профиль, Магазин, Сообщество (включая статичные части
+     списков — пустые состояния, кнопки), комната боя и итог боя.
+
+     НЕ покрыто в этом проходе (перевод названий пользователей, дат,
+     реальных чисел тут в принципе невозможен и не нужен, но): алерты
+     внутри более редких сценариев (кланы — создание/модерация, заявки
+     на закрытый бета-тест, ивент-админка, редкие ошибки) — при таком
+     объёме проекта (~4900 уникальных русских фраз) сделать всё сразу
+     нереально аккуратно, это отдельный последующий проход. -->
+<script>
+  window.I18N_DICT = {
+    en: {
+      // ===== главный экран / сайдбар =====
+      "Игрок": "Player",
+      "Тролль": "Troll",
+      "-баттл": "-Battle",
+      "Голосовой баттл 1×1 — острые языки, живой рефери и зрители, которые решают, кто сильнее": "A 1×1 voice battle — sharp tongues, a live referee, and an audience who decides who's stronger",
+      "УЧАСТВОВАТЬ": "JOIN",
+      "Встать в очередь на баттл": "Join the battle queue",
+      "Сообщество": "Community",
+      "Топ месяца и друзья": "Monthly leaderboard and friends",
+      "Профиль": "Profile",
+      "Статистика, рейтинг, история баттлов": "Stats, rating, battle history",
+      "Настройки": "Settings",
+      "Микрофон, уведомления, аккаунт": "Microphone, notifications, account",
+      "Трофеи": "Trophies",
+      "Лига": "League",
+      "Stars": "Stars",
+      // ===== Настройки =====
+      "Цветовая тема": "Color theme",
+      "Классика": "Classic",
+      "Неон": "Neon",
+      "OLED чёрный": "OLED black",
+      "Светлая": "Light",
+      "Мои темы": "My themes",
+      "Свои палитры, обои, обмен темами файлом .tbbc": "Your own palettes, wallpapers, theme sharing via .tbbc files",
+      "Микрофон": "Microphone",
+      "Доступ к микрофону": "Microphone access",
+      "Запросить доступ": "Request access",
+      "Автоусиление громкости": "Auto volume boost",
+      "Компенсация тихого голоса": "Compensates a quiet voice",
+      "Шумоподавление": "Noise suppression",
+      "Фильтр фонового шума": "Background noise filter",
+      "Уведомления": "Notifications",
+      "Начало баттла": "Battle start",
+      "Когда найден соперник": "When an opponent is found",
+      "Приглашения от друзей": "Friend invites",
+      "Аккаунт": "Account",
+      "Telegram-аккаунт": "Telegram account",
+      "Способ входа": "Login method",
+      "Язык": "Language",
+      "Войти в свой аккаунт": "Sign in to your account",
+      "Войти в аккаунт": "Sign in",
+      "твой email": "your email",
+      "Если раньше уже привязывал email к своему настоящему аккаунту (в Telegram, Настройки → Аккаунт) — впиши тот же и перейди по ссылке из письма.": "If you've linked an email to your real account before (in Telegram, Settings → Account) — enter the same one and follow the link in the email.",
+      "Вход с других устройств": "Sign-in from other devices",
+      "Не привязан": "Not linked",
+      "Прислать ссылку на почту": "Send link to email",
+      "Открывает тот же профиль на компьютере или другом телефоне, зайдя на сайт напрямую в браузере — без пароля.": "Opens the same profile on a computer or another phone, by opening the site directly in a browser — no password needed.",
+      "Вся история версий": "Full version history",
+      // ===== Сообщество =====
+      "Топ": "Top",
+      "Друзья": "Friends",
+      "Запросы": "Requests",
+      "Кланы": "Clans",
+      // вкладки с эмодзи — эмодзи и текст один текстовый узел ("🏆 Топ"),
+      // без отдельной записи с эмодзи точное совпадение по словарю не сработает
+      "🏆 Топ": "🏆 Top",
+      "👥 Друзья": "👥 Friends",
+      "📨 Запросы": "📨 Requests",
+      "🛡 Кланы": "🛡 Clans",
+      "➕ Создать": "➕ Create",
+      "🏆 Таблица": "🏆 Table",
+      "📋 Список": "📋 List",
+      "Рейтинг за текущий месяц — в начале каждого следующего обнуляется, счёт начинается заново.": "This month's ranking — it resets at the start of each new month.",
+      "Загрузка…": "Loading…",
+      "Код игрока, напр. PLR-8X3F9K": "Player code, e.g. PLR-8X3F9K",
+      "Добавить": "Add",
+      "Пока нет друзей": "No friends yet",
+      "Заявки в друзья от других игроков — прими, чтобы попасть друг другу в друзья.": "Friend requests from other players — accept to become friends.",
+      "Нет новых заявок в друзья": "No new friend requests",
+      "Создать": "Create",
+      "Таблица": "Table",
+      "Список": "List",
+      "Рейтинг кланов — сумма очков участников за текущий месяц.": "Clan ranking — the sum of members' points for the current month.",
+      "Все одобренные кланы с правилами вступления — необязательно с очками.": "All approved clans with their join rules — not necessarily ranked by points.",
+      "Пока никто не набрал очков в этом месяце": "No one has scored points this month yet",
+      "✓ Принять": "✓ Accept",
+      // ===== Профиль =====
+      "Скопировать код": "Copy code",
+      "📋 Скопировать код": "📋 Copy code",
+      "Баланс Stars": "Stars balance",
+      "🛒 Магазин — рамки и билеты за Stars": "🛒 Shop — frames and tickets for Stars",
+      "Билеты-множители": "Multiplier tickets",
+      "Билетов пока нет — заберёшь на активном ивенте": "No tickets yet — claim one during a live event",
+      "Статистика": "Stats",
+      "Побед": "Wins",
+      "Поражений": "Losses",
+      "Винрейт": "Win rate",
+      "Баттлов": "Battles",
+      "Как рефери": "As referee",
+      "Симпатий": "Likes",
+      "Матчи": "Matches",
+      "Матчей пока нет": "No matches yet",
+      // ===== Магазин =====
+      "Магазин": "Shop",
+      "Рамки для аватара": "Avatar frames",
+      "Можно купить билет за Stars, не дожидаясь ивента — следующая победа в рейтинговом бою сожжёт его и умножит награду.": "You can buy a ticket with Stars without waiting for an event — your next ranked win will consume it and multiply the reward.",
+      // ===== комната боя / итог =====
+      "Баттл": "Battle",
+      "СОПЕРНИК НАЙДЕН": "OPPONENT FOUND",
+      "Таймер боя": "Battle timer",
+      "мин": "min",
+      "Победил": "Won by",
+      "Подключаем голос…": "Connecting voice…",
+      "🔊 Включить звук": "🔊 Enable sound",
+      "Бой завершён": "Battle finished",
+      "🏆 Победа!": "🏆 Victory!",
+      "Поражение": "Defeat",
+      "Понятно": "Got it",
+      // ===== вкладка "Участвовать" (заголовки подэкранов) =====
+      "Участвовать": "Join",
+      "Играть с другом": "Play with a friend",
+      "Рейтинговый бой": "Ranked battle",
+      "Ивенты": "Events",
+      "Тренировочный бот": "Training bot",
+      // ===== закрытый бета-тест =====
+      "Закрытый бета-тест": "Closed beta",
+      "Заявка отклонена": "Application declined",
+      "Заявка на рассмотрении": "Application under review"
+    },
+    de: {
+      "Игрок": "Spieler",
+      "Тролль": "Troll",
+      "-баттл": "-Battle",
+      "Голосовой баттл 1×1 — острые языки, живой рефери и зрители, которые решают, кто сильнее": "Ein Sprachbattle 1×1 — scharfe Zungen, ein Live-Schiedsrichter und Zuschauer, die entscheiden, wer stärker ist",
+      "УЧАСТВОВАТЬ": "TEILNEHMEN",
+      "Встать в очередь на баттл": "Der Kampf-Warteschlange beitreten",
+      "Сообщество": "Community",
+      "Топ месяца и друзья": "Monatsrangliste und Freunde",
+      "Профиль": "Profil",
+      "Статистика, рейтинг, история баттлов": "Statistiken, Rang, Kampfverlauf",
+      "Настройки": "Einstellungen",
+      "Микрофон, уведомления, аккаунт": "Mikrofon, Benachrichtigungen, Konto",
+      "Трофеи": "Trophäen",
+      "Лига": "Liga",
+      "Stars": "Stars",
+      "Цветовая тема": "Farbthema",
+      "Классика": "Klassisch",
+      "Неон": "Neon",
+      "OLED чёрный": "OLED Schwarz",
+      "Светлая": "Hell",
+      "Мои темы": "Meine Themes",
+      "Свои палитры, обои, обмен темами файлом .tbbc": "Eigene Paletten, Hintergründe, Theme-Austausch per .tbbc-Datei",
+      "Микрофон": "Mikrofon",
+      "Доступ к микрофону": "Mikrofonzugriff",
+      "Запросить доступ": "Zugriff anfordern",
+      "Автоусиление громкости": "Automatische Lautstärkeverstärkung",
+      "Компенсация тихого голоса": "Gleicht eine leise Stimme aus",
+      "Шумоподавление": "Rauschunterdrückung",
+      "Фильтр фонового шума": "Hintergrundgeräuschfilter",
+      "Уведомления": "Benachrichtigungen",
+      "Начало баттла": "Kampfbeginn",
+      "Когда найден соперник": "Wenn ein Gegner gefunden wurde",
+      "Приглашения от друзей": "Einladungen von Freunden",
+      "Аккаунт": "Konto",
+      "Telegram-аккаунт": "Telegram-Konto",
+      "Способ входа": "Anmeldemethode",
+      "Язык": "Sprache",
+      "Войти в свой аккаунт": "In dein Konto einloggen",
+      "Войти в аккаунт": "Einloggen",
+      "твой email": "deine E-Mail",
+      "Если раньше уже привязывал email к своему настоящему аккаунту (в Telegram, Настройки → Аккаунт) — впиши тот же и перейди по ссылке из письма.": "Wenn du vorher schon eine E-Mail mit deinem echten Konto verknüpft hast (in Telegram, Einstellungen → Konto) — gib dieselbe ein und folge dem Link in der E-Mail.",
+      "Вход с других устройств": "Anmeldung von anderen Geräten",
+      "Не привязан": "Nicht verknüpft",
+      "Прислать ссылку на почту": "Link per E-Mail senden",
+      "Открывает тот же профиль на компьютере или другом телефоне, зайдя на сайт напрямую в браузере — без пароля.": "Öffnet dasselbe Profil auf einem Computer oder einem anderen Handy, indem du die Seite direkt im Browser öffnest — ganz ohne Passwort.",
+      "Вся история версий": "Vollständiger Versionsverlauf",
+      "Топ": "Top",
+      "Друзья": "Freunde",
+      "Запросы": "Anfragen",
+      "Кланы": "Clans",
+      "🏆 Топ": "🏆 Top",
+      "👥 Друзья": "👥 Freunde",
+      "📨 Запросы": "📨 Anfragen",
+      "🛡 Кланы": "🛡 Clans",
+      "➕ Создать": "➕ Erstellen",
+      "🏆 Таблица": "🏆 Tabelle",
+      "📋 Список": "📋 Liste",
+      "Рейтинг за текущий месяц — в начале каждого следующего обнуляется, счёт начинается заново.": "Rangliste für diesen Monat — sie wird zu Beginn jedes neuen Monats zurückgesetzt.",
+      "Загрузка…": "Lädt…",
+      "Код игрока, напр. PLR-8X3F9K": "Spielercode, z. B. PLR-8X3F9K",
+      "Добавить": "Hinzufügen",
+      "Пока нет друзей": "Noch keine Freunde",
+      "Заявки в друзья от других игроков — прими, чтобы попасть друг другу в друзья.": "Freundschaftsanfragen von anderen Spielern — annehmen, um Freunde zu werden.",
+      "Нет новых заявок в друзья": "Keine neuen Freundschaftsanfragen",
+      "Создать": "Erstellen",
+      "Таблица": "Tabelle",
+      "Список": "Liste",
+      "Рейтинг кланов — сумма очков участников за текущий месяц.": "Clan-Rangliste — Summe der Punkte aller Mitglieder in diesem Monat.",
+      "Все одобренные кланы с правилами вступления — необязательно с очками.": "Alle genehmigten Clans mit ihren Beitrittsregeln — nicht zwingend nach Punkten sortiert.",
+      "Пока никто не набрал очков в этом месяце": "Diesen Monat hat noch niemand Punkte gesammelt",
+      "✓ Принять": "✓ Annehmen",
+      "Скопировать код": "Code kopieren",
+      "📋 Скопировать код": "📋 Code kopieren",
+      "Баланс Stars": "Stars-Guthaben",
+      "🛒 Магазин — рамки и билеты за Stars": "🛒 Shop — Rahmen und Tickets für Stars",
+      "Билеты-множители": "Multiplikator-Tickets",
+      "Билетов пока нет — заберёшь на активном ивенте": "Noch keine Tickets — hol dir eins bei einem laufenden Event",
+      "Статистика": "Statistiken",
+      "Побед": "Siege",
+      "Поражений": "Niederlagen",
+      "Винрейт": "Gewinnrate",
+      "Баттлов": "Kämpfe",
+      "Как рефери": "Als Schiedsrichter",
+      "Симпатий": "Sympathien",
+      "Матчи": "Matches",
+      "Матчей пока нет": "Noch keine Matches",
+      "Магазин": "Shop",
+      "Рамки для аватара": "Avatar-Rahmen",
+      "Можно купить билет за Stars, не дожидаясь ивента — следующая победа в рейтинговом бою сожжёт его и умножит награду.": "Du kannst ein Ticket mit Stars kaufen, ohne auf ein Event zu warten — dein nächster gewerteter Sieg verbraucht es und vervielfacht die Belohnung.",
+      "Баттл": "Kampf",
+      "СОПЕРНИК НАЙДЕН": "GEGNER GEFUNDEN",
+      "Таймер боя": "Kampf-Timer",
+      "мин": "Min",
+      "Победил": "Gewonnen von",
+      "Подключаем голос…": "Sprachverbindung wird hergestellt…",
+      "🔊 Включить звук": "🔊 Ton aktivieren",
+      "Бой завершён": "Kampf beendet",
+      "🏆 Победа!": "🏆 Sieg!",
+      "Поражение": "Niederlage",
+      "Понятно": "Verstanden",
+      "Участвовать": "Teilnehmen",
+      "Играть с другом": "Mit einem Freund spielen",
+      "Рейтинговый бой": "Ranglisten-Kampf",
+      "Ивенты": "Events",
+      "Тренировочный бот": "Trainings-Bot",
+      "Закрытый бета-тест": "Geschlossener Betatest",
+      "Заявка отклонена": "Antrag abgelehnt",
+      "Заявка на рассмотрении": "Antrag wird geprüft"
+    }
+  };
+
+  window.currentLang = localStorage.getItem('appLang') || 'ru';
+
+  function t(ru) {
+    if (window.currentLang === 'ru') return ru;
+    const entry = window.I18N_DICT[window.currentLang];
+    return (entry && entry[ru]) || ru;
+  }
+  window.t = t;
+
+  // WeakMap хранит ОРИГИНАЛЬНЫЙ русский текст узла при первом проходе —
+  // без этого повторный вызов (смена языка туда-обратно) искал бы перевод
+  // уже переведённой строки в словаре и не находил бы её, застревая в
+  // одном языке навсегда
+  const originalTextCache = new WeakMap();
+  function translateNode(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      let original = originalTextCache.get(node);
+      if (original === undefined) {
+        original = node.textContent;
+        originalTextCache.set(node, original);
+      }
+      const trimmed = original.trim();
+      if (!trimmed) return;
+      const translated = t(trimmed);
+      if (node.textContent !== original || translated !== trimmed) {
+        node.textContent = original.replace(trimmed, translated);
+      }
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      if (node.tagName === 'SCRIPT' || node.tagName === 'STYLE') return;
+      if (node.hasAttribute && node.hasAttribute('placeholder')) {
+        let origPh = originalTextCache.get(node);
+        if (origPh === undefined) { origPh = node.getAttribute('placeholder'); originalTextCache.set(node, origPh); }
+        node.setAttribute('placeholder', t(origPh));
+      }
+      node.childNodes.forEach(translateNode);
+    }
+  }
+  window.applyTranslations = function(root) { translateNode(root || document.body); };
+
+  const langSelectEl = document.getElementById('lang-select');
+  if (langSelectEl) {
+    langSelectEl.value = window.currentLang;
+    langSelectEl.addEventListener('change', (e) => {
+      window.currentLang = e.target.value;
+      localStorage.setItem('appLang', window.currentLang);
+      window.applyTranslations(document.body);
+      if (window.currentTelegramId && !window.currentTelegramId.startsWith('guest_')) {
+        db.ref('users/' + window.currentTelegramId + '/language').set(window.currentLang).catch(() => {});
+      }
+    });
+  }
+
+  if (window.currentLang !== 'ru') window.applyTranslations(document.body);
 </script>
 </body>
 </html>
