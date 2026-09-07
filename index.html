@@ -980,6 +980,49 @@
     font-size: 24px;
     letter-spacing: 1px;
     flex-shrink:0;
+    position: relative; z-index: 1; /* поверх анимированных эффектов рамки ниже — они рисуются на wrap::before/::after, за краем аватара */
+  }
+
+  /* ===== анимированные эффекты рамок (Магазин/ивент-магазин) =====
+     Применяются на .profile-banner-avatar-wrap (не на сам .profile-avatar)
+     через ::before/::after — так эффект физически выглядывает ЗА кружком
+     аватара, а не просто красит его границу, как обычная статичная рамка.
+     Цвет конкретной рамки передаётся через --frame-color (ставится в JS,
+     applyProfileUser) — один и тот же набор классов работает для любой
+     расцветки, включая ивентовые. */
+  @keyframes frame-pulse-glow{
+    0%,100%{ box-shadow: 0 0 6px 1px var(--frame-color, transparent); opacity:0.7; }
+    50%{ box-shadow: 0 0 16px 5px var(--frame-color, transparent); opacity:1; }
+  }
+  .profile-banner-avatar-wrap.avatar-frame-pulse .profile-avatar{
+    animation: frame-pulse-glow 1.8s ease-in-out infinite;
+  }
+  @keyframes frame-spin{ to{ transform: rotate(360deg); } }
+  .profile-banner-avatar-wrap.avatar-frame-rotate::before{
+    content:'';
+    position:absolute; inset:-6px;
+    border-radius:50%;
+    background: conic-gradient(from 0deg, var(--frame-color,transparent), transparent 35%, var(--frame-color,transparent) 70%, transparent);
+    animation: frame-spin 3.2s linear infinite;
+  }
+  @keyframes frame-spike-pulse{
+    0%,100%{ opacity:0.55; transform: scale(1); }
+    50%{ opacity:1; transform: scale(1.35); }
+  }
+  .profile-banner-avatar-wrap.avatar-frame-spikes::after{
+    content:'';
+    position:absolute; top:50%; left:50%;
+    width:6px; height:6px; margin:-3px 0 0 -3px;
+    border-radius:50%;
+    background: transparent;
+    /* четыре маленьких "шипа", выступающих за край кружка аватара — сверху/
+       справа/снизу/слева, каждый отдельным box-shadow без своего элемента */
+    box-shadow:
+      0 -45px 0 -1px var(--frame-color, transparent),
+      45px 0 0 -1px var(--frame-color, transparent),
+      0 45px 0 -1px var(--frame-color, transparent),
+      -45px 0 0 -1px var(--frame-color, transparent);
+    animation: frame-spike-pulse 1.3s ease-in-out infinite;
   }
   .profile-name{ font-size: 17px; font-weight: 700; margin-bottom: 2px; }
   .profile-username{ font-size: 13px; color: var(--muted); }
@@ -4875,13 +4918,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.4.13 · бета (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.4.14 · бета (LiveKit-ветка)</div>
         Бета-тест · обновлено 07.09.2026<br>
-        <span style="font-size:11px;">Чинит баг судейства: обе кнопки "Победил X/Y" оставались кликабельны всю сетевую паузу после тапа, без видимой реакции — не увидев отклика, судья тапал вторую, и очки уходили обоим сразу. Теперь тап сразу блокирует обе кнопки и показывает "Записываем…".</span>
+        <span style="font-size:11px;">Рамки для аватара научились анимации — как в Steam. Серебряная пульсирует свечением, золотая крутит кольцо вокруг аватара, огненная выпускает "шипы", физически выступающие за край кружка. Ивент-магазин тоже умеет задавать анимацию своим эксклюзивным рамкам.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.4.13 — судейство: обе кнопки победителя блокируются сразу, до сетевого запроса<br>
           v0.4.12 — ивент-магазин: эксклюзивная рамка для аватара за Stars, продаётся только пока идёт ивент<br>
           v0.4.11 — Stars ожили: 5⭐ за судейство, Магазин с рамками и билетами-множителями<br>
           v0.4.10 — раздел "Билеты-множители" в Профиле и в карточке игрока в админке<br>
@@ -5745,6 +5789,11 @@
     // Обе секции читают/пишут users/<id> напрямую живыми запросами вместо
     // window.currentPlayer — баланс должен быть точным прямо перед покупкой,
     // а не тем, что было закешировано на момент последней синхронизации.
+    const FRAME_EFFECT_LABELS = { none: '', pulse: '✨ пульсация', rotate: '🌀 вращение', spikes: '⚡ шипы' };
+    function frameEffectSuffix(effect) {
+      const label = FRAME_EFFECT_LABELS[effect];
+      return label ? ' · ' + label : '';
+    }
     function renderShopFrames(userData) {
       const el = document.getElementById('shop-frames-list');
       if (!el) return;
@@ -5759,7 +5808,7 @@
             <div class="league-dot" style="background:${f.color};"></div>
             <div style="flex:1; min-width:0;">
               <div class="league-name">${f.name}</div>
-              <div class="league-range">${isOwned ? 'Куплена' : f.price + ' ⭐'}</div>
+              <div class="league-range">${(isOwned ? 'Куплена' : f.price + ' ⭐')}${frameEffectSuffix(f.effect)}</div>
             </div>
             <button type="button" class="shop-frame-btn" data-frame-id="${f.id}" ${isEquipped ? 'disabled' : ''} style="flex-shrink:0; padding:8px 14px; border-radius:100px; border:none; background:${isEquipped ? 'var(--panel-2)' : 'var(--gold)'}; color:${isEquipped ? 'var(--muted)' : '#0B0B0D'}; font-size:11.5px; font-weight:700; cursor:${isEquipped ? 'default' : 'pointer'};">${actionText}</button>
           </div>
@@ -5776,7 +5825,7 @@
             <div class="league-dot" style="background:${f.color};"></div>
             <div style="flex:1; min-width:0;">
               <div class="league-name">${escapeHtml(f.name)}</div>
-              <div class="league-range">🎉 Из ивента</div>
+              <div class="league-range">🎉 Из ивента${frameEffectSuffix(f.effect)}</div>
             </div>
             <button type="button" class="shop-frame-btn" data-frame-id="${frameId}" ${isEquipped ? 'disabled' : ''} style="flex-shrink:0; padding:8px 14px; border-radius:100px; border:none; background:${isEquipped ? 'var(--panel-2)' : 'var(--gold)'}; color:${isEquipped ? 'var(--muted)' : '#0B0B0D'}; font-size:11.5px; font-weight:700; cursor:${isEquipped ? 'default' : 'pointer'};">${isEquipped ? '✅ Надета' : 'Надеть'}</button>
           </div>
@@ -5872,11 +5921,22 @@
       const avatar = document.getElementById('profile-avatar');
       if (userData.avatarData) { avatar.style.backgroundImage = `url(${userData.avatarData})`; avatar.classList.add('has-image'); avatar.textContent=''; }
       else { avatar.style.backgroundImage=''; avatar.classList.remove('has-image'); avatar.textContent=name.slice(0,2).toUpperCase(); }
-      // рамка из Магазина (базовая или ивентовая) — просто цветная обводка
-      // потолще поверх обычной
+      // рамка из Магазина (базовая или ивентовая) — цветная обводка потолще,
+      // плюс необязательный анимированный эффект (pulse/rotate/spikes),
+      // рисуется на wrap::before/::after, а не на самом .profile-avatar —
+      // так "шипы"/вращающееся кольцо физически выступают за край кружка,
+      // а не просто красят его границу (см. CSS выше, .profile-avatar)
       const equippedFrame = window.resolveFrame(userData, userData.avatarFrame);
       avatar.style.borderColor = equippedFrame ? equippedFrame.color : '';
       avatar.style.borderWidth = equippedFrame ? '3px' : '';
+      const avatarWrap = document.querySelector('.profile-banner-avatar-wrap');
+      if (avatarWrap) {
+        avatarWrap.style.setProperty('--frame-color', equippedFrame ? equippedFrame.color : '');
+        avatarWrap.classList.remove('avatar-frame-pulse', 'avatar-frame-rotate', 'avatar-frame-spikes');
+        if (equippedFrame && equippedFrame.effect && equippedFrame.effect !== 'none') {
+          avatarWrap.classList.add('avatar-frame-' + equippedFrame.effect);
+        }
+      }
 
       // тот же аватар/имя дублируем на главный экран (вместо иконки микрофона)
       const homeAvatar = document.getElementById('home-avatar');
@@ -6214,7 +6274,7 @@
             if (balance < ev.shopFrame.price) { alert('Не хватает Stars'); return; }
             const updates = {};
             updates['users/' + window.currentTelegramId + '/starsBalance'] = balance - ev.shopFrame.price;
-            updates['users/' + window.currentTelegramId + '/eventFrames/' + frameId] = { name: ev.shopFrame.name, color: ev.shopFrame.color };
+            updates['users/' + window.currentTelegramId + '/eventFrames/' + frameId] = { name: ev.shopFrame.name, color: ev.shopFrame.color, effect: ev.shopFrame.effect || 'none' };
             db.ref().update(updates).then(() => {
               renderEventShopFrameButton(ev, eventId, btnEl);
               window.refreshShopAndProfile?.();
@@ -6428,14 +6488,18 @@
   };
 
   // ===== Магазин: рамки для аватара и билеты-множители за Stars =====
-  // Рамки — чисто косметика (просто цветная обводка вокруг аватара),
-  // куплена раз — остаётся навсегда в ownedFrames, а avatarFrame хранит,
-  // какая из уже купленных надета сейчас (можно переключать бесплатно).
+  // Рамки — косметика вокруг аватара: цветная обводка плюс, у части из
+  // них, анимированный эффект (effect, см. .avatar-frame-* CSS выше) —
+  // pulse (пульсирующее свечение), rotate (вращающееся кольцо вокруг
+  // кружка) или spikes (мелкие "шипы", физически выступающие за край
+  // кружка, как в Steam). Куплена раз — остаётся навсегда в ownedFrames,
+  // а avatarFrame хранит, какая из уже купленных надета сейчас (можно
+  // переключать бесплатно).
   const AVATAR_FRAMES = [
-    { id: 'bronze', name: 'Бронзовая', price: 30,  color: '#B08D57' },
-    { id: 'silver', name: 'Серебряная', price: 60,  color: '#C9C9CE' },
-    { id: 'gold',   name: 'Золотая',   price: 120, color: '#F2B705' },
-    { id: 'live',   name: 'Огненная',  price: 200, color: 'var(--live)' }
+    { id: 'bronze', name: 'Бронзовая',  price: 30,  color: '#B08D57',    effect: 'none' },
+    { id: 'silver', name: 'Серебряная', price: 60,  color: '#C9C9CE',    effect: 'pulse' },
+    { id: 'gold',   name: 'Золотая',    price: 120, color: '#F2B705',    effect: 'rotate' },
+    { id: 'live',   name: 'Огненная',   price: 200, color: 'var(--live)', effect: 'spikes' }
   ];
   window.AVATAR_FRAMES = AVATAR_FRAMES;
   // цена билета в Магазине — альтернатива ожиданию ивента, поэтому дороже
