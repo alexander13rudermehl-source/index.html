@@ -1024,6 +1024,60 @@
       -45px 0 0 -1px var(--frame-color, transparent);
     animation: frame-spike-pulse 1.3s ease-in-out infinite;
   }
+
+  /* ===== премиум-рамки (1000–10000 ⭐) =====
+     "flame" — кольцо из язычков пламени вокруг аватара, как огненные рамки
+     на TikTok/стримах. В отличие от pulse/rotate/spikes выше (чистый CSS,
+     ::before/::after), тут нужно много отдельных "языков" по кругу — двумя
+     псевдоэлементами столько не сделать, поэтому applyProfileUser реально
+     создаёт FLAME_TONGUE_COUNT элементов .frame-flame-tongue (см. JS,
+     renderFlameTongues) внутри .frame-flame-tongues-host. Один и тот же
+     эффект работает для любого --frame-color — "Пламя дракона" (красный) и
+     "Небесное пламя" (голубой) это просто две рамки с effect:'flame' и
+     разным цветом, отдельная CSS-логика на каждый цвет не нужна. */
+  .frame-flame-tongues-host{ position:absolute; inset:0; pointer-events:none; display:none; }
+  .profile-banner-avatar-wrap.avatar-frame-flame .frame-flame-tongues-host{ display:block; }
+  .frame-flame-tongue{ position:absolute; top:50%; left:50%; width:0; height:0; }
+  .frame-flame-tongue-shape{
+    position:absolute; left:-6px; top:-30px;
+    width:12px; height:30px;
+    background: linear-gradient(to top, var(--frame-color, orange), transparent);
+    clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+    transform-origin: 50% 100%;
+    animation: frame-flicker .55s ease-in-out infinite alternate;
+  }
+  @keyframes frame-flicker{
+    from{ transform: scaleY(0.7) scaleX(0.8) rotate(-4deg); opacity:0.6; }
+    to{ transform: scaleY(1.2) scaleX(1.1) rotate(4deg); opacity:1; }
+  }
+
+  /* "cosmic" — вращающееся звёздное кольцо, самая дорогая рамка: то же
+     кольцо-градиент, что у "rotate", плюс мелкие "звёзды" — несколько
+     точек фиксированными box-shadow (не случайные, но на глаз читаются
+     как звёздная пыль) с независимым мерцанием. */
+  .profile-banner-avatar-wrap.avatar-frame-cosmic::before{
+    content:'';
+    position:absolute; inset:-7px;
+    border-radius:50%;
+    background: conic-gradient(from 0deg, var(--frame-color,transparent), transparent 25%, #fff 28%, transparent 32%, var(--frame-color,transparent) 60%, transparent 85%, var(--frame-color,transparent));
+    animation: frame-spin 6s linear infinite;
+  }
+  .profile-banner-avatar-wrap.avatar-frame-cosmic::after{
+    content:'';
+    position:absolute; top:50%; left:50%;
+    width:3px; height:3px; margin:-1px 0 0 -1px;
+    border-radius:50%;
+    background:#fff;
+    box-shadow:
+      -40px -18px 0 0 #fff, 34px -28px 0 -0.5px #fff, 44px 12px 0 0 #fff,
+      -12px 44px 0 -0.5px #fff, 20px 38px 0 0 #fff, -44px 10px 0 -0.5px #fff;
+    animation: frame-star-twinkle 1.6s ease-in-out infinite;
+  }
+  @keyframes frame-star-twinkle{
+    0%,100%{ opacity:0.4; }
+    50%{ opacity:1; }
+  }
+
   .profile-name{ font-size: 17px; font-weight: 700; margin-bottom: 2px; }
   .profile-username{ font-size: 13px; color: var(--muted); }
   .profile-banner .profile-name{ font-size: 19px; }
@@ -4918,13 +4972,14 @@
       </div>
 
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.4.14 · бета (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.4.15 · бета (LiveKit-ветка)</div>
         Бета-тест · обновлено 07.09.2026<br>
-        <span style="font-size:11px;">Рамки для аватара научились анимации — как в Steam. Серебряная пульсирует свечением, золотая крутит кольцо вокруг аватара, огненная выпускает "шипы", физически выступающие за край кружка. Ивент-магазин тоже умеет задавать анимацию своим эксклюзивным рамкам.</span>
+        <span style="font-size:11px;">Премиум-рамки в Магазине (1000–10000 ⭐): "Пламя дракона" и "Небесное пламя" — настоящее кольцо из языков огня вокруг аватара, "Звёздное кольцо" — вращающееся кольцо с мерцающими звёздами. Ивент-магазин тоже может выдавать такие эффекты своим эксклюзивным рамкам.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.4.14 — рамки для аватара научились анимации (pulse/rotate/spikes)<br>
           v0.4.13 — судейство: обе кнопки победителя блокируются сразу, до сетевого запроса<br>
           v0.4.12 — ивент-магазин: эксклюзивная рамка для аватара за Stars, продаётся только пока идёт ивент<br>
           v0.4.11 — Stars ожили: 5⭐ за судейство, Магазин с рамками и билетами-множителями<br>
@@ -5789,49 +5844,44 @@
     // Обе секции читают/пишут users/<id> напрямую живыми запросами вместо
     // window.currentPlayer — баланс должен быть точным прямо перед покупкой,
     // а не тем, что было закешировано на момент последней синхронизации.
-    const FRAME_EFFECT_LABELS = { none: '', pulse: '✨ пульсация', rotate: '🌀 вращение', spikes: '⚡ шипы' };
+    const FRAME_EFFECT_LABELS = { none: '', pulse: '✨ пульсация', rotate: '🌀 вращение', spikes: '⚡ шипы', flame: '🔥 языки пламени', cosmic: '🌌 звёздное вращение' };
     function frameEffectSuffix(effect) {
       const label = FRAME_EFFECT_LABELS[effect];
       return label ? ' · ' + label : '';
+    }
+    function renderShopFrameRow(f, frameId, isOwned, isEquipped, extraLabel) {
+      const priceLabel = isOwned ? 'Куплена' : `${f.price.toLocaleString('ru-RU')} ⭐`;
+      const actionText = isEquipped ? '✅ Надета' : isOwned ? 'Надеть' : `${f.price.toLocaleString('ru-RU')} ⭐`;
+      return `
+        <div class="league-row" style="cursor:default;">
+          <div class="league-dot" style="background:${f.color};"></div>
+          <div style="flex:1; min-width:0;">
+            <div class="league-name">${escapeHtml(f.name)}</div>
+            <div class="league-range">${extraLabel || priceLabel}${frameEffectSuffix(f.effect)}</div>
+          </div>
+          <button type="button" class="shop-frame-btn" data-frame-id="${frameId}" ${isEquipped ? 'disabled' : ''} style="flex-shrink:0; padding:8px 14px; border-radius:100px; border:none; background:${isEquipped ? 'var(--panel-2)' : 'var(--gold)'}; color:${isEquipped ? 'var(--muted)' : '#0B0B0D'}; font-size:11.5px; font-weight:700; cursor:${isEquipped ? 'default' : 'pointer'};">${actionText}</button>
+        </div>
+      `;
     }
     function renderShopFrames(userData) {
       const el = document.getElementById('shop-frames-list');
       if (!el) return;
       const owned = userData?.ownedFrames || {};
       const equipped = userData?.avatarFrame || null;
-      const baseRows = AVATAR_FRAMES.map((f) => {
-        const isOwned = !!owned[f.id];
-        const isEquipped = equipped === f.id;
-        const actionText = isEquipped ? '✅ Надета' : isOwned ? 'Надеть' : `${f.price} ⭐`;
-        return `
-          <div class="league-row" style="cursor:default;">
-            <div class="league-dot" style="background:${f.color};"></div>
-            <div style="flex:1; min-width:0;">
-              <div class="league-name">${f.name}</div>
-              <div class="league-range">${(isOwned ? 'Куплена' : f.price + ' ⭐')}${frameEffectSuffix(f.effect)}</div>
-            </div>
-            <button type="button" class="shop-frame-btn" data-frame-id="${f.id}" ${isEquipped ? 'disabled' : ''} style="flex-shrink:0; padding:8px 14px; border-radius:100px; border:none; background:${isEquipped ? 'var(--panel-2)' : 'var(--gold)'}; color:${isEquipped ? 'var(--muted)' : '#0B0B0D'}; font-size:11.5px; font-weight:700; cursor:${isEquipped ? 'default' : 'pointer'};">${actionText}</button>
-          </div>
-        `;
-      });
+      const baseRows = AVATAR_FRAMES.filter((f) => f.tier !== 'premium').map((f) =>
+        renderShopFrameRow(f, f.id, !!owned[f.id], equipped === f.id));
+      const premiumFrames = AVATAR_FRAMES.filter((f) => f.tier === 'premium');
+      const premiumRows = premiumFrames.length ? [
+        '<div class="section-label" style="margin-top:16px;">Премиум — 1000+ ⭐</div>',
+        ...premiumFrames.map((f) => renderShopFrameRow(f, f.id, !!owned[f.id], equipped === f.id))
+      ] : [];
       // ивентовые рамки уже куплены к моменту, когда они тут появляются
       // (см. renderEventShopFrameButton) — здесь их можно только надеть,
       // повторно покупать нечего
       const eventFrameEntries = Object.entries(userData?.eventFrames || {});
-      const eventRows = eventFrameEntries.map(([frameId, f]) => {
-        const isEquipped = equipped === frameId;
-        return `
-          <div class="league-row" style="cursor:default;">
-            <div class="league-dot" style="background:${f.color};"></div>
-            <div style="flex:1; min-width:0;">
-              <div class="league-name">${escapeHtml(f.name)}</div>
-              <div class="league-range">🎉 Из ивента${frameEffectSuffix(f.effect)}</div>
-            </div>
-            <button type="button" class="shop-frame-btn" data-frame-id="${frameId}" ${isEquipped ? 'disabled' : ''} style="flex-shrink:0; padding:8px 14px; border-radius:100px; border:none; background:${isEquipped ? 'var(--panel-2)' : 'var(--gold)'}; color:${isEquipped ? 'var(--muted)' : '#0B0B0D'}; font-size:11.5px; font-weight:700; cursor:${isEquipped ? 'default' : 'pointer'};">${isEquipped ? '✅ Надета' : 'Надеть'}</button>
-          </div>
-        `;
-      });
-      el.innerHTML = baseRows.concat(eventRows).join('');
+      const eventRows = eventFrameEntries.map(([frameId, f]) =>
+        renderShopFrameRow(f, frameId, true, equipped === frameId, '🎉 Из ивента'));
+      el.innerHTML = baseRows.concat(premiumRows).concat(eventRows).join('');
       el.querySelectorAll('.shop-frame-btn:not([disabled])').forEach((btn) => {
         btn.addEventListener('click', () => handleFrameAction(btn.dataset.frameId));
       });
@@ -5921,21 +5971,24 @@
       const avatar = document.getElementById('profile-avatar');
       if (userData.avatarData) { avatar.style.backgroundImage = `url(${userData.avatarData})`; avatar.classList.add('has-image'); avatar.textContent=''; }
       else { avatar.style.backgroundImage=''; avatar.classList.remove('has-image'); avatar.textContent=name.slice(0,2).toUpperCase(); }
-      // рамка из Магазина (базовая или ивентовая) — цветная обводка потолще,
-      // плюс необязательный анимированный эффект (pulse/rotate/spikes),
-      // рисуется на wrap::before/::after, а не на самом .profile-avatar —
-      // так "шипы"/вращающееся кольцо физически выступают за край кружка,
-      // а не просто красят его границу (см. CSS выше, .profile-avatar)
+      // рамка из Магазина (базовая, премиум или ивентовая) — цветная
+      // обводка потолще, плюс необязательный анимированный эффект
+      // (pulse/rotate/spikes/flame/cosmic), рисуется на wrap::before/::after
+      // (и для flame — на реальных дочерних элементах, см.
+      // renderFlameTongues), а не на самом .profile-avatar — так "шипы"/
+      // кольцо/языки пламени физически выступают за край кружка, а не
+      // просто красят его границу (см. CSS выше, .profile-avatar)
       const equippedFrame = window.resolveFrame(userData, userData.avatarFrame);
       avatar.style.borderColor = equippedFrame ? equippedFrame.color : '';
       avatar.style.borderWidth = equippedFrame ? '3px' : '';
       const avatarWrap = document.querySelector('.profile-banner-avatar-wrap');
       if (avatarWrap) {
         avatarWrap.style.setProperty('--frame-color', equippedFrame ? equippedFrame.color : '');
-        avatarWrap.classList.remove('avatar-frame-pulse', 'avatar-frame-rotate', 'avatar-frame-spikes');
+        avatarWrap.classList.remove('avatar-frame-pulse', 'avatar-frame-rotate', 'avatar-frame-spikes', 'avatar-frame-flame', 'avatar-frame-cosmic');
         if (equippedFrame && equippedFrame.effect && equippedFrame.effect !== 'none') {
           avatarWrap.classList.add('avatar-frame-' + equippedFrame.effect);
         }
+        window.renderFlameTongues?.(avatarWrap, equippedFrame && equippedFrame.effect === 'flame');
       }
 
       // тот же аватар/имя дублируем на главный экран (вместо иконки микрофона)
@@ -6496,15 +6549,46 @@
   // а avatarFrame хранит, какая из уже купленных надета сейчас (можно
   // переключать бесплатно).
   const AVATAR_FRAMES = [
-    { id: 'bronze', name: 'Бронзовая',  price: 30,  color: '#B08D57',    effect: 'none' },
-    { id: 'silver', name: 'Серебряная', price: 60,  color: '#C9C9CE',    effect: 'pulse' },
-    { id: 'gold',   name: 'Золотая',    price: 120, color: '#F2B705',    effect: 'rotate' },
-    { id: 'live',   name: 'Огненная',   price: 200, color: 'var(--live)', effect: 'spikes' }
+    { id: 'bronze', name: 'Бронзовая',  price: 30,  color: '#B08D57',    effect: 'none',  tier: 'base' },
+    { id: 'silver', name: 'Серебряная', price: 60,  color: '#C9C9CE',    effect: 'pulse', tier: 'base' },
+    { id: 'gold',   name: 'Золотая',    price: 120, color: '#F2B705',    effect: 'rotate', tier: 'base' },
+    { id: 'live',   name: 'Огненная',   price: 200, color: 'var(--live)', effect: 'spikes', tier: 'base' },
+    // премиум — дороже на порядок, эффекты заметнее и на весь экран, а не
+    // просто лёгкий блеск вокруг кружка (см. .avatar-frame-flame/-cosmic)
+    { id: 'flame_red',  name: 'Пламя дракона',  price: 2000,  color: '#FF4820', effect: 'flame',  tier: 'premium' },
+    { id: 'flame_blue', name: 'Небесное пламя', price: 5000,  color: '#3EC5FF', effect: 'flame',  tier: 'premium' },
+    { id: 'cosmic',      name: 'Звёздное кольцо', price: 10000, color: '#6C7CFF', effect: 'cosmic', tier: 'premium' }
   ];
   window.AVATAR_FRAMES = AVATAR_FRAMES;
   // цена билета в Магазине — альтернатива ожиданию ивента, поэтому дороже
   // самой ставки этой лиги (иначе не было бы смысла вообще ждать ивенты)
   window.ticketShopPrice = function(multiplier) { return multiplier * 15; };
+
+  // "flame" — единственный эффект, которому мало ::before/::after (нужно
+  // штук 10 отдельных "языков" по кругу) — реально создаёт DOM-элементы
+  // внутри .frame-flame-tongues-host, а не только переключает CSS-класс.
+  // Вызывается из applyProfileUser при каждом обновлении профиля; если
+  // эффект не flame — просто убирает host, если он остался от прошлой рамки.
+  const FLAME_TONGUE_COUNT = 10;
+  window.renderFlameTongues = function(wrap, isActive) {
+    let host = wrap.querySelector('.frame-flame-tongues-host');
+    if (!isActive) { host?.remove(); return; }
+    if (host) return; // уже построен для текущей рамки, пересоздавать незачем
+    host = document.createElement('div');
+    host.className = 'frame-flame-tongues-host';
+    for (let i = 0; i < FLAME_TONGUE_COUNT; i++) {
+      const angle = Math.round((360 / FLAME_TONGUE_COUNT) * i);
+      const tongue = document.createElement('span');
+      tongue.className = 'frame-flame-tongue';
+      tongue.style.transform = `rotate(${angle}deg) translateY(-42px)`;
+      const shape = document.createElement('span');
+      shape.className = 'frame-flame-tongue-shape';
+      shape.style.animationDelay = (i * 0.11) + 's';
+      tongue.appendChild(shape);
+      host.appendChild(tongue);
+    }
+    wrap.appendChild(host);
+  };
 
   // рамки бывают двух видов: базовые (AVATAR_FRAMES, всегда продаются в
   // Магазине) и ивентовые — их название/цвет админ задаёт прямо в форме
