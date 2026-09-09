@@ -278,5 +278,29 @@
     "playerId" : "PLR-WS332B",
     "telegramId" : "guest_gkw4klp",
     "userAgent" : "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+  },
+  "-P15wAxr1B7iNCAsV4cH" : {
+    "createdAt" : 1788970319791,
+    "firstName" : "♱прекрасен как Ии$у$♱",
+    "log" : "[18:11:29] Голос (LiveKit): токен получен, identity=host-8EN98-iywcg9, serverUrl=wss://zolotaya-kletka-a8kq7ior.livekit.cloud\n[18:11:29] Голос (LiveKit): состояние: connecting\n[18:11:30] Голос (LiveKit): состояние: connected\n[18:11:31] Голос (LiveKit): получили аудио-трек: augmented-webhook\n[18:11:32] Голос (LiveKit): подключено и микрофон включён",
+    "playerId" : "PLR-A44LA9",
+    "telegramId" : "871656058",
+    "userAgent" : "Mozilla/5.0 (Linux; Android 17; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.7977.87 Mobile Safari/537.36 Telegram-Android/12.10.1 (Samsung SM-S948B; Android 17; SDK 37; HIGH)"
+  },
+  "-P15wJmhcOq78ne71KpB" : {
+    "createdAt" : 1788970355940,
+    "firstName" : "♱прекрасен как Ии$у$♱",
+    "log" : "[18:11:29] Голос (LiveKit): токен получен, identity=host-8EN98-iywcg9, serverUrl=wss://zolotaya-kletka-a8kq7ior.livekit.cloud\n[18:11:29] Голос (LiveKit): состояние: connecting\n[18:11:30] Голос (LiveKit): состояние: connected\n[18:11:31] Голос (LiveKit): получили аудио-трек: augmented-webhook\n[18:11:32] Голос (LiveKit): подключено и микрофон включён\n[18:12:34] Голос (LiveKit): состояние: disconnected",
+    "playerId" : "PLR-A44LA9",
+    "telegramId" : "871656058",
+    "userAgent" : "Mozilla/5.0 (Linux; Android 17; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.7977.87 Mobile Safari/537.36 Telegram-Android/12.10.1 (Samsung SM-S948B; Android 17; SDK 37; HIGH)"
+  },
+  "-P15wLItMZjfJjltVpfF" : {
+    "createdAt" : 1788970362643,
+    "firstName" : "Гость",
+    "log" : "[18:11:30] Голос (LiveKit): токен получен, identity=guest-8EN98-j2qeay, serverUrl=wss://zolotaya-kletka-a8kq7ior.livekit.cloud\n[18:11:30] Голос (LiveKit): состояние: connecting\n[18:11:30] Голос (LiveKit): состояние: connected\n[18:11:32] Голос (LiveKit): подключено и микрофон включён\n[18:11:32] Голос (LiveKit): получили аудио-трек: predictive-webhook\n[18:12:23] Голос (LiveKit): состояние: signalReconnecting\n[18:12:36] Голос (LiveKit): состояние: reconnecting\n[18:12:42] Голос (LiveKit): состояние: signalReconnecting",
+    "playerId" : "PLR-L8ASZQ",
+    "telegramId" : "guest_6u6za0n",
+    "userAgent" : "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/30.0 Chrome/143.0.0.0 Mobile Safari/537.36"
   }
 }
