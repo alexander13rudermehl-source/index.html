@@ -6,6 +6,17 @@
       "$uid": {
         "role": {
           ".validate": "newData.val() === 'user' || newData.val() === 'moderator' || newData.val() === 'admin' || newData.val() === 'superadmin'"
+        },
+        "deviceToken": {
+          ".validate": "!newData.exists() || newData.val().matches(/^[0-9a-f]+$/)"
+        },
+        "panelLocked": {
+          ".validate": "!newData.exists() || newData.isBoolean()"
+        },
+        "permissions": {
+          "$permKey": {
+            ".validate": "newData.isBoolean()"
+          }
         }
       }
     },
