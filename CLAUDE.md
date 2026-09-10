@@ -4,7 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-"Тролль-Баттл" (Troll Battle) — a Telegram Mini App voice-battle game. The entire client is **one monolithic `index.html`** (~7500 lines: `<style>`, HTML, then a sequence of `<script>` blocks) with **no build step, no bundler, no package manager, no framework**. It is deployed as-is via GitHub Pages / Firebase Hosting.
+"Тролль-Баттл" (Troll Battle) — a Telegram Mini App voice-battle game. The entire client is **one monolithic `index.html`** (~7500 lines: `<style>`, HTML, then a sequence of `<script>` blocks) with **no framework**. It is deployed via GitHub Pages / Firebase Hosting.
+
+### The live root `index.html` is a generated build artifact — never edit it directly
+The readable, hand-edited source lives at **`src/index.html`** — same file, same content, same conventions the whole rest of this document describes, just moved to that path. **All edits go there.** The root `index.html` (the one GitHub Pages actually serves) is produced automatically from it: pushing a change to `src/index.html` on `main` triggers `.github/workflows/build-obfuscated.yml`, which runs `.github/scripts/build-obfuscated.js` (minifies+mangles every inline `<script>` block via `terser`, leaves CDN `<script src="...">` tags untouched, validates the result) and commits the regenerated root `index.html` back to `main` — this normally completes within about a minute, and GitHub Pages then picks up that new commit the same way it always has. Editing root `index.html` directly is pointless: the next push to `src/index.html` silently overwrites it. This exists for basic protection against casual whole-page copying — it raises the bar for reading the code, but does not prevent someone from simply downloading the served page as-is; the `LICENSE` file at the repo root is the actual legal basis for objecting to unauthorized copies.
 
 The backend is **Firebase Realtime Database only** — there is no server, no Cloud Functions, no API. All game logic (matchmaking, battle state, ELO, shop, clans, events) lives in client-side JS in `index.html` that reads/writes the RTDB directly. `database.rules.json` is deliberately wide open (`.read: true, .write: true` at root, with only two narrow `.validate` rules for `users/$uid/role` and `battles/$code`) — this is an accepted, explicit tradeoff, not an oversight.
 
@@ -14,13 +17,13 @@ A companion repo, `battle-admin-bot`, provides a Telegram-bot-launched admin pan
 
 ## Commands
 
-There is no build, lint, or test suite (no `package.json` in this repo). "Testing" a change means:
+There is no build, lint, or test suite for hand-editing (no `package.json` committed in this repo — the build workflow installs `terser` itself, standalone). "Testing" a change means:
 
-1. **Syntax/structure validation** (run after every edit, since there's no compiler to catch errors) — extract every non-`src` `<script>` block and check it parses, and check `<div>`/`</div>` balance:
+1. **Syntax/structure validation** (run after every edit to `src/index.html`, since there's no compiler to catch errors) — extract every non-`src` `<script>` block and check it parses, and check `<div>`/`</div>` balance. Point this at `src/index.html`, the file you actually edited — **not** root `index.html`, which is generated (the build workflow separately re-runs an equivalent check against its own output before committing):
    ```bash
    node -e "
    const fs = require('fs');
-   const html = fs.readFileSync('index.html', 'utf8');
+   const html = fs.readFileSync('src/index.html', 'utf8');
    const scripts = [...html.matchAll(/<script(?![^>]*src)[^>]*>([\s\S]*?)<\/script>/g)].map(m=>m[1]);
    scripts.forEach((s,i) => { try { new Function(s); } catch(e) { console.log('Script', i, 'error:', e.message); } });
    const noComments = html.replace(/<!--[\s\S]*?-->/g, '');
@@ -29,13 +32,13 @@ There is no build, lint, or test suite (no `package.json` in this repo). "Testin
    ```
    Also worth checking for duplicate `id` attributes and `getElementById('...')` calls with no matching `id="..."` in the document. Two pre-existing false positives for duplicate ids: `clan-action-error` and the `${id}` template-literal string (not a real id).
 
-2. **Visual verification** — this app depends on `window.firebase`/`window.Telegram`, which aren't reachable from a sandboxed test run. Use Playwright with `page.addInitScript()` to stub a fake `window.firebase` (fake `database().ref()` returning resolved/no-op promises, fake `auth()`) *before* navigation, then screenshot. Always check **both** a desktop viewport (e.g. 1440×900) and a mobile one (e.g. 390×844 — real Telegram WebView widths) since the CSS branches hard on `@media (min-width: 900px)`.
+2. **Visual verification** — this app depends on `window.firebase`/`window.Telegram`, which aren't reachable from a sandboxed test run. Use Playwright with `page.addInitScript()` to stub a fake `window.firebase` (fake `database().ref()` returning resolved/no-op promises, fake `auth()`) *before* navigation, then screenshot. Point it at `src/index.html` — testing the generated root file is pointless, it's mangled and gets overwritten anyway. Always check **both** a desktop viewport (e.g. 1440×900) and a mobile one (e.g. 390×844 — real Telegram WebView widths) since the CSS branches hard on `@media (min-width: 900px)`.
 
-There is nothing to `npm install` here.
+There is nothing to `npm install` for hand-editing `src/index.html` itself.
 
 ## Architecture
 
-### Script block layout (in `index.html`, top to bottom)
+### Script block layout (in `src/index.html`, top to bottom)
 The file is not one script — it's several sequential `<script>` blocks interleaved with the HTML for the overlay/sheet they belong to (e.g. the Community `<script>` sits right after `<div class="overlay" id="community-overlay">`). They are **not modules** — everything is one shared global scope, so a `function foo(){}` declared in an early block is callable from a later one (this is relied upon, e.g. `dockOverlayToDevice`/`closeOtherDockOverlays` are defined once and called from separate later blocks). The biggest block (after the Firebase/Telegram/LiveKit `<script src>` tags) contains identity resolution, profile rendering, the shop, and events. i18n is the very last block, right before `</body>`.
 
 ### Identity & accounts (`resolveIdentity()`)

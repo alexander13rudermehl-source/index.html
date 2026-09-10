@@ -1,0 +1,81 @@
+name: Build obfuscated index.html
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/index.html'
+  workflow_dispatch: {}
+
+# Guard against an infinite loop: this workflow's own commit step only
+# touches root index.html, never src/index.html, so it can never match its
+# own path filter above and re-trigger itself.
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install terser
+        run: npm install terser --no-save
+
+      - name: Build minified+mangled index.html
+        run: node .github/scripts/build-obfuscated.js
+
+      - name: Validate generated index.html
+        run: |
+          node -e "
+          const fs = require('fs');
+          const html = fs.readFileSync('index.html', 'utf8');
+          const scripts = [...html.matchAll(/<script(?![^>]*src)[^>]*>([\s\S]*?)<\/script>/g)].map(m=>m[1]);
+          let hadError = false;
+          scripts.forEach((s,i) => { try { new Function(s); } catch(e) { console.log('Script', i, 'error:', e.message); hadError = true; } });
+          const noComments = html.replace(/<!--[\s\S]*?-->/g, '');
+          const openCount = (noComments.match(/<div/g)||[]).length;
+          const closeCount = (noComments.match(/<\/div>/g)||[]).length;
+          console.log('div open/close:', openCount, closeCount);
+          if (openCount !== closeCount) hadError = true;
+          if (hadError) { console.log('VALIDATION FAILED'); process.exit(1); }
+          console.log('VALIDATION PASSED');
+          "
+
+      - name: Compare div balance against source
+        run: |
+          node -e "
+          const fs = require('fs');
+          function divCounts(path) {
+            const html = fs.readFileSync(path, 'utf8');
+            const noComments = html.replace(/<!--[\s\S]*?-->/g, '');
+            return {
+              open: (noComments.match(/<div/g)||[]).length,
+              close: (noComments.match(/<\/div>/g)||[]).length,
+            };
+          }
+          const src = divCounts('src/index.html');
+          const gen = divCounts('index.html');
+          console.log('src/index.html div open/close:', src.open, src.close);
+          console.log('index.html div open/close:', gen.open, gen.close);
+          if (src.open !== gen.open || src.close !== gen.close) {
+            console.log('MISMATCH between source and generated output');
+            process.exit(1);
+          }
+          console.log('MATCH');
+          "
+
+      - name: Commit and push generated index.html
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet || git commit -m "Auto-build: minify+mangle index.html from src/index.html [skip ci]"
+          git push
