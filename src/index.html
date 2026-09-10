@@ -1443,6 +1443,65 @@
   </div>
 </div>
 
+<!-- ===== согласие с политикой конфиденциальности =====
+     Жёсткий гейт, показывается РОВНО ОДИН РАЗ на аккаунт (гостевой
+     guest_<random> — тоже аккаунт для этих целей, поле живёт на его
+     users/<uid> точно так же): сразу после того, как запись профиля
+     прочитана из Firebase и в ней нет privacyAccepted:true (см. конец
+     resolveIdentity().then(...) ниже — proceedAfterConsent/
+     showPrivacyConsentGate). Практически это значит, что сегодня его
+     увидят ВСЕ существующие аккаунты по одному разу на ближайшем
+     визите — поля privacyAccepted раньше просто не существовало.
+     Никакого крестика и клика по фону — единственный выход отсюда
+     кнопка "Принимаю и продолжаю" (см. .overlay в <style> — сам по себе
+     он не закрывается кликом вне .sheet, для остальных оверлеев это
+     не нужно проверять отдельно, у них есть свои крестики, тут же
+     намеренно нет никакого). z-index выше boot-loading-overlay (1000) —
+     гейт должен перекрыть даже "экран загрузки", если тот к этому
+     моменту ещё не спрятан. -->
+<div class="overlay" id="privacy-consent-overlay" style="background:#000; z-index:1002;">
+  <div style="text-align:center; max-width:320px;">
+    <div style="font-size:40px; margin-bottom:16px;">🔒</div>
+    <div style="font-family:'Bebas Neue',sans-serif; font-size:24px; letter-spacing:1px; margin-bottom:10px;">Прежде чем начать</div>
+    <div style="color:var(--muted); font-size:14px; line-height:1.5; margin-bottom:16px;">Чтобы баттлы, рейтинг и профиль вообще работали, нам нужны кое-какие данные: Telegram ID, игровая статистика и похожее. Продолжая, ты соглашаешься на их обработку — подробности в политике конфиденциальности.</div>
+    <div style="margin-bottom:20px;">
+      <a href="privacy.html" target="_blank" rel="noopener" style="color:var(--gold); font-size:13px; text-decoration:underline;">Политика конфиденциальности</a>
+    </div>
+    <button class="sheet-cta" id="btn-privacy-consent-accept" style="margin-top:0;">Принимаю и продолжаю</button>
+  </div>
+</div>
+<script>
+  // Открывает гейт согласия и вызывает continueFn РОВНО после успешной
+  // записи privacyAccepted:true в users/<telegramId> — вызывающий код
+  // (конец resolveIdentity().then(...) ниже) сам решает, нужен ли гейт
+  // вообще, здесь только его показ/подтверждение.
+  window.showPrivacyConsentGate = function (telegramId, continueFn) {
+    const overlay = document.getElementById('privacy-consent-overlay');
+    const btn = document.getElementById('btn-privacy-consent-accept');
+    btn.disabled = false;
+    btn.onclick = () => {
+      btn.disabled = true;
+      db.ref('users/' + telegramId).update({
+        privacyAccepted: true,
+        privacyAcceptedAt: Date.now()
+      }).then(() => {
+        overlay.classList.remove('open');
+        continueFn();
+      }).catch((err) => {
+        window.showDebugError?.('Согласие с политикой конфиденциальности', err);
+        btn.disabled = false;
+      });
+    };
+    overlay.classList.add('open');
+    // оверлей уже лежит в статичной разметке body, но applyTranslations
+    // проходит по всему документу только один раз при старте (см. блок
+    // i18n в самом конце файла) — на момент того прохода узел мог быть
+    // скрыт, а текст в нём не менялся с тех пор, так что повторный вызов
+    // здесь безвреден и приводит переводы в актуальное состояние
+    window.applyTranslations?.(overlay);
+  };
+</script>
+
 <!-- ===== режим обслуживания / аварийный режим =====
      Оба флага задаются superadmin из battle-admin-bot ("Правила
      платформы" → config/maintenanceMode, config/emergencyLockdown) и
@@ -5306,13 +5365,14 @@
         <a href="privacy.html" target="_blank" rel="noopener" style="display:inline-block; background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; text-decoration:none;">Политика конфиденциальности</a>
       </div>
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.4.26 · бета (LiveKit-ветка)</div>
-        Бета-тест · обновлено 07.09.2026<br>
-        <span style="font-size:11px;">Вход с других устройств переделан: вместо email-ссылки (у Firebase на бесплатном плане суточная квота на письма) — заявка на вход, которую подтверждаешь сам в Сообщество → Запросы. Без пароля, без письма, без ограничений.</span>
+        <div class="v-num">MICBATTLE v0.4.27 · бета (LiveKit-ветка)</div>
+        Бета-тест · обновлено 10.09.2026<br>
+        <span style="font-size:11px;">Добавлен обязательный экран согласия с политикой конфиденциальности — показывается один раз на аккаунт (и существующим, и новым) перед входом в приложение, без возможности закрыть или пропустить.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.4.26 — вход с других устройств переделан: вместо email-ссылки (у Firebase на бесплатном плане суточная квота на письма) — заявка на вход, которую подтверждаешь сам в Сообщество → Запросы. Без пароля, без письма, без ограничений<br>
           v0.4.25 — починен баг "залипания" панелей на десктопе, убраны дублирующие заголовок/вкладки в Сообществе<br>
           v0.4.24 — Сообщество/Профиль/Настройки/Магазин на десктопе докуются в панель .device вместо всплывающей карточки<br>
           v0.4.23 — сайдбар на десктопе: вкладки Сообщества вместо одной кнопки, убран дублирующий "Участвовать"<br>
@@ -6275,6 +6335,15 @@
       userRef.set(userData);
     }
 
+    // Согласие с политикой конфиденциальности — жёсткий гейт, один раз на
+    // аккаунт (и на гостя тоже, поле привязано к uid как любое другое).
+    // Всё, что раньше шло сразу отсюда до конца resolveIdentity().then(...)
+    // (проверка режима обслуживания, applyProfileUser/hideBootLoading,
+    // бан-чек, presence и т.д.) теперь живёт в proceedAfterConsent() ниже —
+    // вызывается либо сразу (уже есть privacyAccepted:true), либо из
+    // window.showPrivacyConsentGate после клика "Принимаю и продолжаю"
+    // (см. #privacy-consent-overlay в начале body).
+    function proceedAfterConsent() {
     // режим обслуживания/аварийный режим (config/maintenanceMode,
     // config/emergencyLockdown) — не блокирует остальную инициализацию,
     // просто накрывает всё оверлеем поверх, если понадобится
@@ -6692,6 +6761,22 @@
     const myPresenceRef = db.ref('presence/' + telegramId);
     myPresenceRef.set(true);
     myPresenceRef.onDisconnect().remove();
+    } // конец proceedAfterConsent()
+
+    if (userData.privacyAccepted) {
+      // уже согласился раньше (в т.ч. только что созданная запись
+      // никогда не бывает такой — privacyAccepted не входит в дефолты
+      // выше) — гейт не нужен, идём в приложение как обычно
+      proceedAfterConsent();
+    } else {
+      // ни разу не соглашался (это ВСЕ существующие сегодня аккаунты —
+      // поля раньше не было — плюс любой новый визитёр) — экран
+      // загрузки прячем только после того, как гейт уже открыт поверх
+      // него, иначе на миг мелькнёт сырой главный экран (см. тот же
+      // приём в showBetaApplicationScreen выше)
+      window.showPrivacyConsentGate?.(telegramId, proceedAfterConsent);
+      window.hideBootLoading?.();
+    }
   });
   }).catch((err) => {
     // сеть/Firebase недоступны при самом старте — не оставляем человека
