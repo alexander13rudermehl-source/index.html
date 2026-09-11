@@ -5391,6 +5391,25 @@
         <button id="btn-guest-login" style="width:100%; background:var(--gold); border:none; color:#fff; border-radius:10px; padding:11px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer;">Запросить вход</button>
         <div class="t-desc" id="guest-login-status" style="display:none; margin-top:8px; line-height:1.4;"></div>
         <div class="t-desc" style="margin-top:8px; line-height:1.4;">Нужно, чтобы этот email раньше привязали в настоящем аккаунте (Настройки → Аккаунт → «Вход с других устройств»). Заявка придёт туда — в Сообщество → Запросы — подтверди её оттуда.</div>
+
+        <!-- Альтернатива запросу по email: настоящий вход через официальный
+             Telegram Login Widget. Подпись HMAC проверяется на стороне
+             Cloudflare Worker (battle-tg-login), не в браузере — секрет бота
+             никогда не попадает в клиентский код (см. onTelegramLoginWidgetAuth
+             ниже и CLAUDE.md). Успешная проверка = обычный вход с настоящим
+             telegramId, тем же путём, что approveLoginRequest выше
+             (localStorage.battleTelegramId + перезагрузка). -->
+        <div style="text-align:center; color:var(--muted); font-size:12px; margin:14px 0;">или</div>
+        <div id="tg-login-widget-wrap" style="display:flex; justify-content:center;">
+          <!-- TODO: замени data-telegram-login на реальный username Telegram-бота
+               этого проекта (без @) — не найден нигде в репозитории botsystemtioxsit/index.html
+               или botsystemtioxsit/battle-admin-bot, поэтому оставлен плейсхолдер. -->
+          <script async src="https://telegram.org/js/telegram-widget.js?22"
+            data-telegram-login="TODO_REPLACE_BOT_USERNAME"
+            data-size="large"
+            data-onauth="onTelegramLoginWidgetAuth(user)"
+            data-request-access="write"></script>
+        </div>
       </div>
 
       <!-- показывается только настоящему аккаунту (Telegram или уже вошёл
@@ -5727,6 +5746,57 @@
       btn.textContent = 'Запросить вход';
     }
   });
+
+  // ===== вход через официальный Telegram Login Widget (без Telegram Mini App) =====
+  // Виджет сам собирает { id, first_name, username?, photo_url?, auth_date, hash }
+  // и вызывает этот callback (data-onauth в теге <script> выше). Подпись
+  // HMAC-SHA256 проверяем НЕ здесь — это требовало бы секретного токена
+  // бота в браузерном коде, чего быть не должно — а на отдельном
+  // Cloudflare Worker (https://battle-tg-login.tioxsit.workers.dev), у
+  // которого этот секрет есть. Если Worker подтвердил подпись (valid:true),
+  // это ровно такой же надёжный telegramId, как initDataUnsafe.user.id
+  // внутри самого Telegram — заканчиваем вход ТЕМ ЖЕ путём, что и
+  // approveLoginRequest выше (localStorage.battleTelegramId + перезагрузка),
+  // чтобы весь нижестоящий код (гейт согласия, проверка бана и т.д.)
+  // отработал одинаково для всех способов входа.
+  window.onTelegramLoginWidgetAuth = async function (user) {
+    const statusEl = document.getElementById('guest-login-status');
+    if (statusEl) {
+      statusEl.style.display = 'block';
+      statusEl.style.color = 'var(--muted)';
+      statusEl.textContent = 'Проверяем вход через Telegram…';
+    }
+    try {
+      const resp = await fetch('https://battle-tg-login.tioxsit.workers.dev', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(user)
+      });
+      const data = await resp.json().catch(() => null);
+      if (resp.ok && data && data.valid && data.id) {
+        window.localStorage.setItem('battleTelegramId', String(data.id));
+        if (statusEl) {
+          statusEl.style.color = 'var(--muted)';
+          statusEl.textContent = '✅ Вход разрешён, обновляем…';
+        }
+        setTimeout(() => window.location.reload(), 400);
+      } else {
+        if (statusEl) {
+          statusEl.style.display = 'block';
+          statusEl.style.color = 'var(--live)';
+          statusEl.textContent = 'Не удалось подтвердить вход через Telegram: ' + (data?.error || ('код ' + resp.status));
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      window.showDebugError?.('Вход через Telegram Login Widget', err);
+      if (statusEl) {
+        statusEl.style.display = 'block';
+        statusEl.style.color = 'var(--live)';
+        statusEl.textContent = 'Не удалось подтвердить вход через Telegram: ' + (err.message || err);
+      }
+    }
+  };
 
   // ===== привязка email (для будущих запросов на вход с других устройств) =====
   // Не проверяет владение почтой (никакого письма) — если email уже
