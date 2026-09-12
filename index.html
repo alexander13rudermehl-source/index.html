@@ -101,14 +101,43 @@
        прямоугольник .device — тёмная подложка не нужна (сама .sheet его
        целиком закрывает), а Сообщество/Профиль/Настройки/Магазин выглядят
        как смена содержимого правой панели, а не всплывающее окно. */
-    .overlay.dock-desktop{ background: transparent; padding: 0; }
+    .overlay.dock-desktop{ background: transparent; padding: 0; perspective: 1600px; }
+    /* ===== "переворот страницы книги вбок" при смене докнутой панели =====
+       Community/Профиль/Настройки/Магазин лежат ровно в одном и том же
+       прямоугольнике (см. dockOverlayToDevice) — closeOtherDockOverlays
+       синхронно снимает .open со старой и код обработчика клика тут же
+       ставит .open новой, поэтому rotateY-переход у обеих одновременно
+       (старая -8°→уходит, новая 8°→встаёт на 0°) уже сам по себе даёт
+       эффект переворота, без JS-хореографии. transform-origin слева —
+       как у корешка книги. */
     .overlay.dock-desktop .sheet{
       max-width: none;
       width: 100%;
       height: 100%;
       max-height: none;
       border-radius: 20px;
+      transform-origin: left center;
+      transform: rotateY(-8deg) scale(0.97);
+      transition: transform .32s cubic-bezier(.2,.8,.2,1), opacity .24s ease;
     }
+    .overlay.dock-desktop.open .sheet{ transform: rotateY(0deg) scale(1); }
+
+    /* та же идея для переключения вкладок ВНУТРИ Сообщества — см. общий
+       #community-view-* keyframe ниже, тут только desktop-вариант с
+       поворотом вместо простого сдвига (мобильная версия — sheetViewIn) */
+    @keyframes communityTabFlipIn{
+      from{ opacity:0; transform: perspective(900px) rotateY(-16deg); }
+      to{ opacity:1; transform: perspective(900px) rotateY(0deg); }
+    }
+    #community-view-top, #community-view-friends, #community-view-requests, #community-view-clans{
+      transform-origin: left center;
+      animation: communityTabFlipIn .3s ease;
+    }
+    @media (prefers-reduced-motion: reduce){
+      .overlay.dock-desktop .sheet{ transition: opacity .15s ease; transform: none !important; }
+      #community-view-top, #community-view-friends, #community-view-requests, #community-view-clans{ animation: none; }
+    }
+
     /* заголовок "Сообщество" и вкладки Топ/Друзья/Запросы/Кланы внутри
        самой панели теперь избыточны — на десктопе то же самое уже есть
        прямыми пунктами в сайдбаре (см. #sidebar-nav-community-*). Крестик
@@ -854,16 +883,24 @@
     from{ opacity:0; transform: translateY(6px); }
     to{ opacity:1; transform: translateY(0); }
   }
-  .sheet-view.active,
-  #community-view-top, #community-view-friends, #community-view-requests, #community-view-clans{
-    animation: sheetViewIn .22s ease;
+  .sheet-view.active{ animation: sheetViewIn .22s ease; }
+  /* На мобильном (<900px) вкладки Сообщества используют тот же плавный
+     сдвиг, что и .sheet-view — desktop-вариант с поворотом переопределяет
+     это внутри @media (min-width: 900px) выше по файлу тем же селектором
+     по id (та же специфичность, но desktop-блок идёт раньше в файле, а
+     побеждать при true media должен он — поэтому scope здесь max-width,
+     чтобы правила вообще не пересекались). */
+  @media (max-width: 899.98px){
+    #community-view-top, #community-view-friends, #community-view-requests, #community-view-clans{
+      animation: sheetViewIn .22s ease;
+    }
   }
   .tab{ transition: background .18s ease, color .18s ease, transform .1s ease; }
   .tab:active{ transform: scale(0.95); }
 
   @media (prefers-reduced-motion: reduce){
     .sheet{ transition: opacity .15s ease; transform: none !important; }
-    .sheet-view.active,
+    .sheet-view.active{ animation: none; }
     #community-view-top, #community-view-friends, #community-view-requests, #community-view-clans{
       animation: none;
     }
@@ -2555,13 +2592,14 @@
         <a href="privacy.html" target="_blank" rel="noopener" style="display:inline-block; background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; text-decoration:none;">Политика конфиденциальности</a>
       </div>
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.4.31 · бета (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.4.32 · бета (LiveKit-ветка)</div>
         Бета-тест · обновлено 12.09.2026<br>
-        <span style="font-size:11px;">Полировка анимаций: плавное появление шторок (лёгкий "взлёт" вместо мгновенного скачка), плавный переход между вкладками Сообщества, тактильный отклик на вкладках. Учитывается system-настройка "уменьшить анимацию".</span>
+        <span style="font-size:11px;">Веб-версия: переключение Топ/Друзья/Запросы/Кланы/Профиль/Настройки в боковой панели теперь выглядит как переворот страницы книги вбок, а не мгновенная подмена содержимого.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.4.31 — полировка анимаций: плавное появление шторок (лёгкий "взлёт" вместо мгновенного скачка), плавный переход между вкладками Сообщества, тактильный отклик на вкладках<br>
           v0.4.30 — добавлен экран выбора входа для гостей сразу после согласия с политикой: продолжить как гость, войти по email или по Telegram ID, либо открыть игру в Telegram-боте<br>
           v0.4.29 — вход с других устройств: добавлена заявка по Telegram ID (Настройки → Аккаунт), без сторонних серверов — та же заявка, что и по email, только без привязки почты. Официальный Telegram Login Widget убран (Telegram изменил настройку домена для виджета)<br>
           v0.4.28 — добавлен вход через официальный Telegram Login Widget (позже убран в v0.4.29 — Telegram изменил настройку домена)<br>
