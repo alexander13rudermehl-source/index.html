@@ -834,15 +834,41 @@
     background: var(--bg);
     border: 1px solid var(--line);
     border-radius: 20px;
-    transform: scale(0.94);
+    transform: scale(0.94) translateY(10px);
     opacity: 0;
-    transition: transform .22s cubic-bezier(.2,.8,.2,1), opacity .18s ease;
+    transition: transform .24s cubic-bezier(.2,.8,.2,1), opacity .18s ease;
     max-height: 86vh;
     display:flex;
     flex-direction:column;
     overflow:hidden;
   }
-  .overlay.open .sheet{ transform: scale(1); opacity: 1; }
+  .overlay.open .sheet{ transform: scale(1) translateY(0); opacity: 1; }
+
+  /* ===== переключение вкладок внутри шторок =====
+     Раньше .sheet-view и вкладки Сообщества (#community-view-*) менялись
+     мгновенным display:none/block без всякого перехода. CSS-анимация,
+     навешенная прямо на класс/id, срабатывает заново при каждом переходе
+     из display:none в display:block сама по себе — JS переключения вкладок
+     (showView/showCommunityTab) трогать не пришлось вообще. */
+  @keyframes sheetViewIn{
+    from{ opacity:0; transform: translateY(6px); }
+    to{ opacity:1; transform: translateY(0); }
+  }
+  .sheet-view.active,
+  #community-view-top, #community-view-friends, #community-view-requests, #community-view-clans{
+    animation: sheetViewIn .22s ease;
+  }
+  .tab{ transition: background .18s ease, color .18s ease, transform .1s ease; }
+  .tab:active{ transform: scale(0.95); }
+
+  @media (prefers-reduced-motion: reduce){
+    .sheet{ transition: opacity .15s ease; transform: none !important; }
+    .sheet-view.active,
+    #community-view-top, #community-view-friends, #community-view-requests, #community-view-clans{
+      animation: none;
+    }
+    .tab{ transition: none; }
+  }
 
   .sheet-grabber{ display:none; }
 
@@ -2529,13 +2555,14 @@
         <a href="privacy.html" target="_blank" rel="noopener" style="display:inline-block; background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; text-decoration:none;">Политика конфиденциальности</a>
       </div>
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.4.30 · бета (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.4.31 · бета (LiveKit-ветка)</div>
         Бета-тест · обновлено 12.09.2026<br>
-        <span style="font-size:11px;">Добавлен экран выбора входа для гостей сразу после согласия с политикой: продолжить как гость, войти по email или по Telegram ID, либо открыть игру в Telegram-боте.</span>
+        <span style="font-size:11px;">Полировка анимаций: плавное появление шторок (лёгкий "взлёт" вместо мгновенного скачка), плавный переход между вкладками Сообщества, тактильный отклик на вкладках. Учитывается system-настройка "уменьшить анимацию".</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.4.30 — добавлен экран выбора входа для гостей сразу после согласия с политикой: продолжить как гость, войти по email или по Telegram ID, либо открыть игру в Telegram-боте<br>
           v0.4.29 — вход с других устройств: добавлена заявка по Telegram ID (Настройки → Аккаунт), без сторонних серверов — та же заявка, что и по email, только без привязки почты. Официальный Telegram Login Widget убран (Telegram изменил настройку домена для виджета)<br>
           v0.4.28 — добавлен вход через официальный Telegram Login Widget (позже убран в v0.4.29 — Telegram изменил настройку домена)<br>
           v0.4.27 — добавлен обязательный экран согласия с политикой конфиденциальности — показывается один раз на аккаунт (и существующим, и новым) перед входом в приложение, без возможности закрыть или пропустить<br>
