@@ -1496,6 +1496,43 @@
     <button class="sheet-cta" id="btn-privacy-consent-accept" style="margin-top:0;">Принимаю и продолжаю</button>
   </div>
 </div>
+
+<!-- ===== экран выбора входа для гостей =====
+     Показывается ТОЛЬКО гостям (telegramId начинается с "guest_") сразу
+     после согласия с политикой — реальные Telegram-аккаунты и уже
+     залогиненные через localStorage.battleTelegramId сразу идут в
+     приложение, этот экран им не нужен (см. вызов window.showLoginChoiceGate
+     в конце resolveIdentity().then(...) ниже). Поскольку гостевой ID
+     каждый раз новый (см. комментарий у resolveIdentity), этот экран
+     будет показываться гостю при каждом визите — это осознанно, а не
+     баг: у гостя каждый раз есть шанс войти в свой настоящий аккаунт.
+     Сами поля email/Telegram ID и их обработчики переиспользуют те же
+     функции requestLoginByEmail/requestLoginByTelegramId, что и
+     Настройки → Аккаунт (см. дальше по файлу) — просто с другими id
+     элементов. -->
+<div class="overlay" id="login-choice-overlay" style="background:#000; z-index:1001;">
+  <div style="text-align:center; max-width:320px; width:100%;">
+    <div style="font-size:40px; margin-bottom:12px;">👋</div>
+    <div style="font-family:'Bebas Neue',sans-serif; font-size:24px; letter-spacing:1px; margin-bottom:16px;">Как войти?</div>
+    <button class="sheet-cta secondary" id="btn-login-choice-guest" style="margin-top:0; margin-bottom:16px;">Продолжить как гость</button>
+
+    <div style="text-align:center; color:var(--muted); font-size:12px; margin:14px 0;">или войти в свой аккаунт</div>
+    <div style="text-align:left; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px;">
+      <input type="email" id="login-choice-email-input" placeholder="твой email" autocomplete="email" style="width:100%; box-sizing:border-box; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; color:var(--text); font-size:13px; margin-bottom:8px;">
+      <button id="btn-login-choice-email" style="width:100%; background:var(--gold); border:none; color:#fff; border-radius:10px; padding:11px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer;">Запросить вход</button>
+      <div class="t-desc" id="login-choice-email-status" style="display:none; margin-top:8px; line-height:1.4; text-align:left;"></div>
+    </div>
+    <div style="text-align:center; color:var(--muted); font-size:12px; margin:12px 0;">или</div>
+    <div style="text-align:left; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:16px;">
+      <input type="text" id="login-choice-tgid-input" inputmode="numeric" placeholder="твой Telegram ID (число)" style="width:100%; box-sizing:border-box; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; color:var(--text); font-size:13px; margin-bottom:8px;">
+      <button id="btn-login-choice-tgid" style="width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:11px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer;">Запросить вход по Telegram ID</button>
+      <div class="t-desc" id="login-choice-tgid-status" style="display:none; margin-top:8px; line-height:1.4; text-align:left;"></div>
+      <div class="t-desc" style="margin-top:8px; line-height:1.4; text-align:left;">Свой Telegram ID можно узнать у бота @userinfobot.</div>
+    </div>
+
+    <a href="https://t.me/troll_battle_bot" target="_blank" rel="noopener" style="display:block; color:var(--muted); font-size:12.5px; text-decoration:underline;">Открыть игру в Telegram-боте</a>
+  </div>
+</div>
 <script>
   // Открывает гейт согласия и вызывает continueFn РОВНО после успешной
   // записи privacyAccepted:true в users/<telegramId> — вызывающий код
@@ -1524,6 +1561,23 @@
     // i18n в самом конце файла) — на момент того прохода узел мог быть
     // скрыт, а текст в нём не менялся с тех пор, так что повторный вызов
     // здесь безвреден и приводит переводы в актуальное состояние
+    window.applyTranslations?.(overlay);
+  };
+
+  // Гейт выбора входа для гостей — см. #login-choice-overlay выше.
+  // continueFn — это proceedAfterConsent() из resolveIdentity().then(...),
+  // тот же самый, что вызывается напрямую для не-гостей. Обработчики
+  // email/Telegram-ID полей (requestLoginByEmail/requestLoginByTelegramId)
+  // определены позже по файлу вместе с одноимённым блоком в Настройках —
+  // тут просто вешаем их на кнопки с другими id, никакой отдельной логики.
+  window.showLoginChoiceGate = function (telegramId, continueFn) {
+    const overlay = document.getElementById('login-choice-overlay');
+    const btn = document.getElementById('btn-login-choice-guest');
+    btn.onclick = () => {
+      overlay.classList.remove('open');
+      continueFn();
+    };
+    overlay.classList.add('open');
     window.applyTranslations?.(overlay);
   };
 </script>
@@ -5428,13 +5482,14 @@
         <a href="privacy.html" target="_blank" rel="noopener" style="display:inline-block; background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; text-decoration:none;">Политика конфиденциальности</a>
       </div>
       <div class="version-block">
-        <div class="v-num">MICBATTLE v0.4.29 · бета (LiveKit-ветка)</div>
+        <div class="v-num">MICBATTLE v0.4.30 · бета (LiveKit-ветка)</div>
         Бета-тест · обновлено 12.09.2026<br>
-        <span style="font-size:11px;">Вход с других устройств: добавлена заявка по Telegram ID (Настройки → Аккаунт), без сторонних серверов — та же заявка, что и по email, только без привязки почты. Официальный Telegram Login Widget убран (Telegram изменил настройку домена для виджета).</span>
+        <span style="font-size:11px;">Добавлен экран выбора входа для гостей сразу после согласия с политикой: продолжить как гость, войти по email или по Telegram ID, либо открыть игру в Telegram-боте.</span>
       </div>
       <div style="text-align:center; margin-top:10px;">
         <button id="btn-history-toggle" style="background:none; border:1px solid var(--line); color:var(--muted); font-size:11px; border-radius:8px; padding:4px 10px; cursor:pointer;">Вся история версий</button>
         <div id="version-history-full" style="display:none; text-align:left; font-size:10.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          v0.4.29 — вход с других устройств: добавлена заявка по Telegram ID (Настройки → Аккаунт), без сторонних серверов — та же заявка, что и по email, только без привязки почты. Официальный Telegram Login Widget убран (Telegram изменил настройку домена для виджета)<br>
           v0.4.28 — добавлен вход через официальный Telegram Login Widget (позже убран в v0.4.29 — Telegram изменил настройку домена)<br>
           v0.4.27 — добавлен обязательный экран согласия с политикой конфиденциальности — показывается один раз на аккаунт (и существующим, и новым) перед входом в приложение, без возможности закрыть или пропустить<br>
           v0.4.26 — вход с других устройств переделан: вместо email-ссылки (у Firebase на бесплатном плане суточная квота на письма) — заявка на вход, которую подтверждаешь сам в Сообщество → Запросы. Без пароля, без письма, без ограничений<br>
@@ -5665,12 +5720,13 @@
     return 'браузер';
   }
 
-  // ===== запрос на вход для гостя (без email-ссылки — заявка вместо письма) =====
-  // Ищем, кому принадлежит email (emailLogins/<key>), кладём заявку в
-  // users/<найденный telegramId>/loginRequests и ждём, пока её подтвердят
-  // на самом аккаунте (Сообщество → Запросы, approveLoginRequest ниже).
-  // Тайм-аут ожидания — 5 минут, чтобы забытая заявка не висела вечно в
-  // чужом списке запросов.
+  // ===== запрос на вход (email или Telegram ID) — общая логика =====
+  // Используется и в Настройки → Аккаунт (btn-guest-login/btn-guest-login-tgid),
+  // и на экране выбора входа для гостей (btn-login-choice-email/-tgid, см.
+  // #login-choice-overlay в начале body) — просто с разными id элементов,
+  // сама заявка (loginRequests) и её подтверждение (Сообщество → Запросы,
+  // approveLoginRequest ниже) везде одинаковые. Тайм-аут ожидания — 5 минут,
+  // чтобы забытая заявка не висела вечно в чужом списке запросов.
   let activeLoginRequestPath = null;
   let activeLoginRequestCb = null;
   let activeLoginRequestTimeout = null;
@@ -5681,12 +5737,49 @@
     activeLoginRequestCb = null;
     activeLoginRequestTimeout = null;
   }
-  document.getElementById('btn-guest-login')?.addEventListener('click', async () => {
-    const emailInput = document.getElementById('guest-login-email-input');
+  function sendLoginRequestAndWait(targetTelegramId, statusEl, btn, defaultText) {
+    const reqRef = db.ref('users/' + targetTelegramId + '/loginRequests').push();
+    return reqRef.set({ device: detectBrowserName(), requestedAt: Date.now(), status: 'pending' }).then(() => {
+      const reqPath = 'users/' + targetTelegramId + '/loginRequests/' + reqRef.key;
+      statusEl.style.display = 'block';
+      statusEl.style.color = 'var(--muted)';
+      statusEl.textContent = '⏳ Заявка отправлена — подтверди её в Сообщество → Запросы на устройстве с настоящим Telegram-аккаунтом.';
+      btn.textContent = 'Ждём подтверждения…';
+      activeLoginRequestPath = reqPath;
+      activeLoginRequestCb = db.ref(reqPath).on('value', (snap) => {
+        const val = snap.val();
+        if (!val || val.status === 'pending') return;
+        if (val.status === 'approved') {
+          db.ref(reqPath).remove();
+          window.localStorage.setItem('battleTelegramId', targetTelegramId);
+          statusEl.textContent = '✅ Вход разрешён, обновляем…';
+          stopWaitingForLoginApproval();
+          setTimeout(() => window.location.reload(), 600);
+        } else if (val.status === 'denied') {
+          db.ref(reqPath).remove();
+          statusEl.style.color = 'var(--live)';
+          statusEl.textContent = 'Отклонено на другом устройстве.';
+          stopWaitingForLoginApproval();
+          btn.disabled = false;
+          btn.textContent = defaultText;
+        }
+      });
+      activeLoginRequestTimeout = setTimeout(() => {
+        db.ref(reqPath).once('value').then((s) => { if (s.val()?.status === 'pending') db.ref(reqPath).remove(); });
+        stopWaitingForLoginApproval();
+        statusEl.style.color = 'var(--live)';
+        statusEl.textContent = 'Время ожидания истекло, попробуй ещё раз.';
+        btn.disabled = false;
+        btn.textContent = defaultText;
+      }, 5 * 60 * 1000);
+    });
+  }
+  async function requestLoginByEmail(ids) {
+    const emailInput = document.getElementById(ids.input);
     const email = emailInput.value.trim();
-    const statusEl = document.getElementById('guest-login-status');
+    const statusEl = document.getElementById(ids.status);
     if (!email || !email.includes('@')) { alert('Впиши email'); return; }
-    const btn = document.getElementById('btn-guest-login');
+    const btn = document.getElementById(ids.btn);
     stopWaitingForLoginApproval();
     btn.disabled = true;
     btn.textContent = 'Ищем аккаунт…';
@@ -5698,42 +5791,11 @@
         statusEl.style.display = 'block';
         statusEl.style.color = 'var(--live)';
         statusEl.textContent = 'Эта почта не привязана ни к одному аккаунту.';
+        btn.disabled = false;
+        btn.textContent = ids.defaultText;
         return;
       }
-      const reqRef = db.ref('users/' + targetTelegramId + '/loginRequests').push();
-      await reqRef.set({ device: detectBrowserName(), requestedAt: Date.now(), status: 'pending' });
-      const reqPath = 'users/' + targetTelegramId + '/loginRequests/' + reqRef.key;
-      statusEl.style.display = 'block';
-      statusEl.style.color = 'var(--muted)';
-      statusEl.textContent = '⏳ Заявка отправлена — подтверди её в Сообщество → Запросы на устройстве с настоящим Telegram-аккаунтом.';
-      btn.textContent = 'Ждём подтверждения…';
-      activeLoginRequestPath = reqPath;
-      activeLoginRequestCb = db.ref(reqPath).on('value', (snap) => {
-        const val = snap.val();
-        if (!val || val.status === 'pending') return;
-        if (val.status === 'approved') {
-          db.ref(reqPath).remove();
-          window.localStorage.setItem('battleTelegramId', targetTelegramId);
-          statusEl.textContent = '✅ Вход разрешён, обновляем…';
-          stopWaitingForLoginApproval();
-          setTimeout(() => window.location.reload(), 600);
-        } else if (val.status === 'denied') {
-          db.ref(reqPath).remove();
-          statusEl.style.color = 'var(--live)';
-          statusEl.textContent = 'Отклонено на другом устройстве.';
-          stopWaitingForLoginApproval();
-          btn.disabled = false;
-          btn.textContent = 'Запросить вход';
-        }
-      });
-      activeLoginRequestTimeout = setTimeout(() => {
-        db.ref(reqPath).once('value').then((s) => { if (s.val()?.status === 'pending') db.ref(reqPath).remove(); });
-        stopWaitingForLoginApproval();
-        statusEl.style.color = 'var(--live)';
-        statusEl.textContent = 'Время ожидания истекло, попробуй ещё раз.';
-        btn.disabled = false;
-        btn.textContent = 'Запросить вход';
-      }, 5 * 60 * 1000);
+      await sendLoginRequestAndWait(targetTelegramId, statusEl, btn, ids.defaultText);
     } catch (err) {
       console.error(err);
       window.showDebugError?.('Запрос входа по email', err);
@@ -5741,23 +5803,15 @@
       statusEl.style.color = 'var(--live)';
       statusEl.textContent = 'Не удалось отправить запрос: ' + (err.message || err);
       btn.disabled = false;
-      btn.textContent = 'Запросить вход';
+      btn.textContent = ids.defaultText;
     }
-  });
-
-  // ===== запрос на вход по Telegram ID (та же заявка, что и по email) =====
-  // Тот же самый механизм loginRequests, что и у btn-guest-login выше —
-  // разница только в том, что targetTelegramId берём прямо из поля ввода,
-  // без похода в emailLogins. Отдельного activeLoginRequest*-состояния не
-  // заводим: оба поля on-обмена дают один и тот же tgid-флоу выполняться
-  // параллельно с email-флоу не имеет смысла, поэтому переиспользуем
-  // stopWaitingForLoginApproval/activeLoginRequest* из блока выше.
-  document.getElementById('btn-guest-login-tgid')?.addEventListener('click', async () => {
-    const idInput = document.getElementById('guest-login-tgid-input');
+  }
+  async function requestLoginByTelegramId(ids) {
+    const idInput = document.getElementById(ids.input);
     const targetTelegramId = idInput.value.trim();
-    const statusEl = document.getElementById('guest-login-tgid-status');
+    const statusEl = document.getElementById(ids.status);
     if (!targetTelegramId || !/^\d+$/.test(targetTelegramId)) { alert('Впиши Telegram ID (только цифры)'); return; }
-    const btn = document.getElementById('btn-guest-login-tgid');
+    const btn = document.getElementById(ids.btn);
     stopWaitingForLoginApproval();
     btn.disabled = true;
     btn.textContent = 'Отправляем заявку…';
@@ -5769,43 +5823,10 @@
         statusEl.style.color = 'var(--live)';
         statusEl.textContent = 'Аккаунт с таким Telegram ID не найден.';
         btn.disabled = false;
-        btn.textContent = 'Запросить вход по Telegram ID';
+        btn.textContent = ids.defaultText;
         return;
       }
-      const reqRef = db.ref('users/' + targetTelegramId + '/loginRequests').push();
-      await reqRef.set({ device: detectBrowserName(), requestedAt: Date.now(), status: 'pending' });
-      const reqPath = 'users/' + targetTelegramId + '/loginRequests/' + reqRef.key;
-      statusEl.style.display = 'block';
-      statusEl.style.color = 'var(--muted)';
-      statusEl.textContent = '⏳ Заявка отправлена — подтверди её в Сообщество → Запросы на устройстве с настоящим Telegram-аккаунтом.';
-      btn.textContent = 'Ждём подтверждения…';
-      activeLoginRequestPath = reqPath;
-      activeLoginRequestCb = db.ref(reqPath).on('value', (snap) => {
-        const val = snap.val();
-        if (!val || val.status === 'pending') return;
-        if (val.status === 'approved') {
-          db.ref(reqPath).remove();
-          window.localStorage.setItem('battleTelegramId', targetTelegramId);
-          statusEl.textContent = '✅ Вход разрешён, обновляем…';
-          stopWaitingForLoginApproval();
-          setTimeout(() => window.location.reload(), 600);
-        } else if (val.status === 'denied') {
-          db.ref(reqPath).remove();
-          statusEl.style.color = 'var(--live)';
-          statusEl.textContent = 'Отклонено на другом устройстве.';
-          stopWaitingForLoginApproval();
-          btn.disabled = false;
-          btn.textContent = 'Запросить вход по Telegram ID';
-        }
-      });
-      activeLoginRequestTimeout = setTimeout(() => {
-        db.ref(reqPath).once('value').then((s) => { if (s.val()?.status === 'pending') db.ref(reqPath).remove(); });
-        stopWaitingForLoginApproval();
-        statusEl.style.color = 'var(--live)';
-        statusEl.textContent = 'Время ожидания истекло, попробуй ещё раз.';
-        btn.disabled = false;
-        btn.textContent = 'Запросить вход по Telegram ID';
-      }, 5 * 60 * 1000);
+      await sendLoginRequestAndWait(targetTelegramId, statusEl, btn, ids.defaultText);
     } catch (err) {
       console.error(err);
       window.showDebugError?.('Запрос входа по Telegram ID', err);
@@ -5813,9 +5834,21 @@
       statusEl.style.color = 'var(--live)';
       statusEl.textContent = 'Не удалось отправить запрос: ' + (err.message || err);
       btn.disabled = false;
-      btn.textContent = 'Запросить вход по Telegram ID';
+      btn.textContent = ids.defaultText;
     }
-  });
+  }
+  document.getElementById('btn-guest-login')?.addEventListener('click', () => requestLoginByEmail({
+    input: 'guest-login-email-input', btn: 'btn-guest-login', status: 'guest-login-status', defaultText: 'Запросить вход'
+  }));
+  document.getElementById('btn-guest-login-tgid')?.addEventListener('click', () => requestLoginByTelegramId({
+    input: 'guest-login-tgid-input', btn: 'btn-guest-login-tgid', status: 'guest-login-tgid-status', defaultText: 'Запросить вход по Telegram ID'
+  }));
+  document.getElementById('btn-login-choice-email')?.addEventListener('click', () => requestLoginByEmail({
+    input: 'login-choice-email-input', btn: 'btn-login-choice-email', status: 'login-choice-email-status', defaultText: 'Запросить вход'
+  }));
+  document.getElementById('btn-login-choice-tgid')?.addEventListener('click', () => requestLoginByTelegramId({
+    input: 'login-choice-tgid-input', btn: 'btn-login-choice-tgid', status: 'login-choice-tgid-status', defaultText: 'Запросить вход по Telegram ID'
+  }));
 
   // ===== привязка email (для будущих запросов на вход с других устройств) =====
   // Не проверяет владение почтой (никакого письма) — если email уже
@@ -6900,18 +6933,32 @@
     myPresenceRef.onDisconnect().remove();
     } // конец proceedAfterConsent()
 
+    // Гостям (см. #login-choice-overlay) после согласия показываем экран
+    // выбора входа вместо прямого попадания в приложение — реальные
+    // Telegram-аккаунты и уже залогиненные через localStorage минуют его.
+    const isGuestIdentity = telegramId.startsWith('guest_');
+    function afterConsentAccepted() {
+      if (isGuestIdentity) {
+        window.showLoginChoiceGate?.(telegramId, proceedAfterConsent);
+      } else {
+        proceedAfterConsent();
+      }
+    }
+
     if (userData.privacyAccepted) {
       // уже согласился раньше (в т.ч. только что созданная запись
       // никогда не бывает такой — privacyAccepted не входит в дефолты
-      // выше) — гейт не нужен, идём в приложение как обычно
-      proceedAfterConsent();
+      // выше) — гейт согласия не нужен, но гостю всё равно показываем
+      // выбор входа (afterConsentAccepted сам решает, нужен ли он)
+      if (isGuestIdentity) window.hideBootLoading?.();
+      afterConsentAccepted();
     } else {
       // ни разу не соглашался (это ВСЕ существующие сегодня аккаунты —
       // поля раньше не было — плюс любой новый визитёр) — экран
       // загрузки прячем только после того, как гейт уже открыт поверх
       // него, иначе на миг мелькнёт сырой главный экран (см. тот же
       // приём в showBetaApplicationScreen выше)
-      window.showPrivacyConsentGate?.(telegramId, proceedAfterConsent);
+      window.showPrivacyConsentGate?.(telegramId, afterConsentAccepted);
       window.hideBootLoading?.();
     }
   });
