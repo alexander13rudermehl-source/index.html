@@ -390,5 +390,13 @@
     "playerId" : "PLR-A44LA9",
     "telegramId" : "871656058",
     "userAgent" : "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+  },
+  "-P1IxGOICnkEn2isd1dk" : {
+    "createdAt" : 1789188707944,
+    "firstName" : "Гость",
+    "log" : "[06:51:43] Забрать множитель ивента: Firebase Database (${JSCORE_VERSION}) INTERNAL ASSERT FAILED: listen() called twice for same path/queryId.",
+    "playerId" : "PLR-LBSYQQ",
+    "telegramId" : "guest_5hg7f40",
+    "userAgent" : "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
   }
 }
